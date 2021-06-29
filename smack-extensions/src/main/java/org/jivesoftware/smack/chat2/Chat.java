@@ -19,18 +19,27 @@ package org.jivesoftware.smack.chat2;
 import org.jivesoftware.smack.Manager;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
+import org.jivesoftware.smack.extensions.ChatArchivedExtension;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smack.util.ExceptionCallback;
+import org.jivesoftware.smack.util.SuccessCallback;
 
 import org.jxmpp.jid.EntityBareJid;
-import org.jxmpp.jid.EntityFullJid;
 import org.jxmpp.jid.Jid;
 
 public final class Chat extends Manager {
+    private static final long MESSAGE_TIMEOUT = 30000L;
+
+    public interface StanzaAckListener {
+        void onSuccess(Message message);
+
+        void onError(Message message, Throwable throwable);
+    }
 
     private final EntityBareJid jid;
 
-    volatile EntityFullJid lockedResource;
+    volatile Jid lockedResource;
 
     Presence lastPresenceOfLockedResource;
 
@@ -48,6 +57,24 @@ public final class Chat extends Manager {
 
     public void send(Message message) throws NotConnectedException, InterruptedException {
         switch (message.getType()) {
+            case normal:
+            case chat:
+                break;
+            default:
+                throw new IllegalArgumentException("Message must be of type 'normal' or 'chat'");
+        }
+
+        Jid to = lockedResource;
+        if (to == null) {
+            to = jid;
+        }
+        message.setTo(to);
+
+        connection().sendStanza(message);
+    }
+
+    public void sendWithConfirmation(final Message message, final StanzaAckListener listener) {
+        switch (message.getType()) {
         case normal:
         case chat:
             break;
@@ -61,7 +88,23 @@ public final class Chat extends Manager {
         }
         message.setTo(to);
 
-        connection().sendStanza(message);
+        connection().sendAsync(message, new ChatArchivedExtension.ArchiveIdFilter(message.getStanzaId()), MESSAGE_TIMEOUT)
+                .onSuccess(new SuccessCallback<Message>() {
+                    @Override
+                    public void onSuccess(Message result) {
+                        if (listener != null) {
+                            listener.onSuccess(result);
+                        }
+                    }
+                })
+                .onError(new ExceptionCallback<Exception>() {
+                    @Override
+                    public void processException(Exception exception) {
+                        if (listener != null) {
+                            listener.onError(message, exception);
+                        }
+                    }
+                });
     }
 
     public EntityBareJid getXmppAddressOfChatPartner() {

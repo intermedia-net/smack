@@ -582,4 +582,10 @@
       <className>org.jivesoftware.smackx.jingle.provider.JingleErrorProvider</className>
     </extensionProvider>
 
+    <extensionProvider>
+      <elementName>archived</elementName>
+      <namespace>ips:xmpp:xmam</namespace>
+      <className>org.jivesoftware.smack.extensions.ChatArchivedExtensionProvider</className>
+    </extensionProvider>
+
 </smackProviders>

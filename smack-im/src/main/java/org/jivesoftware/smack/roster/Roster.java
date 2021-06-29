@@ -951,7 +951,8 @@ public final class Roster extends Manager {
             // This is used in case no available presence is found
             Presence unavailable = null;
 
-            for (Presence p : userPresences.values()) {
+            for (Resourcepart resource : userPresences.keySet()) {
+                Presence p = userPresences.get(resource);
                 if (!p.isAvailable()) {
                     unavailable = p;
                     continue;

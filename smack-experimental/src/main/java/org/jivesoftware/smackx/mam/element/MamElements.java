@@ -23,7 +23,7 @@ import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.XmlStringBuilder;
-
+import org.jivesoftware.smackx.delay.packet.DelayInformation;
 import org.jivesoftware.smackx.forward.packet.Forwarded;
 
 import org.jxmpp.jid.Jid;
@@ -38,7 +38,7 @@ import org.jxmpp.jid.Jid;
  */
 public class MamElements {
 
-    public static final String NAMESPACE = "urn:xmpp:mam:1";
+    public static final String NAMESPACE = "urn:xmpp:mam:2";
 
     /**
      * MAM result extension class.
@@ -65,6 +65,11 @@ public class MamElements {
         private final Forwarded forwarded;
 
         /**
+         * the message element.
+         */
+        private final Message message;
+
+        /**
          * the query id.
          */
         private String queryId;
@@ -85,6 +90,21 @@ public class MamElements {
             }
             this.id = id;
             this.forwarded = forwarded;
+            this.message = null;
+            this.queryId = queryId;
+        }
+
+        public MamResultExtension(String queryId, String id, Message message, DelayInformation delayInformation) {
+            if (StringUtils.isEmpty(id)) {
+                throw new IllegalArgumentException("id must not be null or empty");
+            }
+            if (message == null) {
+                throw new IllegalArgumentException("forwarded must no be null");
+            }
+            this.id = id;
+            if (delayInformation != null) message.addExtension(delayInformation);
+            this.message = message;
+            this.forwarded = null;
             this.queryId = queryId;
         }
 
@@ -104,6 +124,10 @@ public class MamElements {
          */
         public Forwarded getForwarded() {
             return forwarded;
+        }
+
+        public Message getMessage() {
+            return message;
         }
 
         /**

@@ -16,8 +16,11 @@
  */
 package org.jivesoftware.smackx.mam.provider;
 
+import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
-
+import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smackx.delay.packet.DelayInformation;
+import org.jivesoftware.smackx.delay.provider.DelayInformationProvider;
 import org.jivesoftware.smackx.forward.packet.Forwarded;
 import org.jivesoftware.smackx.forward.provider.ForwardedProvider;
 import org.jivesoftware.smackx.mam.element.MamElements.MamResultExtension;
@@ -33,22 +36,34 @@ import org.xmlpull.v1.XmlPullParser;
  *
  */
 public class MamResultProvider extends ExtensionElementProvider<MamResultExtension> {
+    public static final MamResultProvider INSTANCE = new MamResultProvider();
 
     @Override
     public MamResultExtension parse(XmlPullParser parser, int initialDepth) throws Exception {
         Forwarded forwarded = null;
+        Message message = null;
+        DelayInformation di = null;
         String queryId = parser.getAttributeValue("", "queryid");
         String id = parser.getAttributeValue("", "id");
 
         outerloop: while (true) {
             final int eventType = parser.next();
             final String name = parser.getName();
+            String namespace = parser.getNamespace();
             switch (eventType) {
             case XmlPullParser.START_TAG:
                 switch (name) {
-                case Forwarded.ELEMENT:
-                    forwarded = ForwardedProvider.INSTANCE.parse(parser);
-                    break;
+                    case Forwarded.ELEMENT:
+                        forwarded = ForwardedProvider.INSTANCE.parse(parser);
+                        break;
+                    case DelayInformation.ELEMENT:
+                        if (DelayInformation.NAMESPACE.equals(namespace)) {
+                            di = DelayInformationProvider.INSTANCE.parse(parser, parser.getDepth());
+                        }
+                        break;
+                    case Message.ELEMENT:
+                        message = PacketParserUtils.parseMessage(parser);
+                        break;
                 }
                 break;
             case XmlPullParser.END_TAG:
@@ -59,7 +74,11 @@ public class MamResultProvider extends ExtensionElementProvider<MamResultExtensi
             }
         }
 
-        return new MamResultExtension(queryId, id, forwarded);
+        if (message != null) {
+            return new MamResultExtension(queryId, id, message, di);
+        } else {
+            return new MamResultExtension(queryId, id, forwarded);
+        }
     }
 
 }

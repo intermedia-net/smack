@@ -32,18 +32,18 @@ import org.junit.Test;
 
 public class MamQueryIQProviderTest {
 
-    private static final String exampleMamQueryIQ1 = "<iq type='set' id='query4'>" + "<query xmlns='urn:xmpp:mam:1' queryid='test'>"
+    private static final String exampleMamQueryIQ1 = "<iq type='set' id='query4'>" + "<query xmlns='urn:xmpp:mam:2' queryid='test'>"
             + "<x xmlns='jabber:x:data' type='submit'>" + "<field type='hidden' var='FORM_TYPE'>"
-            + "<value>urn:xmpp:mam:1</value>" + "</field>"
+            + "<value>urn:xmpp:mam:2</value>" + "</field>"
             + "<field type='text-single' var='urn:example:xmpp:free-text-search'>"
             + "<value>Where arth thou, my Juliet?</value>" + "</field>"
             + "<field type='text-single' var='urn:example:xmpp:stanza-content'>"
             + "<value>{http://jabber.org/protocol/mood}mood/lonely</value>" + "</field>" + "</x>" + "</query>"
             + "</iq>";
 
-    private static final String exampleMamQueryIQ2 = "<iq type='result' id='form1'>" + "<query xmlns='urn:xmpp:mam:1'>"
+    private static final String exampleMamQueryIQ2 = "<iq type='result' id='form1'>" + "<query xmlns='urn:xmpp:mam:2'>"
             + "<x xmlns='jabber:x:data' type='form'>" + "<field type='hidden' var='FORM_TYPE'>"
-            + "<value>urn:xmpp:mam:1</value>" + "</field>" + "<field type='jid-single' var='with'/>"
+            + "<value>urn:xmpp:mam:2</value>" + "</field>" + "<field type='jid-single' var='with'/>"
             + "<field type='text-single' var='start'/>" + "<field type='text-single' var='end'/>"
             + "<field type='text-single' var='urn:example:xmpp:free-text-search'/>"
             + "<field type='text-single' var='urn:example:xmpp:stanza-content'/>" + "</x>" + "</query>" + "</iq>";
@@ -77,7 +77,7 @@ public class MamQueryIQProviderTest {
         Assert.assertEquals(dataForm2.getType(), DataForm.Type.form);
 
         List<FormField> fields2 = dataForm2.getFields();
-        Assert.assertEquals(fields2.get(0).getValues().get(0), "urn:xmpp:mam:1");
+        Assert.assertEquals(fields2.get(0).getValues().get(0), "urn:xmpp:mam:2");
         Assert.assertTrue(fields2.get(0).getValues().size() == 1);
         Assert.assertEquals(fields2.get(1).getType(), FormField.Type.jid_single);
         Assert.assertEquals(fields2.get(2).getType(), FormField.Type.text_single);

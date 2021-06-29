@@ -40,25 +40,26 @@ public class MamFinIQProvider extends IQProvider<MamFinIQ> {
         String queryId = parser.getAttributeValue("", "queryid");
         boolean complete = ParserUtils.getBooleanAttribute(parser, "complete", false);
         boolean stable = ParserUtils.getBooleanAttribute(parser, "stable", true);
-        RSMSet rsmSet = null;
+        final MamFinIQ mamFinIQ = new MamFinIQ(queryId, complete, stable);
 
         outerloop: while (true) {
             int eventType = parser.next();
+            String name = parser.getName();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
-                if (parser.getName().equals(RSMSet.ELEMENT)) {
-                    rsmSet = RSMSetProvider.INSTANCE.parse(parser);
-                }
-                break;
-            case XmlPullParser.END_TAG:
-                if (parser.getDepth() == initialDepth) {
-                    break outerloop;
-                }
-                break;
+                case XmlPullParser.START_TAG:
+                    if (RSMSet.ELEMENT.equals(name)) {
+                        mamFinIQ.setRsmSet(RSMSetProvider.INSTANCE.parse(parser));
+                    }
+                    break;
+                case XmlPullParser.END_TAG:
+                    if (parser.getDepth() == initialDepth) {
+                        break outerloop;
+                    }
+                    break;
             }
         }
 
-        return new MamFinIQ(queryId, rsmSet, complete, stable);
+        return mamFinIQ;
     }
 
 }

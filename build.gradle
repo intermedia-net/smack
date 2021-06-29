@@ -7,7 +7,7 @@ buildscript {
         maven { url 'https://dl.bintray.com/content/aalmiray/kordamp' }
     }
     dependencies {
-        classpath 'org.kordamp:markdown-gradle-plugin:1.0.0'
+        classpath 'org.kordamp:markdown-gradle-plugin:1.2.0'
 		classpath 'org.kordamp.gradle:clirr-gradle-plugin:0.2.2'
 		classpath "org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.3.1"
 		classpath 'net.ltgt.gradle:gradle-errorprone-plugin:0.0.13'
@@ -37,9 +37,6 @@ allprojects {
 		rootConfigDir = new File(rootDir, 'config')
 		sonatypeCredentialsAvailable = project.hasProperty('sonatypeUsername') && project.hasProperty('sonatypePassword')
 		isReleaseVersion = !isSnapshot
-		signingRequired = isReleaseVersion
-		sonatypeSnapshotUrl = 'https://oss.sonatype.org/content/repositories/snapshots'
-		sonatypeStagingUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2'
 		// Returns only the date in yyyy-MM-dd format, as otherwise, with
 		// hh:mm:ss information, the manifest files would change with every
 		// build, causing unnecessary rebuilds.
@@ -100,7 +97,7 @@ allprojects {
 		androidJavadocOffline = getAndroidJavadocOffline()
 		junitVersion = '5.2.0'
 	}
-	group = 'org.igniterealtime.smack'
+	group = 'com.intermedia.smack'
 	sourceCompatibility = 1.7
 	targetCompatibility = sourceCompatibility
 	version = shortVersion
@@ -357,14 +354,17 @@ subprojects {
 				if (signingRequired) {
 					beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 				}
-				repository(url: project.sonatypeStagingUrl) {
-					if (sonatypeCredentialsAvailable) {
-						authentication(userName: sonatypeUsername, password: sonatypePassword)
+
+				if (sonatypeCredentialsAvailable) {
+					repository(url: sonatypeStagingUrl) {
+						if (sonatypeCredentialsAvailable) {
+							authentication(userName: sonatypeUsername, password: sonatypePassword)
+						}
 					}
-				}
-				snapshotRepository(url: project.sonatypeSnapshotUrl) {
-					if (sonatypeCredentialsAvailable) {
-						authentication(userName: sonatypeUsername, password: sonatypePassword)
+					snapshotRepository(url: sonatypeSnapshotUrl) {
+						if (sonatypeCredentialsAvailable) {
+							authentication(userName: sonatypeUsername, password: sonatypePassword)
+						}
 					}
 				}
 
@@ -380,10 +380,12 @@ subprojects {
 						url 'https://igniterealtime.org/issues/browse/SMACK'
 					}
 
-					distributionManagement {
-						snapshotRepository {
-							id 'smack.snapshot'
-							url project.sonatypeSnapshotUrl
+					if (sonatypeCredentialsAvailable) {
+						distributionManagement {
+							snapshotRepository {
+								id 'smack.snapshot'
+								url sonatypeSnapshotUrl
+							}
 						}
 					}
 

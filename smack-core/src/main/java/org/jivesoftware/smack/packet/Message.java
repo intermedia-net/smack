@@ -63,6 +63,7 @@ public final class Message extends Stanza implements TypedCloneable<Message> {
     public static final String BODY = "body";
 
     private Type type;
+    private SubType subType;
     private String thread = null;
 
     private final Set<Subject> subjects = new HashSet<Subject>();
@@ -139,6 +140,7 @@ public final class Message extends Stanza implements TypedCloneable<Message> {
     public Message(Message other) {
         super(other);
         this.type = other.type;
+        this.subType = other.subType;
         this.thread = other.thread;
         this.subjects.addAll(other.subjects);
     }
@@ -163,6 +165,17 @@ public final class Message extends Stanza implements TypedCloneable<Message> {
      */
     public void setType(Type type) {
         this.type = type;
+    }
+
+    public SubType getSubType() {
+        if (subType == null) {
+            return SubType.regular;
+        }
+        return subType;
+    }
+
+    public void setSubType(final SubType subType) {
+        this.subType = subType;
     }
 
     /**
@@ -474,6 +487,9 @@ public final class Message extends Stanza implements TypedCloneable<Message> {
         if (type != null) {
             sb.append("type=").append(type).append(',');
         }
+        if (subType != null) {
+            sb.append("subtype=").append(subType).append(',');
+        }
         sb.append(']');
         return sb.toString();
     }
@@ -484,6 +500,7 @@ public final class Message extends Stanza implements TypedCloneable<Message> {
         buf.halfOpenElement(ELEMENT);
         enclosingNamespace = addCommonAttributes(buf, enclosingNamespace);
         buf.optAttribute("type", type);
+        buf.optAttribute("subtype", subType);
         buf.rightAngleBracket();
 
         // Add the subject in the default language
@@ -762,4 +779,19 @@ public final class Message extends Stanza implements TypedCloneable<Message> {
         }
 
     }
+
+    public enum SubType {
+
+        regular, attachment, sms, meeting;
+
+        public static SubType fromString(String string) {
+            try {
+                return SubType.valueOf(string.toLowerCase(Locale.US));
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        }
+
+    }
+
 }

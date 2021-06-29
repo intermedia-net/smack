@@ -39,6 +39,8 @@ import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.chat.ChatMessageListener;
+import org.jivesoftware.smack.chat2.Chat;
+import org.jivesoftware.smack.extensions.ChatArchivedExtension;
 import org.jivesoftware.smack.filter.AndFilter;
 import org.jivesoftware.smack.filter.FromMatchesFilter;
 import org.jivesoftware.smack.filter.MessageTypeFilter;
@@ -57,8 +59,9 @@ import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.util.ExceptionCallback;
 import org.jivesoftware.smack.util.Objects;
-
+import org.jivesoftware.smack.util.SuccessCallback;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 import org.jivesoftware.smackx.iqregister.packet.Registration;
@@ -106,11 +109,13 @@ import org.jxmpp.util.cache.ExpirationCache;
  * @author Larry Kirschner
  * @author Florian Schmaus
  */
+@SuppressWarnings("ALL")
 public class MultiUserChat {
     private static final Logger LOGGER = Logger.getLogger(MultiUserChat.class.getName());
 
     private static final ExpirationCache<DomainBareJid, Void> KNOWN_MUC_SERVICES = new ExpirationCache<>(
                     100, 1000 * 60 * 60 * 24);
+    private static final long MESSAGE_SEND_TIMEOUT = 30000L;
 
     private final XMPPConnection connection;
     private final EntityBareJid room;
@@ -205,6 +210,7 @@ public class MultiUserChat {
                 final Presence presence = (Presence) packet;
                 final EntityFullJid from = presence.getFrom().asEntityFullJidIfPossible();
                 if (from == null) {
+                    LOGGER.warning("Presence not from a full JID: " + presence.getFrom());
                     return;
                 }
                 final EntityFullJid myRoomJID = myRoomJid;
@@ -312,6 +318,12 @@ public class MultiUserChat {
         return room;
     }
 
+    public void setRoomJoined() throws XMPPErrorException, NotAMucServiceException, NotConnectedException, InterruptedException, NoResponseException {
+        setupListeners();
+        joined = true;
+        multiUserChatManager.addJoinedRoom(room);
+    }
+
     /**
      * Enter a room, as described in XEP-45 7.2.
      *
@@ -326,37 +338,11 @@ public class MultiUserChat {
      */
     private Presence enter(MucEnterConfiguration conf) throws NotConnectedException, NoResponseException,
                     XMPPErrorException, InterruptedException, NotAMucServiceException {
-        final DomainBareJid mucService = room.asDomainBareJid();
-        if (!KNOWN_MUC_SERVICES.containsKey(mucService)) {
-            if (multiUserChatManager.providesMucService(mucService)) {
-                KNOWN_MUC_SERVICES.put(mucService, null);
-            } else {
-                throw new NotAMucServiceException(this);
-            }
-        }
+        setupListeners();
+
         // We enter a room by sending a presence packet where the "to"
         // field is in the form "roomName@service/nickname"
         Presence joinPresence = conf.getJoinPresence(this);
-
-        // Setup the messageListeners and presenceListeners *before* the join presence is send.
-        connection.addSyncStanzaListener(messageListener, fromRoomGroupchatFilter);
-        connection.addSyncStanzaListener(presenceListener, new AndFilter(fromRoomFilter,
-                        StanzaTypeFilter.PRESENCE));
-        // @formatter:off
-        connection.addSyncStanzaListener(subjectListener,
-                        new AndFilter(fromRoomFilter,
-                                      MessageWithSubjectFilter.INSTANCE,
-                                      new NotFilter(MessageTypeFilter.ERROR),
-                                      // According to XEP-0045 § 8.1 "A message with a <subject/> and a <body/> or a <subject/> and a <thread/> is a
-                                      // legitimate message, but it SHALL NOT be interpreted as a subject change."
-                                      new NotFilter(MessageWithBodiesFilter.INSTANCE),
-                                      new NotFilter(MessageWithThreadFilter.INSTANCE))
-                        );
-        // @formatter:on
-        connection.addSyncStanzaListener(declinesListener, new AndFilter(fromRoomFilter, DECLINE_FILTER));
-        connection.addStanzaInterceptor(presenceInterceptor, new AndFilter(ToMatchesFilter.create(room),
-                        StanzaTypeFilter.PRESENCE));
-        messageCollector = connection.createStanzaCollector(fromRoomGroupchatFilter);
 
         // Wait for a presence packet back from the server.
         // @formatter:off
@@ -364,9 +350,9 @@ public class MultiUserChat {
                         new OrFilter(
                             // We use a bare JID filter for positive responses, since the MUC service/room may rewrite the nickname.
                             new AndFilter(FromMatchesFilter.createBare(getRoom()), MUCUserStatusCodeFilter.STATUS_110_PRESENCE_TO_SELF),
-                            // In case there is an error reply, we match on an error presence with the same stanza id and from the full
+                            // In case there is an error reply, we match on an error presence with the same stanza id and from the bare
                             // JID we send the join presence to.
-                            new AndFilter(FromMatchesFilter.createFull(joinPresence.getTo()), new StanzaIdFilter(joinPresence), PresenceTypeFilter.ERROR)
+                            new AndFilter(FromMatchesFilter.createBare(joinPresence.getTo()), new StanzaIdFilter(joinPresence), PresenceTypeFilter.ERROR)
                         )
                     );
         // @formatter:on
@@ -390,6 +376,35 @@ public class MultiUserChat {
         // Update the list of joined rooms
         multiUserChatManager.addJoinedRoom(room);
         return presence;
+    }
+
+    private void setupListeners() throws XMPPErrorException, NotConnectedException, InterruptedException, NoResponseException, NotAMucServiceException {
+        final DomainBareJid mucService = room.asDomainBareJid();
+        if (!KNOWN_MUC_SERVICES.containsKey(mucService)) {
+            if (multiUserChatManager.providesMucService(mucService)) {
+                KNOWN_MUC_SERVICES.put(mucService, null);
+            } else {
+                throw new NotAMucServiceException(this);
+            }
+        }
+
+        // Setup the messageListeners and presenceListeners *before* the join presence is send.
+        connection.addSyncStanzaListener(messageListener, fromRoomGroupchatFilter);
+        connection.addSyncStanzaListener(presenceListener, new AndFilter(fromRoomFilter, StanzaTypeFilter.PRESENCE));
+        // @formatter:off
+        connection.addSyncStanzaListener(subjectListener,
+                new AndFilter(fromRoomFilter,
+                        MessageWithSubjectFilter.INSTANCE,
+                        new NotFilter(MessageTypeFilter.ERROR),
+                        // According to XEP-0045 § 8.1 "A message with a <subject/> and a <body/> or a <subject/> and a <thread/> is a
+                        // legitimate message, but it SHALL NOT be interpreted as a subject change."
+                        new NotFilter(MessageWithBodiesFilter.INSTANCE),
+                        new NotFilter(MessageWithThreadFilter.INSTANCE))
+        );
+        // @formatter:on
+        connection.addSyncStanzaListener(declinesListener, new AndFilter(fromRoomFilter, DECLINE_FILTER));
+        connection.addStanzaInterceptor(presenceInterceptor, new AndFilter(ToMatchesFilter.create(room), StanzaTypeFilter.PRESENCE));
+        messageCollector = connection.createStanzaCollector(fromRoomGroupchatFilter);
     }
 
     private void setNickname(Resourcepart nickname) {
@@ -1944,6 +1959,33 @@ public class MultiUserChat {
         message.setTo(room);
         message.setType(Message.Type.groupchat);
         connection.sendStanza(message);
+    }
+
+    /**
+     * Sends a Message to the chat room.
+     *
+     * @param message the message.
+     */
+    public void sendMessageWithConfirmation(final Message message, final Chat.StanzaAckListener listener) {
+        message.setTo(room);
+        message.setType(Message.Type.groupchat);
+        connection.sendAsync(message, new ChatArchivedExtension.ArchiveIdFilter(message.getStanzaId()), MESSAGE_SEND_TIMEOUT)
+                .onSuccess(new SuccessCallback<Message>() {
+                    @Override
+                    public void onSuccess(Message result) {
+                        if (listener != null) {
+                            listener.onSuccess(result);
+                        }
+                    }
+                })
+                .onError(new ExceptionCallback<Exception>() {
+                    @Override
+                    public void processException(Exception exception) {
+                        if (listener != null) {
+                            listener.onError(message, exception);
+                        }
+                    }
+                });
     }
 
     /**

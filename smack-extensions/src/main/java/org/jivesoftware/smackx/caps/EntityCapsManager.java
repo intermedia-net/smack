@@ -56,6 +56,7 @@ import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.stringencoder.Base64;
 
+import org.jivesoftware.smackx.caps.cache.DiscoveryItemsPersistentCache;
 import org.jivesoftware.smackx.caps.cache.EntityCapsPersistentCache;
 import org.jivesoftware.smackx.caps.packet.CapsExtension;
 import org.jivesoftware.smackx.disco.AbstractNodeInformationProvider;
@@ -95,6 +96,7 @@ public final class EntityCapsManager extends Manager {
     private static String DEFAULT_ENTITY_NODE = "http://www.igniterealtime.org/projects/smack";
 
     protected static EntityCapsPersistentCache persistentCache;
+    protected static DiscoveryItemsPersistentCache discoveryItemsPersistentCache;
 
     private static boolean autoEnableEntityCaps = true;
 
@@ -259,6 +261,23 @@ public final class EntityCapsManager extends Manager {
      */
     public static void setPersistentCache(EntityCapsPersistentCache cache) {
         persistentCache = cache;
+    }
+
+    public static EntityCapsPersistentCache getPersistentCache() {
+        return persistentCache;
+    }
+
+    /**
+     * Set the discovery items persistent cache implementation.
+     *
+     * @param cache
+     */
+    public static void setDiscoveryItemsPersistentCache(DiscoveryItemsPersistentCache cache) {
+        discoveryItemsPersistentCache = cache;
+    }
+
+    public static DiscoveryItemsPersistentCache getDiscoveryItemsPersistentCache() {
+        return discoveryItemsPersistentCache;
     }
 
     /**
