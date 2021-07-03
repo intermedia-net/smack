@@ -75,6 +75,7 @@ public final class ServiceDiscoveryManager extends Manager {
     private static final String DEFAULT_IDENTITY_TYPE = "pc";
 
     private static final List<DiscoInfoLookupShortcutMechanism> discoInfoLookupShortcutMechanisms = new ArrayList<>(2);
+    private static final List<DiscoItemsLookupShortcutMechanism> discoItemsLookupShortcutMechanisms = new ArrayList<>(2);
 
     private static DiscoverInfo.Identity defaultIdentity = new Identity(DEFAULT_IDENTITY_CATEGORY,
             DEFAULT_IDENTITY_NAME, DEFAULT_IDENTITY_TYPE);
@@ -544,6 +545,21 @@ public final class ServiceDiscoveryManager extends Manager {
      * @throws InterruptedException
      */
     public DiscoverItems discoverItems(Jid entityID) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException  {
+        if (entityID == null) {
+            return discoverItems(null, null);
+        }
+
+        synchronized (discoItemsLookupShortcutMechanisms) {
+            for (DiscoItemsLookupShortcutMechanism discoInfoLookupShortcutMechanism : discoItemsLookupShortcutMechanisms) {
+                DiscoverItems items = discoInfoLookupShortcutMechanism.getDiscoverItemsByUser(this, entityID);
+                if (items != null) {
+                    // We were able to retrieve the information from Entity Caps and
+                    // avoided a disco request, hurray!
+                    return items;
+                }
+            }
+        }
+
         return discoverItems(entityID, null);
     }
 
@@ -947,6 +963,19 @@ public final class ServiceDiscoveryManager extends Manager {
     public static void removeDiscoInfoLookupShortcutMechanism(DiscoInfoLookupShortcutMechanism discoInfoLookupShortcutMechanism) {
         synchronized (discoInfoLookupShortcutMechanisms) {
             discoInfoLookupShortcutMechanisms.remove(discoInfoLookupShortcutMechanism);
+        }
+    }
+
+    public static void addDiscoItemsLookupShortcutMechanism(DiscoItemsLookupShortcutMechanism discoItemsLookupShortcutMechanism) {
+        synchronized (discoItemsLookupShortcutMechanisms) {
+            discoItemsLookupShortcutMechanisms.add(discoItemsLookupShortcutMechanism);
+            Collections.sort(discoItemsLookupShortcutMechanisms);
+        }
+    }
+
+    public static void removeDiscoItemsLookupShortcutMechanism(DiscoItemsLookupShortcutMechanism discoItemsLookupShortcutMechanism) {
+        synchronized (discoItemsLookupShortcutMechanisms) {
+            discoItemsLookupShortcutMechanisms.remove(discoItemsLookupShortcutMechanism);
         }
     }
 }

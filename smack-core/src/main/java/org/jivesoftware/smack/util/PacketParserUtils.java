@@ -230,6 +230,10 @@ public class PacketParserUtils {
         if (typeString != null) {
             message.setType(Message.Type.fromString(typeString));
         }
+        String subTypeString = parser.getAttributeValue("", "subtype");
+        if (subTypeString != null) {
+            message.setSubType(Message.SubType.fromString(subTypeString));
+        }
         String language = ParserUtils.getXmlLang(parser);
         message.setLanguage(language);
 
@@ -602,6 +606,7 @@ public class PacketParserUtils {
 
             switch (eventType) {
             case XmlPullParser.START_TAG:
+                IQProvider<IQ> provider;
                 String elementName = parser.getName();
                 String namespace = parser.getNamespace();
                 switch (elementName) {
@@ -611,13 +616,14 @@ public class PacketParserUtils {
                 // Otherwise, see if there is a registered provider for
                 // this element name and namespace.
                 default:
-                    IQProvider<IQ> provider = ProviderManager.getIQProvider(elementName, namespace);
+                    provider = ProviderManager.getIQProvider(elementName, namespace);
                     if (provider != null) {
-                            iqPacket = provider.parse(parser);
-                    }
-                    // Note that if we reach this code, it is guranteed that the result IQ contained a child element
-                    // (RFC 6120 § 8.2.3 6) because otherwhise we would have reached the END_TAG first.
-                    else {
+                        iqPacket = provider.parse(parser);
+                        // Note that if we reach this code, it is guranteed that the result IQ contained a child element
+                        // (RFC 6120 § 8.2.3 6) because otherwhise we would have reached the END_TAG first.
+                    } else if (iqPacket != null && ProviderManager.getExtensionProvider(elementName, namespace) != null) {
+                        addExtensionElement(iqPacket, parser, elementName, namespace);
+                    } else {
                         // No Provider found for the IQ stanza, parse it to an UnparsedIQ instance
                         // so that the content of the IQ can be examined later on
                         iqPacket = new UnparsedIQ(elementName, namespace, parseElement(parser));

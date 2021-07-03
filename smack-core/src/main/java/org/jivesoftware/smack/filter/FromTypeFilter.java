@@ -28,6 +28,8 @@ public final class FromTypeFilter extends AbstractJidTypeFilter {
     public static final FromTypeFilter DOMAIN_BARE_JID = new FromTypeFilter(JidType.domainBare);
     public static final FromTypeFilter FROM_ANY_JID = new FromTypeFilter(JidType.any);
 
+    public static final StanzaFilter ENTITY_FULL_OR_BARE_JID = new OrFilter(ENTITY_FULL_JID, ENTITY_BARE_JID);
+
     private FromTypeFilter(JidType jidType) {
         super(jidType);
     }

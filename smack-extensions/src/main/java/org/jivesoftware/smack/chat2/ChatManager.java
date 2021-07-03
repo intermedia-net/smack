@@ -24,11 +24,11 @@ import java.util.concurrent.CopyOnWriteArraySet;
 
 import org.jivesoftware.smack.AsyncButOrdered;
 import org.jivesoftware.smack.Manager;
-import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.StanzaListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.filter.AndFilter;
 import org.jivesoftware.smack.filter.FromTypeFilter;
+import org.jivesoftware.smack.filter.MessageSubTypeFilter;
 import org.jivesoftware.smack.filter.MessageTypeFilter;
 import org.jivesoftware.smack.filter.MessageWithBodiesFilter;
 import org.jivesoftware.smack.filter.OrFilter;
@@ -84,6 +84,10 @@ public final class ChatManager extends Manager {
                     MESSAGE_FILTER,
                     FromTypeFilter.ENTITY_FULL_JID
                     );
+    private static final StanzaFilter INCOMING_SMS_FILTER = new AndFilter(
+                    new AndFilter(MessageTypeFilter.NORMAL_OR_CHAT, MessageWithBodiesFilter.INSTANCE, MessageSubTypeFilter.SMS),
+                    FromTypeFilter.ENTITY_FULL_OR_BARE_JID
+                    );
     // @FORMATTER:ON
 
     private final Map<EntityBareJid, Chat> chats = new ConcurrentHashMap<>();
@@ -102,15 +106,15 @@ public final class ChatManager extends Manager {
             @Override
             public void processStanza(Stanza stanza) {
                 final Message message = (Message) stanza;
-                if (!shouldAcceptMessage(message)) {
+                if (!ChatManager.this.shouldAcceptMessage(message)) {
                     return;
                 }
 
                 final Jid from = message.getFrom();
-                final EntityFullJid fullFrom = from.asEntityFullJidOrThrow();
-                final EntityBareJid bareFrom = fullFrom.asEntityBareJid();
-                final Chat chat = chatWith(bareFrom);
-                chat.lockedResource = fullFrom;
+                final EntityFullJid fullFrom = from.asEntityFullJidIfPossible();
+                final EntityBareJid bareFrom = from.asEntityBareJidOrThrow();
+                final Chat chat = ChatManager.this.chatWith(bareFrom);
+                chat.lockedResource = fullFrom == null ? bareFrom : fullFrom;
 
                 asyncButOrdered.performAsyncButOrdered(chat, new Runnable() {
                     @Override
@@ -122,18 +126,18 @@ public final class ChatManager extends Manager {
                 });
 
             }
-        }, INCOMING_MESSAGE_FILTER);
+        }, new OrFilter(INCOMING_SMS_FILTER, INCOMING_MESSAGE_FILTER));
 
         connection.addStanzaInterceptor(new StanzaListener() {
             @Override
-            public void processStanza(Stanza stanza) throws NotConnectedException, InterruptedException {
+            public void processStanza(Stanza stanza) {
                 Message message = (Message) stanza;
-                if (!shouldAcceptMessage(message)) {
+                if (!ChatManager.this.shouldAcceptMessage(message)) {
                     return;
                 }
 
                 final EntityBareJid to = message.getTo().asEntityBareJidOrThrow();
-                final Chat chat = chatWith(to);
+                final Chat chat = ChatManager.this.chatWith(to);
 
                 for (OutgoingChatMessageListener listener : outgoingListeners) {
                     listener.newOutgoingMessage(to, message, chat);

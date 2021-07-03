@@ -35,11 +35,7 @@ public class XmlUtil {
     private static final TransformerFactory transformerFactory = TransformerFactory.newInstance();
 
     static {
-        try {
-            transformerFactory.setAttribute("indent-number", 2);
-        } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.INFO, "XML TransformerFactory does not support indent-number attribute", e);
-        }
+        transformerFactory.setAttribute("indent-number", 2);
     }
 
     public static String prettyFormatXml(CharSequence xml) {

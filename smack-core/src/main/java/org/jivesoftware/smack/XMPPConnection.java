@@ -423,6 +423,14 @@ public interface XMPPConnection {
     void removeStanzaInterceptor(StanzaListener stanzaInterceptor);
 
     /**
+     * Returns the current value of the reply timeout in milliseconds for Message archive
+     * request for this XMPPConnection instance.
+     *
+     * @return the reply timeout in milliseconds
+     */
+    long getMAMReplyTimeout();
+
+    /**
      * Returns the current value of the reply timeout in milliseconds for request for this
      * XMPPConnection instance.
      *

@@ -1,7 +1,9 @@
 Smack
 =====
 
-[![Build Status](https://travis-ci.org/igniterealtime/Smack.svg?branch=master)](https://travis-ci.org/igniterealtime/Smack)  [![Coverage Status](https://coveralls.io/repos/igniterealtime/Smack/badge.svg)](https://coveralls.io/r/igniterealtime/Smack)  [![Project Stats](https://www.openhub.net/p/smackxmpp/widgets/project_thin_badge.gif)](https://www.openhub.net/p/smackxmpp) [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/thing/3480125)  [![Visit our IRC channel](https://kiwiirc.com/buttons/irc.freenode.net/smack.png)](https://kiwiirc.com/client/irc.freenode.net/smack)
+_It is a fork of original [Smack](https://github.com/igniterealtime/Smack) library._
+
+[![Build Status](https://github.com/intermedia-net/smack/workflows/CI/badge.svg)](https://github.com/intermedia-net/smack/actions?query=workflow%3A%22CI%22)
 
 About
 -----

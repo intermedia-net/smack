@@ -213,6 +213,11 @@ public abstract class AbstractXMPPConnection implements XMPPConnection {
     private long replyTimeout = SmackConfiguration.getDefaultReplyTimeout();
 
     /**
+     * The timeout to wait for a reply in milliseconds.
+     */
+    private long mamReplyTimeout = SmackConfiguration.getDefaultMAMReplyTimeout();
+
+    /**
      * The SmackDebugger allows to log and debug XML traffic.
      */
     protected final SmackDebugger debugger;
@@ -1016,6 +1021,11 @@ public abstract class AbstractXMPPConnection implements XMPPConnection {
             reader = debugger.newConnectionReader(reader);
             writer = debugger.newConnectionWriter(writer);
         }
+    }
+
+    @Override
+    public long getMAMReplyTimeout() {
+        return mamReplyTimeout;
     }
 
     @Override

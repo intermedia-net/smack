@@ -10,4 +10,5 @@ it disabled until gradle uses a checkstyle version where this is fixed
 			  files="Protocol.java" />
 	<!-- Suppress JavadocPackage in the test packages -->
 	<suppress checks="JavadocPackage" files="[\\/]test[\\/]"/>
+	<suppress checks="Header" files="ChatArchivedExtension\.java|ChatArchivedExtensionProvider\.java|DiscoveryItemsPersistentCache\.java|DiscoItemsLookupShortcutMechanism\.java" />
 </suppressions>

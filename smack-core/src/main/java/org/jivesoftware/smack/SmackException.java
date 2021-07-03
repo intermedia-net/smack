@@ -112,12 +112,14 @@ public class SmackException extends Exception {
         }
 
         private static StringBuilder getWaitingFor(XMPPConnection connection) {
-            final long replyTimeout = connection.getReplyTimeout();
-            final StringBuilder sb = new StringBuilder(256);
-            sb.append("No response received within reply timeout. Timeout was "
-                            + replyTimeout + "ms (~"
-                            + replyTimeout / 1000 + "s).");
-            return sb;
+            if (connection == null) {
+                return new StringBuilder("closed connection");
+            } else {
+                final long replyTimeout = connection.getReplyTimeout();
+                final StringBuilder sb = new StringBuilder(256);
+                sb.append("No response received within reply timeout. Timeout was " + replyTimeout + "ms (~" + replyTimeout / 1000 + "s).");
+                return sb;
+            }
         }
     }
 

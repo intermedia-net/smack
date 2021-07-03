@@ -16,8 +16,12 @@
  */
 package org.jivesoftware.smackx.mam.element;
 
-import org.jivesoftware.smack.packet.IQ;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.rsm.packet.RSMSet;
 
 /**
@@ -43,7 +47,7 @@ public class MamFinIQ extends IQ {
     /**
      * RSM set.
      */
-    private final RSMSet rsmSet;
+    private  RSMSet rsmSet;
 
     /**
      * if is complete.
@@ -60,14 +64,15 @@ public class MamFinIQ extends IQ {
      */
     private final String queryId;
 
-    /**
-     * MamFinIQ constructor.
-     *
-     * @param queryId
-     * @param rsmSet
-     * @param complete
-     * @param stable
-     */
+    private final List<Message> messages = new ArrayList<>();
+
+    public MamFinIQ(String queryId, boolean complete, boolean stable) {
+        super(ELEMENT, NAMESPACE);
+        this.complete = complete;
+        this.stable = stable;
+        this.queryId = queryId;
+    }
+
     public MamFinIQ(String queryId, RSMSet rsmSet, boolean complete, boolean stable) {
         super(ELEMENT, NAMESPACE);
         if (rsmSet == null) {
@@ -77,6 +82,14 @@ public class MamFinIQ extends IQ {
         this.complete = complete;
         this.stable = stable;
         this.queryId = queryId;
+    }
+
+    public void setRsmSet(final RSMSet rsmSet) {
+        this.rsmSet = rsmSet;
+    }
+
+    public List<Message> getMessages() {
+        return messages;
     }
 
     /**
@@ -116,6 +129,15 @@ public class MamFinIQ extends IQ {
     }
 
     @Override
+    public void addExtension(final ExtensionElement extension) {
+        if (extension instanceof MamElements.MamResultExtension && ((MamElements.MamResultExtension) extension).getMessage() != null) {
+            messages.add(((MamElements.MamResultExtension) extension).getMessage());
+        } else {
+            super.addExtension(extension);
+        }
+    }
+
+    @Override
     protected IQChildElementXmlStringBuilder getIQChildElementBuilder(IQChildElementXmlStringBuilder xml) {
         xml.optAttribute("queryid", queryId);
         xml.optBooleanAttribute("complete", complete);
@@ -128,5 +150,4 @@ public class MamFinIQ extends IQ {
         }
         return xml;
     }
-
 }

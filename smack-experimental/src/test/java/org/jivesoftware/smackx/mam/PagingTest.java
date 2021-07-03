@@ -28,9 +28,9 @@ import org.junit.Test;
 
 public class PagingTest extends MamTest {
 
-    private static final String pagingStanza = "<iq id='sarasa' type='set'>" + "<query xmlns='urn:xmpp:mam:1' queryid='testid'>"
+    private static final String pagingStanza = "<iq id='sarasa' type='set'>" + "<query xmlns='urn:xmpp:mam:2' queryid='testid'>"
             + "<x xmlns='jabber:x:data' type='submit'>" + "<field var='FORM_TYPE' type='hidden'>"
-            + "<value>urn:xmpp:mam:1</value>" + "</field>" + "</x>" + "<set xmlns='http://jabber.org/protocol/rsm'>"
+            + "<value>urn:xmpp:mam:2</value>" + "</field>" + "</x>" + "<set xmlns='http://jabber.org/protocol/rsm'>"
             + "<max>10</max>" + "</set>" + "</query>" + "</iq>";
 
     @Test
@@ -45,7 +45,7 @@ public class PagingTest extends MamTest {
         mamQueryIQ.addExtension(rsmSet);
 
         Assert.assertEquals(mamQueryIQ.getDataForm(), dataForm);
-        Assert.assertEquals(mamQueryIQ.getDataForm().getFields().get(0).getValues().get(0), "urn:xmpp:mam:1");
+        Assert.assertEquals(mamQueryIQ.getDataForm().getFields().get(0).getValues().get(0), "urn:xmpp:mam:2");
         Assert.assertEquals(mamQueryIQ.toXML(StreamOpen.CLIENT_NAMESPACE).toString(), pagingStanza);
     }
 

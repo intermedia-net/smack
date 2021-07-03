@@ -50,6 +50,7 @@ import org.jivesoftware.smack.util.Objects;
 public final class SmackConfiguration {
 
     private static int defaultPacketReplyTimeout = 5000;
+    private static int defaultMAMReplyTimeout = 20000;
     private static int packetCollectorSize = 5000;
 
     private static List<String> defaultMechs = new ArrayList<>();
@@ -103,6 +104,30 @@ public final class SmackConfiguration {
     @Deprecated
     public static int getDefaultPacketReplyTimeout() {
         return getDefaultReplyTimeout();
+    }
+
+    /**
+     * Sets the number of milliseconds to wait for a response from
+     * the Message Archive. The default value is 5000 ms.
+     *
+     * @param timeout the milliseconds to wait for a response from the server
+     */
+    public static void setDefaultMAMReplyTimeout(final int timeout) {
+        defaultMAMReplyTimeout = timeout;
+    }
+
+    /**
+     * Returns the number of milliseconds to wait for a response from
+     * the server. The default value is 5000 ms.
+     *
+     * @return the milliseconds to wait for a response from the server
+     */
+    public static int getDefaultMAMReplyTimeout() {
+        // The timeout value must be greater than 0 otherwise we will answer the default value
+        if (defaultMAMReplyTimeout <= 0) {
+            defaultMAMReplyTimeout = 20000;
+        }
+        return defaultMAMReplyTimeout;
     }
 
     /**

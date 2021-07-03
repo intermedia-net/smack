@@ -116,7 +116,7 @@ import org.jxmpp.jid.Jid;
  * MamQueryArgs mamQueryArgs = MamQueryArgs.builder()
  *                                 .withJid(jid)
  *                                 .setResultPageSize(10)
- *                                 .queryLastPage()
+ *                                 .queryRecentPage()
  *                                 .build();
  * MamQuery mamQuery = mamManager.queryArchive(mamQueryArgs);
  * }
@@ -169,6 +169,9 @@ public final class MamManager extends Manager {
     private static final String FORM_FIELD_WITH = "with";
     private static final String FORM_FIELD_START = "start";
     private static final String FORM_FIELD_END = "end";
+    private static final String FORM_FIELD_BUNCH = "bunch";
+    private static final String FORM_FIELD_APPROXCOUNT = "approxcount";
+    private static final String FORM_FIELD_WITHTEXT = "withtext";
 
     private static final Map<XMPPConnection, Map<Jid, MamManager>> INSTANCES = new WeakHashMap<>();
 
@@ -324,6 +327,16 @@ public final class MamManager extends Manager {
                 return this;
             }
 
+            public Builder limitResultsDate(long start, long end) {
+                if (end > 0) {
+                    limitResultsBefore(new Date(end));
+                }
+                if (start > 0 && (end <= 0 || end > start)) {
+                    limitResultsSince(new Date(start));
+                }
+                return this;
+            }
+
             public Builder limitResultsSince(Date start) {
                 if (start == null) {
                     return this;
@@ -386,8 +399,8 @@ public final class MamManager extends Manager {
             }
 
             public Builder setResultPageSizeTo(int max) {
-                if (max < 0) {
-                    throw new IllegalArgumentException();
+                if (max <= 0) {
+                    return this;
                 }
                 this.maxResults = max;
                 return this;
@@ -435,16 +448,28 @@ public final class MamManager extends Manager {
                 return this;
             }
 
-            /**
-             * Query from the last, i.e. most recent, page of the archive. This will return the very last page of the
-             * archive holding the most recent matching messages. You usually would page backwards from there on.
-             *
-             * @return a reference to this builder.
-             * @see <a href="https://xmpp.org/extensions/xep-0059.html#last">XEP-0059 § 2.5. Requesting the Last Page in
-             *      a Result Set</a>
-             */
+            public Builder queryBunch() {
+                final FormField formField = new FormField(FORM_FIELD_BUNCH);
+                formField.setType(FormField.Type.bool);
+                formField.addValue("true");
+                return withAdditionalFormField(formField);
+            }
+
             public Builder queryLastPage() {
                 return beforeUid("");
+            }
+
+            public Builder byApproxcount() {
+                final FormField formField = new FormField(FORM_FIELD_APPROXCOUNT);
+                formField.setType(FormField.Type.bool);
+                formField.addValue("true");
+                return withAdditionalFormField(formField);
+            }
+
+            public Builder withText(final String text) {
+                final FormField formField = new FormField(FORM_FIELD_WITHTEXT);
+                formField.addValue(text);
+                return withAdditionalFormField(formField);
             }
 
             public MamQueryArgs build() {
@@ -895,8 +920,30 @@ public final class MamManager extends Manager {
 
     private MamQuery queryArchive(MamQueryIQ mamQueryIq) throws NoResponseException, XMPPErrorException,
                     NotConnectedException, InterruptedException, NotLoggedInException {
-        MamQueryPage mamQueryPage = queryArchivePage(mamQueryIq);
+        MamQueryPage mamQueryPage;
+        if (mamQueryIq.getDataForm().hasField(FORM_FIELD_BUNCH)) {
+            mamQueryPage = queryArchiveBunch(mamQueryIq);
+        } else {
+            mamQueryPage = queryArchivePage(mamQueryIq);
+        }
         return new MamQuery(mamQueryPage, mamQueryIq.getNode(), DataForm.from(mamQueryIq));
+    }
+
+    private MamQueryPage queryArchiveBunch(MamQueryIQ mamQueryIq) throws NoResponseException, XMPPErrorException,
+            NotConnectedException, InterruptedException, NotLoggedInException {
+        final XMPPConnection connection = getAuthenticatedConnectionOrThrow();
+        MamFinIQ mamFinIQ;
+
+        StanzaCollector mamFinIQCollector = connection.createStanzaCollector(new IQReplyFilter(mamQueryIq, connection));
+
+        try {
+            connection.sendStanza(mamQueryIq);
+            mamFinIQ = mamFinIQCollector.nextResultOrThrow(connection.getMAMReplyTimeout());
+        } finally {
+            mamFinIQCollector.cancel();
+        }
+
+        return new MamQueryPage(mamFinIQ);
     }
 
     private MamQueryPage queryArchivePage(MamQueryIQ mamQueryIq) throws NoResponseException, XMPPErrorException,
@@ -912,7 +959,7 @@ public final class MamManager extends Manager {
 
         try {
             connection.sendStanza(mamQueryIq);
-            mamFinIQ = mamFinIQCollector.nextResultOrThrow();
+            mamFinIQ = mamFinIQCollector.nextResultOrThrow(connection.getMAMReplyTimeout());
         } finally {
             mamFinIQCollector.cancel();
             resultCollector.cancel();
@@ -965,6 +1012,10 @@ public final class MamManager extends Manager {
             return mamQueryPage.messages;
         }
 
+        public List<Forwarded> getForwarded() {
+            return mamQueryPage.forwardedMessages;
+        }
+
         public List<MamResultExtension> getMamResultExtensions() {
             return mamQueryPage.mamResultExtensions;
         }
@@ -976,7 +1027,11 @@ public final class MamManager extends Manager {
             mamQueryIQ.setTo(archiveAddress);
             mamQueryIQ.addExtension(requestRsmSet);
 
-            mamQueryPage = queryArchivePage(mamQueryIQ);
+            if (mamQueryIQ.getDataForm().hasField(FORM_FIELD_BUNCH)) {
+                mamQueryPage = queryArchiveBunch(mamQueryIQ);
+            } else {
+                mamQueryPage = queryArchivePage(mamQueryIQ);
+            }
 
             return mamQueryPage.messages;
         }
@@ -995,7 +1050,7 @@ public final class MamManager extends Manager {
         public List<Message> pagePrevious(int count) throws NoResponseException, XMPPErrorException,
                         NotConnectedException, NotLoggedInException, InterruptedException {
             RSMSet previousResultRsmSet = getPreviousRsmSet();
-            RSMSet requestRsmSet = new RSMSet(count, previousResultRsmSet.getLast(), RSMSet.PageDirection.before);
+            RSMSet requestRsmSet = new RSMSet(count, previousResultRsmSet.getFirst(), RSMSet.PageDirection.before);
             return page(requestRsmSet);
         }
 
@@ -1014,6 +1069,14 @@ public final class MamManager extends Manager {
         private final List<MamResultExtension> mamResultExtensions;
         private final List<Forwarded> forwardedMessages;
         private final List<Message> messages;
+
+        private MamQueryPage(MamFinIQ mamFin) {
+            this.mamFin = mamFin;
+            this.mamResultCarrierMessages = new ArrayList<>();
+            this.mamResultExtensions = new ArrayList<>();
+            this.forwardedMessages = new ArrayList<>();
+            this.messages = mamFin.getMessages();
+        }
 
         private MamQueryPage(StanzaCollector stanzaCollector, MamFinIQ mamFin) {
             this.mamFin = mamFin;
