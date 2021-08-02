@@ -782,7 +782,7 @@ public final class Message extends Stanza implements TypedCloneable<Message> {
 
     public enum SubType {
 
-        regular, attachment, sms, meeting;
+        regular, attachment, sms, meeting, mms;
 
         public static SubType fromString(String string) {
             try {

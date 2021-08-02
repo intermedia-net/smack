@@ -32,6 +32,7 @@ public final class MessageSubTypeFilter extends FlexibleStanzaTypeFilter<Message
     public static final StanzaFilter REGULAR = new MessageSubTypeFilter(Message.SubType.regular);
     public static final StanzaFilter ATTACHMENT = new MessageSubTypeFilter(Message.SubType.attachment);
     public static final StanzaFilter SMS = new MessageSubTypeFilter(Message.SubType.sms);
+    public static final StanzaFilter MMS = new MessageSubTypeFilter(Message.SubType.mms);
 
     private final Message.SubType mSubType;
 
