@@ -84,9 +84,20 @@ public final class ChatManager extends Manager {
                     MESSAGE_FILTER,
                     FromTypeFilter.ENTITY_FULL_JID
                     );
+
     private static final StanzaFilter INCOMING_SMS_FILTER = new AndFilter(
-                    new AndFilter(MessageTypeFilter.NORMAL_OR_CHAT, MessageWithBodiesFilter.INSTANCE, MessageSubTypeFilter.SMS),
+                    new AndFilter(
+                            MessageTypeFilter.NORMAL_OR_CHAT,
+                            MessageWithBodiesFilter.INSTANCE,
+                            MessageSubTypeFilter.SMS
+                    ),
                     FromTypeFilter.ENTITY_FULL_OR_BARE_JID
+                    );
+
+    private static final StanzaFilter INCOMING_MMS_FILTER = new AndFilter(
+                    MessageTypeFilter.NORMAL_OR_CHAT,
+                    MessageWithBodiesFilter.INSTANCE,
+                    MessageSubTypeFilter.MMS
                     );
     // @FORMATTER:ON
 
@@ -126,7 +137,7 @@ public final class ChatManager extends Manager {
                 });
 
             }
-        }, new OrFilter(INCOMING_SMS_FILTER, INCOMING_MESSAGE_FILTER));
+        }, new OrFilter(INCOMING_SMS_FILTER, INCOMING_MESSAGE_FILTER, INCOMING_MMS_FILTER));
 
         connection.addStanzaInterceptor(new StanzaListener() {
             @Override
