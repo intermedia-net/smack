@@ -253,6 +253,14 @@ public interface XMPPConnection {
     StanzaCollector createStanzaCollector(StanzaFilter stanzaFilter);
 
     /**
+     * Build an instance of {@link StanzaCollector} with configuration.
+     *
+     * @param configuration the {@link StanzaCollector} configuration
+     * @return a new instance of {@link StanzaCollector}
+     */
+    StanzaCollector buildStanzaCollector(StanzaCollector.Configuration configuration);
+
+    /**
      * Create a new stanza collector with the given stanza collector configuration.
      * <p>
      * Please make sure to cancel the collector when it is no longer required. See also

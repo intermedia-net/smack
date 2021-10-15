@@ -394,6 +394,10 @@ public class StanzaCollector {
             return this;
         }
 
+        public Stanza getRequest() {
+            return request;
+        }
+
         public Configuration setRequest(Stanza request) {
             this.request = request;
             return this;
