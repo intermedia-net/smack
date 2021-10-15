@@ -825,8 +825,13 @@ public abstract class AbstractXMPPConnection implements XMPPConnection {
     }
 
     @Override
+    public StanzaCollector buildStanzaCollector(StanzaCollector.Configuration configuration) {
+        return new StanzaCollector(this, configuration);
+    }
+
+    @Override
     public StanzaCollector createStanzaCollector(StanzaCollector.Configuration configuration) {
-        StanzaCollector collector = new StanzaCollector(this, configuration);
+        StanzaCollector collector = buildStanzaCollector(configuration);
         // Add the collector to the list of active collectors.
         collectors.add(collector);
         return collector;
