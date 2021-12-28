@@ -20,6 +20,8 @@ package org.jivesoftware.smack.packet;
 import java.util.List;
 import java.util.Locale;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
@@ -40,38 +42,46 @@ import org.jivesoftware.smack.util.XmlStringBuilder;
  *
  * @author Matt Tucker
  */
-public abstract class IQ extends Stanza {
+public abstract class IQ extends Stanza implements IqView {
 
     // Don't name this field 'ELEMENT'. When it comes to IQ, ELEMENT is the child element!
     public static final String IQ_ELEMENT = "iq";
     public static final String QUERY_ELEMENT = "query";
 
+    private final QName childElementQName;
     private final String childElementName;
     private final String childElementNamespace;
 
     private Type type = Type.get;
 
-    public IQ(IQ iq) {
+    protected IQ(IQ iq) {
         super(iq);
         type = iq.getType();
         this.childElementName = iq.childElementName;
         this.childElementNamespace = iq.childElementNamespace;
+        this.childElementQName = iq.childElementQName;
     }
 
-    protected IQ(String childElementName) {
-        this(childElementName, null);
-    }
-
+    // TODO: Deprecate when stanza builder is ready.
     protected IQ(String childElementName, String childElementNamespace) {
+        this(IqData.EMPTY, childElementName, childElementNamespace);
+    }
+
+    protected IQ(AbstractIqBuilder<?> iqBuilder, String childElementName, String childElementNamespace) {
+        super(iqBuilder);
+
+        type = iqBuilder.type;
+
         this.childElementName = childElementName;
         this.childElementNamespace = childElementNamespace;
+        if (childElementName == null) {
+            childElementQName = null;
+        } else {
+            childElementQName = new QName(childElementNamespace, childElementName);
+        }
     }
 
-    /**
-     * Returns the type of the IQ packet.
-     *
-     * @return the type of the IQ packet.
-     */
+    @Override
     public Type getType() {
         return type;
     }
@@ -85,6 +95,7 @@ public abstract class IQ extends Stanza {
      *
      * @param type the type of the IQ packet.
      */
+    // TODO: Mark this as deprecated once StanzaBuilder is ready and all call sites are gone.
     public void setType(Type type) {
         this.type = Objects.requireNonNull(type, "type must not be null");
     }
@@ -105,12 +116,31 @@ public abstract class IQ extends Stanza {
         }
     }
 
+    /**
+     * Return true if this IQ is a request, i.e. an IQ of type {@link Type#result} or {@link Type#error}.
+     *
+     * @return true if IQ type is 'result' or 'error', false otherwise.
+     * @since 4.4
+     */
+    public boolean isResponseIQ() {
+        return !isRequestIQ();
+    }
+
+    public final QName getChildElementQName() {
+        return childElementQName;
+    }
+
     public final String getChildElementName() {
         return childElementName;
     }
 
     public final String getChildElementNamespace() {
         return childElementNamespace;
+    }
+
+    @Override
+    public final String getElementName() {
+        return IQ_ELEMENT;
     }
 
     @Override
@@ -126,10 +156,9 @@ public abstract class IQ extends Stanza {
     }
 
     @Override
-    public final XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder buf = new XmlStringBuilder(enclosingNamespace);
-        buf.halfOpenElement(IQ_ELEMENT);
-        addCommonAttributes(buf, enclosingNamespace);
+    public final XmlStringBuilder toXML(XmlEnvironment enclosingXmlEnvironment) {
+        XmlStringBuilder buf = new XmlStringBuilder(this, enclosingXmlEnvironment);
+        addCommonAttributes(buf);
         if (type == null) {
             buf.attribute("type", "get");
         }
@@ -137,7 +166,7 @@ public abstract class IQ extends Stanza {
             buf.attribute("type", type.toString());
         }
         buf.rightAngleBracket();
-        buf.append(getChildElementXML(enclosingNamespace));
+        appendInnerXml(buf);
         buf.closeElement(IQ_ELEMENT);
         return buf;
     }
@@ -148,44 +177,52 @@ public abstract class IQ extends Stanza {
      *
      * @return the child element section of the IQ XML.
      */
+    // TODO: This method should not be part of the public API as it is mostly used for testing purposes, with the one
+    // exception of AdHocCommand.getRaw().
     public final XmlStringBuilder getChildElementXML() {
-        return getChildElementXML(null);
+        XmlStringBuilder xml = new XmlStringBuilder();
+        appendInnerXml(xml);
+        return xml;
     }
 
     /**
-     * Returns the sub-element XML section of the IQ packet, or the empty String if there
-     * isn't one.
+     * Append the sub-element XML section of the IQ stanza.
      *
-     * @param enclosingNamespace the enclosing XML namespace.
-     * @return the child element section of the IQ XML.
-     * @since 4.3.0
+     * @param xml the XmlStringBuilder to append to.
      */
-    public final XmlStringBuilder getChildElementXML(String enclosingNamespace) {
-        XmlStringBuilder xml = new XmlStringBuilder();
+    private void appendInnerXml(XmlStringBuilder xml) {
         if (type == Type.error) {
             // Add the error sub-packet, if there is one.
-            appendErrorIfExists(xml, enclosingNamespace);
+            appendErrorIfExists(xml);
+            return;
         }
-        else if (childElementName != null) {
-            // Add the query section if there is one.
-            IQChildElementXmlStringBuilder iqChildElement = getIQChildElementBuilder(new IQChildElementXmlStringBuilder(this));
-            if (iqChildElement != null) {
-                xml.append(iqChildElement);
+        if (childElementName == null) {
+            return;
+        }
 
-                List<ExtensionElement> extensionsXml = getExtensions();
-                if (iqChildElement.isEmptyElement) {
-                    if (extensionsXml.isEmpty()) {
-                         xml.closeEmptyElement();
-                         return xml;
-                    } else {
-                        xml.rightAngleBracket();
-                    }
-                }
-                xml.append(extensionsXml);
-                xml.closeElement(iqChildElement.element);
-            }
+        // Add the query section if there is one.
+        IQChildElementXmlStringBuilder iqChildElement = getIQChildElementBuilder(
+                        new IQChildElementXmlStringBuilder(getChildElementName(), getChildElementNamespace(), null, xml.getXmlEnvironment()));
+        // TOOD: Document the cases where iqChildElement is null but childElementName not. And if there are none, change
+        // the logic.
+        if (iqChildElement == null) {
+            return;
         }
-        return xml;
+
+        xml.append(iqChildElement);
+
+        List<ExtensionElement> extensionsXml = getExtensions();
+        if (iqChildElement.isEmptyElement) {
+            if (extensionsXml.isEmpty()) {
+                xml.closeEmptyElement();
+                return;
+            }
+
+            xml.rightAngleBracket();
+        }
+
+        xml.append(extensionsXml);
+        xml.closeElement(iqChildElement.element);
     }
 
     /**
@@ -230,25 +267,6 @@ public abstract class IQ extends Stanza {
     protected abstract IQChildElementXmlStringBuilder getIQChildElementBuilder(IQChildElementXmlStringBuilder xml);
 
     /**
-     * @deprecated use {@link #initializeAsResultFor(IQ)} instead.
-     */
-    @Deprecated
-    protected final void initialzeAsResultFor(IQ request) {
-        initializeAsResultFor(request);
-    }
-
-    protected final void initializeAsResultFor(IQ request) {
-        if (!(request.getType() == Type.get || request.getType() == Type.set)) {
-            throw new IllegalArgumentException(
-                    "IQ must be of type 'set' or 'get'. Original IQ: " + request.toXML(null));
-        }
-        setStanzaId(request.getStanzaId());
-        setFrom(request.getTo());
-        setTo(request.getFrom());
-        setType(Type.result);
-    }
-
-    /**
      * Convenience method to create a new empty {@link Type#result IQ.Type.result}
      * IQ based on a {@link Type#get IQ.Type.get} or {@link Type#set IQ.Type.set}
      * IQ. The new stanza will be initialized with:<ul>
@@ -286,45 +304,35 @@ public abstract class IQ extends Stanza {
      *      {@link Type#get IQ.Type.get} or {@link Type#set IQ.Type.set}.
      * @return a new {@link Type#error IQ.Type.error} IQ based on the originating IQ.
      */
-    public static ErrorIQ createErrorResponse(final IQ request, final StanzaError.Builder error) {
-        if (!(request.getType() == Type.get || request.getType() == Type.set)) {
+    public static ErrorIQ createErrorResponse(final IQ request, final StanzaError error) {
+        if (!request.isRequestIQ()) {
             throw new IllegalArgumentException(
-                    "IQ must be of type 'set' or 'get'. Original IQ: " + request.toXML(null));
+                    "IQ must be of type 'set' or 'get'. Original IQ: " + request.toXML());
         }
         final ErrorIQ result = new ErrorIQ(error);
         result.setStanzaId(request.getStanzaId());
         result.setFrom(request.getTo());
         result.setTo(request.getFrom());
 
-        error.setStanza(result);
-
         return result;
     }
 
-    public static ErrorIQ createErrorResponse(final IQ request, final StanzaError.Condition condition) {
-        return createErrorResponse(request, StanzaError.getBuilder(condition));
+    /**
+     * Deprecated.
+     *
+     * @param request the request.
+     * @param error the error.
+     * @return an error IQ.
+     * @deprecated use {@link #createErrorResponse(IQ, StanzaError)} instead.
+     */
+    @Deprecated
+    // TODO: Remove in Smack 4.5.
+    public static ErrorIQ createErrorResponse(final IQ request, final StanzaError.Builder error) {
+        return createErrorResponse(request, error.build());
     }
 
-    /**
-     * Convenience method to create a new {@link Type#error IQ.Type.error} IQ
-     * based on a {@link Type#get IQ.Type.get} or {@link Type#set IQ.Type.set}
-     * IQ. The new stanza will be initialized with:<ul>
-     *      <li>The sender set to the recipient of the originating IQ.
-     *      <li>The recipient set to the sender of the originating IQ.
-     *      <li>The type set to {@link Type#error IQ.Type.error}.
-     *      <li>The id set to the id of the originating IQ.
-     *      <li>The child element contained in the associated originating IQ.
-     *      <li>The provided {@link StanzaError XMPPError}.
-     * </ul>
-     *
-     * @param request the {@link Type#get IQ.Type.get} or {@link Type#set IQ.Type.set} IQ packet.
-     * @param error the error to associate with the created IQ packet.
-     * @throws IllegalArgumentException if the IQ stanza does not have a type of
-     *      {@link Type#get IQ.Type.get} or {@link Type#set IQ.Type.set}.
-     * @return a new {@link Type#error IQ.Type.error} IQ based on the originating IQ.
-     */
-    public static ErrorIQ createErrorResponse(final IQ request, final StanzaError error) {
-        return createErrorResponse(request, StanzaError.getBuilder(error));
+    public static ErrorIQ createErrorResponse(final IQ request, final StanzaError.Condition condition) {
+        return createErrorResponse(request, StanzaError.getBuilder(condition).build());
     }
 
     /**
@@ -367,23 +375,40 @@ public abstract class IQ extends Stanza {
         }
     }
 
+    public enum ResponseType {
+
+        result(Type.result),
+
+        error(Type.error),
+
+        ;
+
+        final Type type;
+
+        ResponseType(Type type) {
+            this.type = type;
+        }
+
+        Type getType() {
+            return type;
+        }
+    }
+
     public static class IQChildElementXmlStringBuilder extends XmlStringBuilder {
         private final String element;
 
         private boolean isEmptyElement;
 
-        private IQChildElementXmlStringBuilder(IQ iq) {
-            this(iq.getChildElementName(), iq.getChildElementNamespace());
+        public IQChildElementXmlStringBuilder(ExtensionElement extensionElement,
+                        XmlEnvironment enclosingXmlEnvironment) {
+            this(extensionElement.getElementName(), extensionElement.getNamespace(), extensionElement.getLanguage(),
+                            enclosingXmlEnvironment);
         }
 
-        public IQChildElementXmlStringBuilder(ExtensionElement pe) {
-            this(pe.getElementName(), pe.getNamespace());
-        }
-
-        private IQChildElementXmlStringBuilder(String element, String namespace) {
-            super("");
-            prelude(element, namespace);
-            this.element = element;
+        private IQChildElementXmlStringBuilder(String elementName, String xmlNs, String xmlLang,
+                        XmlEnvironment enclosingXmlEnvironment) {
+            super(elementName, xmlNs, xmlLang, enclosingXmlEnvironment);
+            this.element = elementName;
         }
 
         public void setEmptyElement() {

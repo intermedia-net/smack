@@ -95,7 +95,7 @@ public class AdHocCommandData extends IQ {
         }
 
         if (form != null) {
-            xml.append(form.toXML(null));
+            xml.append(form.toXML());
         }
 
         for (AdHocCommandNote note : notes) {
@@ -230,7 +230,7 @@ public class AdHocCommandData extends IQ {
      * href="http://xmpp.org/extensions/xep-0050.html#impl-session">XEP-0050 § 3.3 Session Lifetime</a>.
      * </p>
      *
-     * @param sessionID
+     * @param sessionID TODO javadoc me please
      */
     public void setSessionID(String sessionID) {
         this.sessionID = sessionID;
@@ -264,7 +264,7 @@ public class AdHocCommandData extends IQ {
         }
 
         @Override
-        public String toXML(String enclosingNamespace) {
+        public String toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             StringBuilder buf = new StringBuilder();
             buf.append('<').append(getElementName());
             buf.append(" xmlns=\"").append(getNamespace()).append("\"/>");

@@ -16,27 +16,20 @@
  */
 package org.jivesoftware.smackx.jingle;
 
-import org.jivesoftware.smack.DummyConnection;
-import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.test.util.SmackTestSuite;
-import org.jivesoftware.smackx.jingle.element.Jingle;
-import org.jivesoftware.smackx.jingle.element.JingleContent;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.jxmpp.jid.FullJid;
-import org.jxmpp.jid.impl.JidCreate;
-import org.jxmpp.stringprep.XmppStringprepException;
 
 /**
  * Test the JingleUtil class.
  */
 public class JingleUtilTest extends SmackTestSuite {
 
+    // TODO: Finish the test.
+
+    /*
     private XMPPConnection connection;
     private JingleUtil jutil;
 
-    @Before
+    @BeforeEach
     public void setup() {
         connection = new DummyConnection(
                 DummyConnection.getDummyConfigurationBuilder()
@@ -45,6 +38,7 @@ public class JingleUtilTest extends SmackTestSuite {
         jutil = new JingleUtil(connection);
     }
 
+    @SuppressWarnings("UnusedVariable")
     @Test
     public void sessionInitiateTest() throws XmppStringprepException {
         FullJid romeo = connection.getUser().asFullJidOrThrow();
@@ -100,4 +94,5 @@ public class JingleUtilTest extends SmackTestSuite {
                 "</iq>";
         // TODO: Finish test
     }
+    */
 }

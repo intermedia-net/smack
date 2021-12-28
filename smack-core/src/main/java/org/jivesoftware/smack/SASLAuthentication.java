@@ -32,13 +32,17 @@ import javax.net.ssl.SSLSession;
 import javax.security.auth.callback.CallbackHandler;
 
 import org.jivesoftware.smack.SmackException.NoResponseException;
+import org.jivesoftware.smack.SmackException.NotConnectedException;
+import org.jivesoftware.smack.SmackException.SmackSaslException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.Mechanisms;
 import org.jivesoftware.smack.sasl.SASLErrorException;
 import org.jivesoftware.smack.sasl.SASLMechanism;
 import org.jivesoftware.smack.sasl.core.ScramSha1PlusMechanism;
-import org.jivesoftware.smack.sasl.packet.SaslStreamElements.SASLFailure;
-import org.jivesoftware.smack.sasl.packet.SaslStreamElements.Success;
+import org.jivesoftware.smack.sasl.packet.SaslNonza;
+import org.jivesoftware.smack.sasl.packet.SaslNonza.SASLFailure;
+import org.jivesoftware.smack.sasl.packet.SaslNonza.Success;
+import org.jivesoftware.smack.util.StringUtils;
 
 import org.jxmpp.jid.DomainBareJid;
 import org.jxmpp.jid.EntityBareJid;
@@ -152,20 +156,9 @@ public final class SASLAuthentication {
     private final ConnectionConfiguration configuration;
     private SASLMechanism currentMechanism = null;
 
-    /**
-     * Boolean indicating if SASL negotiation has finished and was successful.
-     */
-    private boolean authenticationSuccessful;
-
-    /**
-     * Either of type {@link SmackException} or {@link SASLErrorException}
-     */
-    private Exception saslException;
-
     SASLAuthentication(AbstractXMPPConnection connection, ConnectionConfiguration configuration) {
         this.configuration = configuration;
         this.connection = connection;
-        this.init();
     }
 
     /**
@@ -180,29 +173,35 @@ public final class SASLAuthentication {
      * @param password the password to send to the server.
      * @param authzid the authorization identifier (typically null).
      * @param sslSession the optional SSL/TLS session (if one was established)
-     * @throws XMPPErrorException
-     * @throws SASLErrorException
-     * @throws IOException
-     * @throws SmackException
-     * @throws InterruptedException
+     * @return the used SASLMechanism.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws SASLErrorException if a SASL protocol error was returned.
+     * @throws IOException if an I/O error occurred.
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws SmackSaslException if a SASL specific error occurred.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws NoResponseException if there was no response from the remote entity.
      */
-    public void authenticate(String username, String password, EntityBareJid authzid, SSLSession sslSession)
+    SASLMechanism authenticate(String username, String password, EntityBareJid authzid, SSLSession sslSession)
                     throws XMPPErrorException, SASLErrorException, IOException,
-                    SmackException, InterruptedException {
-        currentMechanism = selectMechanism(authzid);
+                    InterruptedException, SmackSaslException, NotConnectedException, NoResponseException {
+        final SASLMechanism mechanism = selectMechanism(authzid, password);
         final CallbackHandler callbackHandler = configuration.getCallbackHandler();
         final String host = connection.getHost();
         final DomainBareJid xmppServiceDomain = connection.getXMPPServiceDomain();
 
         synchronized (this) {
+            currentMechanism = mechanism;
+
             if (callbackHandler != null) {
                 currentMechanism.authenticate(host, xmppServiceDomain, callbackHandler, authzid, sslSession);
             }
             else {
                 currentMechanism.authenticate(username, host, xmppServiceDomain, password, authzid, sslSession);
             }
+
             final long deadline = System.currentTimeMillis() + connection.getReplyTimeout();
-            while (!authenticationSuccessful && saslException == null) {
+            while (!mechanism.isFinished()) {
                 final long now = System.currentTimeMillis();
                 if (now >= deadline) break;
                 // Wait until SASL negotiation finishes
@@ -210,31 +209,21 @@ public final class SASLAuthentication {
             }
         }
 
-        if (saslException != null) {
-            if (saslException instanceof SmackException) {
-                throw (SmackException) saslException;
-            } else if (saslException instanceof SASLErrorException) {
-                throw (SASLErrorException) saslException;
-            } else {
-                throw new IllegalStateException("Unexpected exception type" , saslException);
-            }
-        }
+        mechanism.throwExceptionIfRequired();
 
-        if (!authenticationSuccessful) {
-            throw NoResponseException.newWith(connection, "successful SASL authentication");
-        }
+        return mechanism;
     }
 
     /**
      * Wrapper for {@link #challengeReceived(String, boolean)}, with <code>finalChallenge</code> set
      * to <code>false</code>.
      *
-     * @param challenge a base64 encoded string representing the challenge.
-     * @throws SmackException
-     * @throws InterruptedException
+     * @param challenge the challenge Nonza.
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public void challengeReceived(String challenge) throws SmackException, InterruptedException {
-        challengeReceived(challenge, false);
+    void challengeReceived(SaslNonza.Challenge challenge) throws SmackException, InterruptedException {
+        challengeReceived(challenge.getData(), false);
     }
 
     /**
@@ -245,26 +234,28 @@ public final class SASLAuthentication {
      *
      * @param challenge a base64 encoded string representing the challenge.
      * @param finalChallenge true if this is the last challenge send by the server within the success stanza
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws SmackSaslException if a SASL specific error occurred.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public void challengeReceived(String challenge, boolean finalChallenge) throws SmackException, InterruptedException {
-        try {
-            currentMechanism.challengeReceived(challenge, finalChallenge);
-        } catch (InterruptedException | SmackException e) {
-            authenticationFailed(e);
-            throw e;
+    private void challengeReceived(String challenge, boolean finalChallenge) throws SmackSaslException, NotConnectedException, InterruptedException {
+        SASLMechanism mechanism;
+        synchronized (this) {
+            mechanism = currentMechanism;
         }
+        mechanism.challengeReceived(challenge, finalChallenge);
     }
 
     /**
      * Notification message saying that SASL authentication was successful. The next step
      * would be to bind the resource.
      * @param success result of the authentication.
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws SmackSaslException if a SASL specific error occurred.
      */
-    public void authenticated(Success success) throws SmackException, InterruptedException {
+    void authenticated(Success success) throws InterruptedException, SmackSaslException, NotConnectedException {
         // RFC6120 6.3.10 "At the end of the authentication exchange, the SASL server (the XMPP
         // "receiving entity") can include "additional data with success" if appropriate for the
         // SASL mechanism in use. In XMPP, this is done by including the additional data as the XML
@@ -273,10 +264,11 @@ public final class SASLAuthentication {
         if (success.getData() != null) {
             challengeReceived(success.getData(), true);
         }
-        currentMechanism.checkIfSuccessfulOrThrow();
-        authenticationSuccessful = true;
+
         // Wake up the thread that is waiting in the #authenticate method
         synchronized (this) {
+            currentMechanism.afterFinalSaslChallenge();
+
             notify();
         }
     }
@@ -288,30 +280,29 @@ public final class SASLAuthentication {
      * @param saslFailure the SASL failure as reported by the server
      * @see <a href="https://tools.ietf.org/html/rfc6120#section-6.5">RFC6120 6.5</a>
      */
-    public void authenticationFailed(SASLFailure saslFailure) {
-        authenticationFailed(new SASLErrorException(currentMechanism.getName(), saslFailure));
+    void authenticationFailed(SASLFailure saslFailure) {
+        SASLErrorException saslErrorException;
+        synchronized (this) {
+            saslErrorException = new SASLErrorException(currentMechanism.getName(), saslFailure);
+        }
+        authenticationFailed(saslErrorException);
     }
 
-    public void authenticationFailed(Exception exception) {
-        saslException = exception;
+    void authenticationFailed(Exception exception) {
         // Wake up the thread that is waiting in the #authenticate method
         synchronized (this) {
+            currentMechanism.setException(exception);
             notify();
         }
     }
 
     public boolean authenticationSuccessful() {
-        return authenticationSuccessful;
-    }
-
-    /**
-     * Initializes the internal state in order to be able to be reused. The authentication
-     * is used by the connection at the first login and then reused after the connection
-     * is disconnected and then reconnected.
-     */
-    void init() {
-        authenticationSuccessful = false;
-        saslException = null;
+        synchronized (this) {
+            if (currentMechanism == null) {
+                return false;
+            }
+            return currentMechanism.isAuthenticationSuccessful();
+        }
     }
 
     String getNameOfLastUsedSaslMechansism() {
@@ -322,51 +313,66 @@ public final class SASLAuthentication {
         return lastUsedMech.getName();
     }
 
-    private SASLMechanism selectMechanism(EntityBareJid authzid) throws SmackException {
+    private SASLMechanism selectMechanism(EntityBareJid authzid, String password) throws SmackException.SmackSaslException {
+        final boolean passwordAvailable = StringUtils.isNotEmpty(password);
+
         Iterator<SASLMechanism> it = REGISTERED_MECHANISMS.iterator();
         final List<String> serverMechanisms = getServerMechanisms();
         if (serverMechanisms.isEmpty()) {
             LOGGER.warning("Server did not report any SASL mechanisms");
         }
+
+        List<String> skipReasons = new ArrayList<>();
+
         // Iterate in SASL Priority order over registered mechanisms
         while (it.hasNext()) {
             SASLMechanism mechanism = it.next();
             String mechanismName = mechanism.getName();
+
+            if (!serverMechanisms.contains(mechanismName)) {
+                continue;
+            }
+
             synchronized (BLACKLISTED_MECHANISMS) {
                 if (BLACKLISTED_MECHANISMS.contains(mechanismName)) {
                     continue;
                 }
             }
+
             if (!configuration.isEnabledSaslMechanism(mechanismName)) {
                 continue;
             }
-            if (authzid != null) {
-                if (!mechanism.authzidSupported()) {
-                    LOGGER.fine("Skipping " + mechanism + " because authzid is required by not supported by this SASL mechanism");
-                    continue;
-                }
+
+            if (authzid != null && !mechanism.authzidSupported()) {
+                skipReasons.add("Skipping " + mechanism + " because authzid is required by not supported by this SASL mechanism");
+                continue;
             }
-            if (serverMechanisms.contains(mechanismName)) {
-                // Create a new instance of the SASLMechanism for every authentication attempt.
-                return mechanism.instanceForAuthentication(connection, configuration);
+
+            if (mechanism.requiresPassword() && !passwordAvailable) {
+                skipReasons.add("Skipping " + mechanism + " because a password is required for it, but none was provided to the connection configuration");
+                continue;
             }
+
+            // Create a new instance of the SASLMechanism for every authentication attempt.
+            return mechanism.instanceForAuthentication(connection, configuration);
         }
 
         synchronized (BLACKLISTED_MECHANISMS) {
             // @formatter:off
-            throw new SmackException(
+            throw new SmackException.SmackSaslException(
                             "No supported and enabled SASL Mechanism provided by server. " +
                             "Server announced mechanisms: " + serverMechanisms + ". " +
                             "Registered SASL mechanisms with Smack: " + REGISTERED_MECHANISMS + ". " +
                             "Enabled SASL mechanisms for this connection: " + configuration.getEnabledSaslMechanisms() + ". " +
-                            "Blacklisted SASL mechanisms: " + BLACKLISTED_MECHANISMS + '.'
+                            "Blacklisted SASL mechanisms: " + BLACKLISTED_MECHANISMS + ". " +
+                            "Skip reasons: " + skipReasons
                             );
             // @formatter;on
         }
     }
 
     private List<String> getServerMechanisms() {
-        Mechanisms mechanisms = connection.getFeature(Mechanisms.ELEMENT, Mechanisms.NAMESPACE);
+        Mechanisms mechanisms = connection.getFeature(Mechanisms.class);
         if (mechanisms == null) {
             return Collections.emptyList();
         }

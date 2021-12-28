@@ -16,14 +16,16 @@
  */
 package org.jivesoftware.smackx.jingle;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.test.util.TestUtils;
+
 import org.jivesoftware.smackx.jingle.element.JingleError;
 import org.jivesoftware.smackx.jingle.provider.JingleErrorProvider;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test the JingleError class.
@@ -34,33 +36,35 @@ public class JingleErrorTest extends SmackTestSuite {
     public void tieBreakTest() throws Exception {
         String xml = "<tie-break xmlns='urn:xmpp:jingle:errors:1'/>";
         JingleError error = new JingleErrorProvider().parse(TestUtils.getParser(xml));
-        assertEquals(xml, error.toXML(null).toString());
+        assertEquals(xml, error.toXML().toString());
     }
 
     @Test
     public void unknownSessionTest() throws Exception {
         String xml = "<unknown-session xmlns='urn:xmpp:jingle:errors:1'/>";
         JingleError error = new JingleErrorProvider().parse(TestUtils.getParser(xml));
-        assertEquals(xml, error.toXML(null).toString());
+        assertEquals(xml, error.toXML().toString());
     }
 
     @Test
     public void unsupportedInfoTest() throws Exception {
         String xml = "<unsupported-info xmlns='urn:xmpp:jingle:errors:1'/>";
         JingleError error = new JingleErrorProvider().parse(TestUtils.getParser(xml));
-        assertEquals(xml, error.toXML(null).toString());
+        assertEquals(xml, error.toXML().toString());
     }
 
     @Test
     public void outOfOrderTest() throws Exception {
         String xml = "<out-of-order xmlns='urn:xmpp:jingle:errors:1'/>";
         JingleError error = new JingleErrorProvider().parse(TestUtils.getParser(xml));
-        assertEquals(xml, error.toXML(null).toString());
+        assertEquals(xml, error.toXML().toString());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void illegalArgumentTest() {
-        JingleError.fromString("inexistent-error");
+        assertThrows(IllegalArgumentException.class, () -> {
+            JingleError.fromString("inexistent-error");
+        });
     }
 
 

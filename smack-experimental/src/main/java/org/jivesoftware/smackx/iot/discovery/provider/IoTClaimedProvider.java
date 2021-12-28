@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2016 Florian Schmaus
+ * Copyright 2016-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,22 @@
  */
 package org.jivesoftware.smackx.iot.discovery.provider;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.iot.discovery.element.IoTClaimed;
 import org.jivesoftware.smackx.iot.element.NodeInfo;
 import org.jivesoftware.smackx.iot.parser.NodeInfoParser;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
+import org.jxmpp.stringprep.XmppStringprepException;
 
 public class IoTClaimedProvider extends IQProvider<IoTClaimed> {
 
     @Override
-    public IoTClaimed parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public IoTClaimed parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmppStringprepException {
         Jid jid = ParserUtils.getJidAttribute(parser);
         NodeInfo nodeInfo = NodeInfoParser.parse(parser);
         return new IoTClaimed(jid, nodeInfo);

@@ -16,16 +16,19 @@
  */
 package org.jivesoftware.smackx.muclight.provider;
 
+import java.io.IOException;
 import java.util.HashMap;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.muclight.MUCLightAffiliation;
 import org.jivesoftware.smackx.muclight.element.MUCLightAffiliationsIQ;
 
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.impl.JidCreate;
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * MUC Light affiliations IQ provider class.
@@ -36,14 +39,14 @@ import org.xmlpull.v1.XmlPullParser;
 public class MUCLightAffiliationsIQProvider extends IQProvider<MUCLightAffiliationsIQ> {
 
     @Override
-    public MUCLightAffiliationsIQ parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public MUCLightAffiliationsIQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         String version = null;
         HashMap<Jid, MUCLightAffiliation> occupants = new HashMap<>();
 
         outerloop: while (true) {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
 
-            if (eventType == XmlPullParser.START_TAG) {
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
 
                 if (parser.getName().equals("version")) {
                     version = parser.nextText();
@@ -55,7 +58,7 @@ public class MUCLightAffiliationsIQProvider extends IQProvider<MUCLightAffiliati
                     occupants.put(JidCreate.from(parser.nextText()), affiliation);
                 }
 
-            } else if (eventType == XmlPullParser.END_TAG) {
+            } else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }

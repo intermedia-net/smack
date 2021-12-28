@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2012-2014 Florian Schmaus
+ * Copyright 2012-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
  */
 package org.jivesoftware.smackx.ping;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.jivesoftware.smack.test.util.CharSequenceEquals.equalsCharSequence;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.jxmpp.jid.JidTestUtil.DUMMY_AT_EXAMPLE_ORG;
 
 import java.io.IOException;
@@ -33,15 +33,14 @@ import org.jivesoftware.smack.ThreadedDummyConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.util.PacketParserUtils;
 
-import org.jivesoftware.smackx.InitExtensions;
-import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 import org.jivesoftware.smackx.ping.packet.Ping;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class PingTest extends InitExtensions {
+public class PingTest extends SmackTestSuite {
 
     @Test
     public void checkProvider() throws Exception {
@@ -98,10 +97,10 @@ public class PingTest extends InitExtensions {
 
     /**
      * DummyConnection will not reply so it will timeout.
-     * @throws SmackException
-     * @throws XMPPException
-     * @throws IOException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws XMPPException if an XMPP protocol error was received.
+     * @throws IOException if an I/O error occurred.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     @Test
     public void checkFailedPingOnTimeout() throws SmackException, IOException, XMPPException, InterruptedException {
@@ -119,7 +118,7 @@ public class PingTest extends InitExtensions {
 
     /**
      * Server returns an exception for entity.
-     * @throws Exception
+     * @throws Exception if an exception occurs.
      */
     @Test
     public void checkFailedPingToEntityError() throws Exception {
@@ -155,7 +154,7 @@ public class PingTest extends InitExtensions {
 
     /**
      * Server returns an exception.
-     * @throws Exception
+     * @throws Exception if an exception occurs.
      */
     @Test
     public void checkPingToServerError() throws Exception {
@@ -191,8 +190,6 @@ public class PingTest extends InitExtensions {
     @Test
     public void checkSuccessfulDiscoRequest() throws Exception {
         ThreadedDummyConnection con = getAuthenticatedDummyConnection();
-        DiscoverInfo info = new DiscoverInfo();
-        info.addFeature(Ping.NAMESPACE);
 
         // @formatter:off
         String reply =
@@ -213,8 +210,6 @@ public class PingTest extends InitExtensions {
     @Test
     public void checkUnsuccessfulDiscoRequest() throws Exception {
         ThreadedDummyConnection con = getAuthenticatedDummyConnection();
-        DiscoverInfo info = new DiscoverInfo();
-        info.addFeature(Ping.NAMESPACE);
 
         // @formatter:off
         String reply =
@@ -243,10 +238,10 @@ public class PingTest extends InitExtensions {
      * The returned connection won't send replies to IQs
      *
      * @return
-     * @throws XMPPException
-     * @throws IOException
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws XMPPException if an XMPP protocol error was received.
+     * @throws IOException if an I/O error occurred.
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     private static DummyConnection getAuthenticatedDummyConnectionWithoutIqReplies() throws SmackException, IOException, XMPPException, InterruptedException {
         DummyConnection con = new DummyConnection();

@@ -18,11 +18,16 @@ package org.jivesoftware.smackx.bytestreams.ibb.provider;
 
 import java.io.IOException;
 
+import org.jivesoftware.smack.datatypes.UInt16;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
+import org.jivesoftware.smack.parsing.SmackParsingException.RequiredAttributeMissingException;
+import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
+
 import org.jivesoftware.smackx.bytestreams.ibb.packet.Data;
 import org.jivesoftware.smackx.bytestreams.ibb.packet.DataPacketExtension;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Parses an In-Band Bytestream data stanza which can be a stanza extension of
@@ -37,8 +42,8 @@ public class DataPacketProvider {
         private static final PacketExtensionProvider packetExtensionProvider = new PacketExtensionProvider();
 
         @Override
-        public Data parse(XmlPullParser parser, int initialDepth)
-                        throws Exception {
+        public Data parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
+                        throws IOException, XmlPullParserException, SmackParsingException {
             DataPacketExtension data = packetExtensionProvider.parse(parser);
             return new Data(data);
         }
@@ -48,10 +53,10 @@ public class DataPacketProvider {
 
         @Override
         public DataPacketExtension parse(XmlPullParser parser,
-                        int initialDepth) throws XmlPullParserException,
-                        IOException {
+                        int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException,
+                        IOException, RequiredAttributeMissingException {
             String sessionID = parser.getAttributeValue("", "sid");
-            long seq = Long.parseLong(parser.getAttributeValue("", "seq"));
+            UInt16 seq = ParserUtils.getRequiredUInt16Attribute(parser, "seq");
             String data = parser.nextText();
             return new DataPacketExtension(sessionID, seq, data);
         }

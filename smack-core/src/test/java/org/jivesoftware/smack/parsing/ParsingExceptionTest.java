@@ -16,20 +16,22 @@
  */
 package org.jivesoftware.smack.parsing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.jivesoftware.smack.test.util.CharSequenceEquals.equalsCharSequence;
-import static org.junit.Assert.assertThat;
 
-import org.jivesoftware.smack.SmackException;
+import java.io.IOException;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.test.util.TestUtils;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.xmlpull.v1.XmlPullParser;
 
 public class ParsingExceptionTest {
 
@@ -37,6 +39,7 @@ public class ParsingExceptionTest {
     "<extension2 xmlns='namespace'>" +
         "<bar node='testNode'>" +
             "<i id='testid1'>" +
+              "text content" +
             "</i>" +
         "</bar>" +
      "</extension2>";
@@ -55,8 +58,7 @@ public class ParsingExceptionTest {
     public void consumeUnparsedInput() throws Exception {
         final String MESSAGE_EXCEPTION_ELEMENT =
                         "<" + ThrowException.ELEMENT + " xmlns='" + ThrowException.NAMESPACE + "'>" +
-                            "<nothingInHere>" +
-                            "</nothingInHere>" +
+                            "<nothingInHere/>" +
                         "</" + ThrowException.ELEMENT + ">";
         XmlPullParser parser = TestUtils.getMessageParser(
                 "<message from='user@server.example' to='francisco@denmark.lit' id='foo'>" +
@@ -78,8 +80,8 @@ public class ParsingExceptionTest {
         public static final String NAMESPACE = "http://smack.jivesoftware.org/exception";
 
         @Override
-        public ExtensionElement parse(XmlPullParser parser, int initialDepth) throws SmackException {
-            throw new SmackException("Test Exception");
+        public ExtensionElement parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws IOException {
+            throw new IOException("Test Exception");
         }
 
     }

@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015-2017 Ishan Khanna, Fernando Ramirez
+ * Copyright 2015-2017 Ishan Khanna, Fernando Ramirez, 2019-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,29 +17,35 @@
 package org.jivesoftware.smackx.geoloc.provider;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.text.ParseException;
 
+import javax.xml.namespace.QName;
+
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
+import org.jivesoftware.smack.parsing.SmackParsingException.SmackTextParseException;
+import org.jivesoftware.smack.parsing.SmackParsingException.SmackUriSyntaxParsingException;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.geoloc.packet.GeoLocation;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smackx.xdata.provider.FormFieldChildElementProvider;
 
 public class GeoLocationProvider extends ExtensionElementProvider<GeoLocation> {
 
+    public static final GeoLocationProvider INSTANCE = new GeoLocationProvider();
+
     @Override
-    public GeoLocation parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException,
-                    ParseException, URISyntaxException {
+    public GeoLocation parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException,
+                    SmackTextParseException, SmackUriSyntaxParsingException {
 
         GeoLocation.Builder builder = GeoLocation.builder();
 
         outerloop: while (true) {
-            int event = parser.next();
+            XmlPullParser.Event event = parser.next();
             switch (event) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 String name = parser.getName();
                 switch (name) {
                 case "accuracy":
@@ -73,7 +79,7 @@ public class GeoLocationProvider extends ExtensionElementProvider<GeoLocation> {
                     builder.setDescription(parser.nextText());
                     break;
                 case "error":
-                    builder.setError(ParserUtils.getDoubleFromNextText(parser));
+                    parseError(builder, parser);
                     break;
                 case "floor":
                     builder.setFloor(parser.nextText());
@@ -116,14 +122,41 @@ public class GeoLocationProvider extends ExtensionElementProvider<GeoLocation> {
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
+                break;
             }
         }
 
         return builder.build();
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void parseError(GeoLocation.Builder builder, XmlPullParser parser) throws XmlPullParserException, IOException {
+        double error = ParserUtils.getDoubleFromNextText(parser);
+        builder.setError(error);
+    }
+
+    public static class GeoLocationFormFieldChildElementProvider extends FormFieldChildElementProvider<GeoLocation> {
+
+        public static final GeoLocationFormFieldChildElementProvider INSTANCE = new GeoLocationFormFieldChildElementProvider();
+
+        @Override
+        public QName getQName() {
+            return GeoLocation.QNAME;
+        }
+
+        @Override
+        public GeoLocation parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
+                        throws XmlPullParserException, IOException, SmackParsingException {
+            return GeoLocationProvider.INSTANCE.parse(parser, initialDepth, xmlEnvironment);
+        }
+
     }
 
 }

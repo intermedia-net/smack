@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2013-2015 the original author or authors
+ * Copyright 2013-2015 the original author or authors, 2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package org.jivesoftware.smack.roster.rosterstore;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -34,10 +33,10 @@ import org.jivesoftware.smack.roster.provider.RosterPacketProvider;
 import org.jivesoftware.smack.util.FileUtils;
 import org.jivesoftware.smack.util.PacketParserUtils;
 import org.jivesoftware.smack.util.stringencoder.Base32;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Stores roster entries as specified by RFC 6121 for roster versioning
@@ -56,18 +55,13 @@ public final class DirectoryRosterStore implements RosterStore {
     private static final String STORE_ID = "DEFAULT_ROSTER_STORE";
     private static final Logger LOGGER = Logger.getLogger(DirectoryRosterStore.class.getName());
 
-    private static final FileFilter rosterDirFilter = new FileFilter() {
-
-        @Override
-        public boolean accept(File file) {
-            String name = file.getName();
-            return name.startsWith(ENTRY_PREFIX);
-        }
-
-    };
+    private static boolean rosterDirFilter(File file) {
+        String name = file.getName();
+        return name.startsWith(ENTRY_PREFIX);
+    }
 
     /**
-     * @param baseDir
+     * @param baseDir TODO javadoc me please
      *            will be the directory where all roster entries are stored. One
      *            file for each entry, such that file.name = entry.username.
      *            There is also one special file '__version__' that contains the
@@ -80,7 +74,7 @@ public final class DirectoryRosterStore implements RosterStore {
     /**
      * Creates a new roster store on disk.
      *
-     * @param baseDir
+     * @param baseDir TODO javadoc me please
      *            The directory to create the store in. The directory should
      *            be empty
      * @return A {@link DirectoryRosterStore} instance if successful,
@@ -98,7 +92,7 @@ public final class DirectoryRosterStore implements RosterStore {
 
     /**
      * Opens a roster store.
-     * @param baseDir
+     * @param baseDir TODO javadoc me please
      *            The directory containing the roster store.
      * @return A {@link DirectoryRosterStore} instance if successful,
      *         <code>null</code> else.
@@ -122,7 +116,7 @@ public final class DirectoryRosterStore implements RosterStore {
     public List<Item> getEntries() {
         List<Item> entries = new ArrayList<>();
 
-        for (File file : fileDir.listFiles(rosterDirFilter)) {
+        for (File file : fileDir.listFiles(DirectoryRosterStore::rosterDirFilter)) {
             Item entry = readEntry(file);
             if (entry == null) {
                 // Roster directory store corrupt. Abort and signal this by returning null.
@@ -168,7 +162,7 @@ public final class DirectoryRosterStore implements RosterStore {
 
     @Override
     public boolean resetEntries(Collection<Item> items, String version) {
-        for (File file : fileDir.listFiles(rosterDirFilter)) {
+        for (File file : fileDir.listFiles(DirectoryRosterStore::rosterDirFilter)) {
             file.delete();
         }
         for (Item item : items) {
@@ -189,7 +183,7 @@ public final class DirectoryRosterStore implements RosterStore {
     private static Item readEntry(File file) {
         Reader reader;
         try {
-            // TODO: Should use Files.newBufferedReader() but it is not available on Android.
+            // TODO: Use Files.newBufferedReader() once Smack's minimum Android API level is 26 or higher.
             reader = new FileReader(file);
         } catch (FileNotFoundException e) {
             LOGGER.log(Level.FINE, "Roster entry file not found", e);
@@ -201,7 +195,7 @@ public final class DirectoryRosterStore implements RosterStore {
             Item item = RosterPacketProvider.parseItem(parser);
             reader.close();
             return item;
-        } catch (XmlPullParserException | IOException e) {
+        } catch (XmlPullParserException | IOException | IllegalArgumentException e) {
             boolean deleted = file.delete();
             String message = "Exception while parsing roster entry.";
             if (deleted) {
@@ -213,7 +207,7 @@ public final class DirectoryRosterStore implements RosterStore {
     }
 
     private boolean addEntryRaw (Item item) {
-        return FileUtils.writeFile(getBareJidFile(item.getJid()), item.toXML(null));
+        return FileUtils.writeFile(getBareJidFile(item.getJid()), item.toXML());
     }
 
     private File getBareJidFile(Jid bareJid) {

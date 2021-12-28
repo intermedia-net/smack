@@ -16,12 +16,17 @@
  */
 package org.jivesoftware.smackx.si.provider;
 
+import java.io.IOException;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.si.packet.StreamInitiation;
 import org.jivesoftware.smackx.si.packet.StreamInitiation.File;
@@ -29,7 +34,6 @@ import org.jivesoftware.smackx.xdata.packet.DataForm;
 import org.jivesoftware.smackx.xdata.provider.DataFormProvider;
 
 import org.jxmpp.util.XmppDateTime;
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * The StreamInitiationProvider parses StreamInitiation packets.
@@ -41,10 +45,7 @@ public class StreamInitiationProvider extends IQProvider<StreamInitiation> {
     private static final Logger LOGGER = Logger.getLogger(StreamInitiationProvider.class.getName());
 
     @Override
-    public StreamInitiation parse(XmlPullParser parser, int initialDepth)
-                    throws Exception {
-        boolean done = false;
-
+    public StreamInitiation parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         // si
         String id = parser.getAttributeValue("", "id");
         String mimeType = parser.getAttributeValue("", "mime-type");
@@ -63,14 +64,11 @@ public class StreamInitiationProvider extends IQProvider<StreamInitiation> {
         DataForm form = null;
         DataFormProvider dataFormProvider = new DataFormProvider();
 
-        int eventType;
-        String elementName;
-        String namespace;
-        while (!done) {
-            eventType = parser.next();
-            elementName = parser.getName();
-            namespace = parser.getNamespace();
-            if (eventType == XmlPullParser.START_TAG) {
+        outerloop: while (true) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
+                String elementName = parser.getName();
+                String namespace = parser.getNamespace();
                 if (elementName.equals("file")) {
                     name = parser.getAttributeValue("", "name");
                     size = parser.getAttributeValue("", "size");
@@ -84,10 +82,11 @@ public class StreamInitiationProvider extends IQProvider<StreamInitiation> {
                         && namespace.equals("jabber:x:data")) {
                     form = dataFormProvider.parse(parser);
                 }
-            } else if (eventType == XmlPullParser.END_TAG) {
-                if (elementName.equals("si")) {
-                    done = true;
-                } else if (elementName.equals("file")) {
+            } else if (eventType == XmlPullParser.Event.END_ELEMENT) {
+                if (parser.getDepth() == initialDepth) {
+                    break outerloop;
+                }
+                if (parser.getName().equals("file")) {
                     long fileSize = 0;
                     if (size != null && size.trim().length() != 0) {
                         try {

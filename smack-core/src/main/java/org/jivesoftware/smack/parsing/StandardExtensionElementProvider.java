@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 Florian Schmaus.
+ * Copyright 2015-2019 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.jivesoftware.smack.packet.StandardExtensionElement;
-import org.jivesoftware.smack.packet.StandardExtensionElement.Builder;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.ParserUtils;
 import org.jivesoftware.smack.util.StringUtils;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  * The parser for {@link StandardExtensionElement}s.
@@ -40,14 +39,14 @@ public class StandardExtensionElementProvider extends ExtensionElementProvider<S
     public static StandardExtensionElementProvider INSTANCE = new StandardExtensionElementProvider();
 
     @Override
-    public StandardExtensionElement parse(final XmlPullParser parser, final int initialDepth)
+    public StandardExtensionElement parse(final XmlPullParser parser, final int initialDepth, XmlEnvironment xmlEnvironment)
                     throws XmlPullParserException, IOException {
         // Unlike most (all?) other providers, we don't know the name and namespace of the element
         // we are parsing here.
         String name = parser.getName();
         String namespace = parser.getNamespace();
-        Builder builder = StandardExtensionElement.builder(name, namespace);
-        final int namespaceCount = parser.getNamespaceCount(initialDepth);
+        StandardExtensionElement.Builder builder = StandardExtensionElement.builder(name, namespace);
+        final int namespaceCount = parser.getNamespaceCount();
         final int attributeCount = parser.getAttributeCount();
         final Map<String, String> attributes = new LinkedHashMap<>(namespaceCount + attributeCount);
         for (int i = 0; i < namespaceCount; i++) {
@@ -77,18 +76,21 @@ public class StandardExtensionElementProvider extends ExtensionElementProvider<S
         builder.addAttributes(attributes);
 
         outerloop: while (true) {
-            int event = parser.next();
+            XmlPullParser.Event event = parser.next();
             switch (event) {
-            case XmlPullParser.START_TAG:
-                builder.addElement(parse(parser, parser.getDepth()));
+            case START_ELEMENT:
+                builder.addElement(parse(parser, parser.getDepth(), xmlEnvironment));
                 break;
-            case XmlPullParser.TEXT:
+            case TEXT_CHARACTERS:
                 builder.setText(parser.getText());
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (initialDepth == parser.getDepth()) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }

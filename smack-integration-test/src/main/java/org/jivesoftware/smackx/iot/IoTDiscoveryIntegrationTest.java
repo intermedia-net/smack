@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2016 Florian Schmaus
+ * Copyright 2016-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 package org.jivesoftware.smackx.iot;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.SmackException.NoResponseException;
@@ -31,9 +31,9 @@ import org.jivesoftware.smackx.iot.discovery.ThingState;
 import org.jivesoftware.smackx.iot.discovery.element.IoTClaimed;
 
 import org.igniterealtime.smack.inttest.AbstractSmackIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
 import org.igniterealtime.smack.inttest.TestNotPossibleException;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 import org.jxmpp.jid.Jid;
 
 public class IoTDiscoveryIntegrationTest extends AbstractSmackIntegrationTest {
@@ -76,7 +76,9 @@ public class IoTDiscoveryIntegrationTest extends AbstractSmackIntegrationTest {
         }
     }
 
-    public static ThingState registerThing(IoTDiscoveryManager iotDiscoveryManager, Thing thing) throws XMPPErrorException, InterruptedException, SmackException {
+    public static ThingState registerThing(IoTDiscoveryManager iotDiscoveryManager, Thing thing)
+                    throws XMPPErrorException, InterruptedException, SmackException.SmackMessageException,
+                    NotConnectedException, NoResponseException {
         int attempts = 0;
         while (true) {
             try {
@@ -86,7 +88,7 @@ public class IoTDiscoveryIntegrationTest extends AbstractSmackIntegrationTest {
                 iotDiscoveryManager.unregister();
             }
             if (attempts++ > 3) {
-                throw new SmackException("Could no register thing");
+                throw new SmackException.SmackMessageException("Could no register thing");
             }
         }
     }

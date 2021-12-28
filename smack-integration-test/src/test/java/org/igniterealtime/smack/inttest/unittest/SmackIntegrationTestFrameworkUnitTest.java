@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,13 @@
 package org.igniterealtime.smack.inttest.unittest;
 
 import static org.igniterealtime.smack.inttest.SmackIntegrationTestUnitTestUtil.getFrameworkForUnitTest;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -30,35 +32,44 @@ import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 import org.jivesoftware.smack.packet.StanzaError;
 
 import org.igniterealtime.smack.inttest.AbstractSmackIntegrationTest;
 import org.igniterealtime.smack.inttest.DummySmackIntegrationTestFramework;
 import org.igniterealtime.smack.inttest.FailedTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
+import org.igniterealtime.smack.inttest.SmackIntegrationTestFramework;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestFramework.TestRunResult;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.igniterealtime.smack.inttest.annotations.AfterClass;
+import org.igniterealtime.smack.inttest.annotations.BeforeClass;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 public class SmackIntegrationTestFrameworkUnitTest {
-
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
 
     private static boolean beforeClassInvoked;
     private static boolean afterClassInvoked;
 
+    @BeforeAll
+    public static void prepareSinttestUnitTest() {
+        SmackIntegrationTestFramework.SINTTEST_UNIT_TEST = true;
+    }
+
+    @AfterAll
+    public static void disallowSinntestUnitTest() {
+        SmackIntegrationTestFramework.SINTTEST_UNIT_TEST = false;
+    }
+
     @Test
     public void throwsRuntimeExceptionsTest() throws KeyManagementException, NoSuchAlgorithmException, SmackException,
-                    IOException, XMPPException, InterruptedException {
-        expectedException.expect(RuntimeException.class);
-        expectedException.expectMessage(ThrowsRuntimeExceptionDummyTest.RUNTIME_EXCEPTION_MESSAGE);
+                    IOException, XMPPException, InterruptedException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
         DummySmackIntegrationTestFramework sinttest = getFrameworkForUnitTest(ThrowsRuntimeExceptionDummyTest.class);
-        sinttest.run();
+        assertThrows(RuntimeException.class, () -> {
+            sinttest.run();
+        });
     }
 
     public static class ThrowsRuntimeExceptionDummyTest extends AbstractSmackIntegrationTest {
@@ -77,7 +88,8 @@ public class SmackIntegrationTestFrameworkUnitTest {
 
     @Test
     public void logsNonFatalExceptionTest() throws KeyManagementException, NoSuchAlgorithmException, SmackException,
-                    IOException, XMPPException, InterruptedException {
+            IOException, XMPPException, InterruptedException, InstantiationException, IllegalAccessException,
+            IllegalArgumentException, InvocationTargetException {
         DummySmackIntegrationTestFramework sinttest = getFrameworkForUnitTest(ThrowsNonFatalExceptionDummyTest.class);
         TestRunResult testRunResult = sinttest.run();
         List<FailedTest> failedTests = testRunResult.getFailedTests();
@@ -99,7 +111,7 @@ public class SmackIntegrationTestFrameworkUnitTest {
 
         @SmackIntegrationTest
         public void throwRuntimeExceptionTest() throws XMPPErrorException {
-            Message message = new Message();
+            Message message = StanzaBuilder.buildMessage().build();
             throw new XMPPException.XMPPErrorException(message,
                             StanzaError.from(StanzaError.Condition.bad_request, DESCRIPTIVE_TEXT).build());
         }
@@ -107,15 +119,16 @@ public class SmackIntegrationTestFrameworkUnitTest {
 
     @Test
     public void testInvoking() throws KeyManagementException, NoSuchAlgorithmException, SmackException, IOException,
-                    XMPPException, InterruptedException {
+            XMPPException, InterruptedException, InstantiationException, IllegalAccessException,
+            IllegalArgumentException, InvocationTargetException {
         beforeClassInvoked = false;
         afterClassInvoked = false;
 
         DummySmackIntegrationTestFramework sinttest = getFrameworkForUnitTest(BeforeAfterClassTest.class);
         sinttest.run();
 
-        assertTrue("A before class method should have been executed to this time", beforeClassInvoked);
-        assertTrue("A after class method should have been executed to this time", afterClassInvoked);
+        assertTrue(beforeClassInvoked, "A before class method should have been executed to this time");
+        assertTrue(afterClassInvoked, "A after class method should have been executed to this time");
     }
 
     public static class BeforeAfterClassTest extends AbstractSmackIntegrationTest {
@@ -136,8 +149,8 @@ public class SmackIntegrationTestFrameworkUnitTest {
 
         @SmackIntegrationTest
         public void test() {
-            assertTrue("A before class method should have been executed to this time", beforeClassInvoked);
-            assertFalse("A after class method shouldn't have been executed to this time", afterClassInvoked);
+            assertTrue(beforeClassInvoked, "A before class method should have been executed to this time");
+            assertFalse(afterClassInvoked, "A after class method shouldn't have been executed to this time");
         }
     }
 }

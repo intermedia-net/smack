@@ -36,7 +36,7 @@ public class XHTMLManagerTest extends SmackTestCase {
 
     /**
      * Constructor for XHTMLManagerTest.
-     * @param name
+     * @param name TODO javadoc me please
      */
     public XHTMLManagerTest(String name) {
         super(name);
@@ -75,7 +75,7 @@ public class XHTMLManagerTest extends SmackTestCase {
             chat1.sendMessage(msg);
             Thread.sleep(200);
         } catch (Exception e) {
-            fail("An error occured sending the message with XHTML");
+            fail("An error occurred sending the message with XHTML");
         }
     }
 
@@ -116,7 +116,7 @@ public class XHTMLManagerTest extends SmackTestCase {
         try {
             chat1.sendMessage(msg);
         } catch (Exception e) {
-            fail("An error occured sending the message with XHTML");
+            fail("An error occurred sending the message with XHTML");
         }
 
         Packet packet = chat2.nextResult(2000);
@@ -197,7 +197,7 @@ public class XHTMLManagerTest extends SmackTestCase {
             bodiesReceived = 0;
             chat1.sendMessage(msg);
         } catch (Exception e) {
-            fail("An error occured sending the message with XHTML");
+            fail("An error occurred sending the message with XHTML");
         }
 
         Packet packet = chat2.nextResult(2000);

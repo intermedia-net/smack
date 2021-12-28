@@ -16,10 +16,11 @@
  */
 package org.jivesoftware.smackx.bytestreams.ibb;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 import org.jivesoftware.smack.SmackException;
@@ -28,16 +29,16 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.StanzaError;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.bytestreams.ibb.InBandBytestreamManager.StanzaType;
 import org.jivesoftware.smackx.bytestreams.ibb.packet.Open;
 
 import org.jivesoftware.util.ConnectionUtils;
 import org.jivesoftware.util.Protocol;
 import org.jivesoftware.util.Verification;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.EntityFullJid;
 import org.jxmpp.jid.JidTestUtil;
 
@@ -46,7 +47,7 @@ import org.jxmpp.jid.JidTestUtil;
  *
  * @author Henning Staib
  */
-public class InBandBytestreamManagerTest extends InitExtensions {
+public class InBandBytestreamManagerTest extends SmackTestSuite {
 
     // settings
     private static final EntityFullJid initiatorJID = JidTestUtil.DUMMY_AT_EXAMPLE_ORG_SLASH_DUMMYRESOURCE;
@@ -61,11 +62,11 @@ public class InBandBytestreamManagerTest extends InitExtensions {
 
     /**
      * Initialize fields used in the tests.
-     * @throws XMPPException
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws XMPPException if an XMPP protocol error was received.
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    @Before
+    @BeforeEach
     public void setup() throws XMPPException, SmackException, InterruptedException {
 
         // build protocol verifier
@@ -105,9 +106,9 @@ public class InBandBytestreamManagerTest extends InitExtensions {
      * Invoking {@link InBandBytestreamManager#establishSession(org.jxmpp.jid.Jid)} should
      * throw an exception if the given target does not support in-band
      * bytestream.
-     * @throws SmackException
-     * @throws XMPPException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws XMPPException if an XMPP protocol error was received.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     @Test
     public void shouldFailIfTargetDoesNotSupportIBB() throws SmackException, XMPPException, InterruptedException {
@@ -130,10 +131,12 @@ public class InBandBytestreamManagerTest extends InitExtensions {
 
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void shouldNotAllowTooBigDefaultBlockSize() {
         InBandBytestreamManager byteStreamManager = InBandBytestreamManager.getByteStreamManager(connection);
-        byteStreamManager.setDefaultBlockSize(1000000);
+        assertThrows(IllegalArgumentException.class, () -> {
+            byteStreamManager.setDefaultBlockSize(1000000);
+        });
     }
 
     @Test
@@ -143,10 +146,12 @@ public class InBandBytestreamManagerTest extends InitExtensions {
         assertEquals(1024, byteStreamManager.getDefaultBlockSize());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void shouldNotAllowTooBigMaximumBlockSize() {
         InBandBytestreamManager byteStreamManager = InBandBytestreamManager.getByteStreamManager(connection);
-        byteStreamManager.setMaximumBlockSize(1000000);
+        assertThrows(IllegalArgumentException.class, () -> {
+            byteStreamManager.setMaximumBlockSize(1000000);
+        });
     }
 
     @Test

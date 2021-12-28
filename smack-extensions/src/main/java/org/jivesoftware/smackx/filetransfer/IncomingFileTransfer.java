@@ -27,12 +27,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
+import org.jivesoftware.smack.util.CloseableUtil;
 
 
 /**
@@ -74,10 +74,10 @@ public class IncomingFileTransfer extends FileTransfer {
      * the negotiated stream.
      *
      * @return The negotiated InputStream from which to read the data.
-     * @throws SmackException
+     * @throws SmackException if Smack detected an exceptional situation.
      * @throws XMPPErrorException If there is an error in the negotiation process an exception
      *                       is thrown.
-     * @throws InterruptedException
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public InputStream receiveFile() throws SmackException, XMPPErrorException, InterruptedException {
         if (inputStream != null) {
@@ -110,7 +110,7 @@ public class IncomingFileTransfer extends FileTransfer {
      *
      * @param file The location to save the file.
      * @throws SmackException when the file transfer fails
-     * @throws IOException
+     * @throws IOException if an I/O error occurred.
      * @throws IllegalArgumentException This exception is thrown when the the provided file is
      *         either null, or cannot be written to.
      */
@@ -158,20 +158,8 @@ public class IncomingFileTransfer extends FileTransfer {
                 if (getStatus().equals(Status.in_progress)) {
                     setStatus(Status.complete);
                 }
-                if (inputStream != null) {
-                    try {
-                        inputStream.close();
-                    } catch (IOException e) {
-                        LOGGER.log(Level.WARNING, "Closing input stream", e);
-                    }
-                }
-                if (outputStream != null) {
-                    try {
-                        outputStream.close();
-                    } catch (IOException e) {
-                        LOGGER.log(Level.WARNING, "Closing output stream", e);
-                    }
-                }
+                CloseableUtil.maybeClose(inputStream, LOGGER);
+                CloseableUtil.maybeClose(outputStream, LOGGER);
             }
         }, "File Transfer " + streamID);
         transferThread.start();
@@ -210,10 +198,10 @@ public class IncomingFileTransfer extends FileTransfer {
             if (cause instanceof SmackException) {
                 throw (SmackException) cause;
             }
-            throw new SmackException("Error in execution", e);
+            throw new SmackException.SmackWrappedException("Error in execution", e);
         }
         catch (TimeoutException e) {
-            throw new SmackException("Request timed out", e);
+            throw new SmackException.SmackWrappedException("Request timed out", e);
         }
         finally {
             streamNegotiatorTask.cancel(true);

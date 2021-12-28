@@ -16,11 +16,12 @@
  */
 package org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements;
 
-import java.util.logging.Logger;
-
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.util.InternetAddress;
 import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.XmlStringBuilder;
+
 import org.jivesoftware.smackx.bytestreams.socks5.packet.Bytestream;
 import org.jivesoftware.smackx.jingle.element.JingleContentTransportCandidate;
 
@@ -33,7 +34,7 @@ import org.jxmpp.stringprep.XmppStringprepException;
  */
 public final class JingleS5BTransportCandidate extends JingleContentTransportCandidate {
 
-    private static final Logger LOGGER = Logger.getLogger(JingleS5BTransportCandidate.class.getName());
+    public static final String NAMESPACE = JingleS5BTransport.NAMESPACE_V1;
 
     public static final String ATTR_CID = "cid";
     public static final String ATTR_HOST = "host";
@@ -43,14 +44,17 @@ public final class JingleS5BTransportCandidate extends JingleContentTransportCan
     public static final String ATTR_TYPE = "type";
 
     private final String cid;
-    private final String host;
+    private final InternetAddress host;
     private final Jid jid;
     private final int port;
     private final int priority;
     private final Type type;
 
-    public JingleS5BTransportCandidate(String candidateId, String host, Jid jid, int port, int priority, Type type) {
+    public JingleS5BTransportCandidate(String candidateId, String hostString, Jid jid, int port, int priority, Type type) {
+        this(candidateId, InternetAddress.from(hostString), jid, port, priority, type);
+    }
 
+    public JingleS5BTransportCandidate(String candidateId, InternetAddress host, Jid jid, int port, int priority, Type type) {
         Objects.requireNonNull(candidateId);
         Objects.requireNonNull(host);
         Objects.requireNonNull(jid);
@@ -105,7 +109,7 @@ public final class JingleS5BTransportCandidate extends JingleContentTransportCan
         return cid;
     }
 
-    public String getHost() {
+    public InternetAddress getHost() {
         return host;
     }
 
@@ -129,10 +133,15 @@ public final class JingleS5BTransportCandidate extends JingleContentTransportCan
         return new Bytestream.StreamHost(jid, host, port);
     }
 
+
     @Override
-    public CharSequence toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = new XmlStringBuilder();
-        xml.halfOpenElement(this);
+    public String getNamespace() {
+        return NAMESPACE;
+    }
+
+    @Override
+    public XmlStringBuilder toXML(XmlEnvironment enclosingXmlEnvironment) {
+        XmlStringBuilder xml = new XmlStringBuilder(this, enclosingXmlEnvironment);
         xml.attribute(ATTR_CID, cid);
         xml.attribute(ATTR_HOST, host);
         xml.attribute(ATTR_JID, jid);
@@ -152,7 +161,7 @@ public final class JingleS5BTransportCandidate extends JingleContentTransportCan
 
     public static final class Builder {
         private String cid;
-        private String host;
+        private InternetAddress host;
         private Jid jid;
         private int port = -1;
         private int priority = -1;
@@ -166,7 +175,12 @@ public final class JingleS5BTransportCandidate extends JingleContentTransportCan
             return this;
         }
 
-        public Builder setHost(String host) {
+        public Builder setHost(String host)  {
+            InternetAddress inetAddress = InternetAddress.from(host);
+            return setHost(inetAddress);
+        }
+
+        public Builder setHost(InternetAddress host) {
             this.host = host;
             return this;
         }
@@ -201,4 +215,5 @@ public final class JingleS5BTransportCandidate extends JingleContentTransportCan
             return new JingleS5BTransportCandidate(cid, host, jid, port, priority, type);
         }
     }
+
 }

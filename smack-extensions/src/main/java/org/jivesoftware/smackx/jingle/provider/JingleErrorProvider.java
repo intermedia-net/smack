@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
  */
 package org.jivesoftware.smackx.jingle.provider;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.jingle.element.JingleError;
-
-import org.xmlpull.v1.XmlPullParser;
 
 public class JingleErrorProvider extends ExtensionElementProvider<JingleError> {
 
     @Override
-    public JingleError parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public JingleError parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) {
         String errorName = parser.getName();
         return JingleError.fromString(errorName);
     }

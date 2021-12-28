@@ -19,11 +19,13 @@ package org.jivesoftware.smackx.workgroup.packet;
 
 import java.io.IOException;
 
-import org.jivesoftware.smack.packet.ExtensionElement;
-import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import javax.xml.namespace.QName;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  * An IQ stanza that encapsulates both types of workgroup queue
@@ -41,6 +43,8 @@ public class QueueUpdate implements ExtensionElement {
      * Namespace of the stanza extension.
      */
     public static final String NAMESPACE = "http://jabber.org/protocol/workgroup";
+
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT_NAME);
 
     private final int position;
     private final int remainingTime;
@@ -71,7 +75,7 @@ public class QueueUpdate implements ExtensionElement {
     }
 
     @Override
-    public String toXML(String enclosingNamespace) {
+    public String toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         StringBuilder buf = new StringBuilder();
         buf.append("<queue-status xmlns=\"http://jabber.org/protocol/workgroup\">");
         if (position != -1) {
@@ -97,29 +101,20 @@ public class QueueUpdate implements ExtensionElement {
     public static class Provider extends ExtensionElementProvider<QueueUpdate> {
 
         @Override
-        public QueueUpdate parse(XmlPullParser parser, int initialDepth)
+        public QueueUpdate parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
                         throws XmlPullParserException, IOException {
             boolean done = false;
             int position = -1;
             int timeRemaining = -1;
             while (!done) {
                 parser.next();
-                String elementName = parser.getName();
-                if (parser.getEventType() == XmlPullParser.START_TAG && "position".equals(elementName)) {
-                    try {
-                        position = Integer.parseInt(parser.nextText());
-                    }
-                    catch (NumberFormatException nfe) {
-                    }
+                if (parser.getEventType() == XmlPullParser.Event.START_ELEMENT && "position".equals(parser.getName())) {
+                    position = Integer.parseInt(parser.nextText());
                 }
-                else if (parser.getEventType() == XmlPullParser.START_TAG && "time".equals(elementName)) {
-                    try {
-                        timeRemaining = Integer.parseInt(parser.nextText());
-                    }
-                    catch (NumberFormatException nfe) {
-                    }
+                else if (parser.getEventType() == XmlPullParser.Event.START_ELEMENT && "time".equals(parser.getName())) {
+                    timeRemaining = Integer.parseInt(parser.nextText());
                 }
-                else if (parser.getEventType() == XmlPullParser.END_TAG && "queue-status".equals(elementName)) {
+                else if (parser.getEventType() == XmlPullParser.Event.END_ELEMENT && "queue-status".equals(parser.getName())) {
                     done = true;
                 }
             }

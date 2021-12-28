@@ -56,8 +56,10 @@ import org.jivesoftware.smackx.workgroup.settings.ChatSettings;
 import org.jivesoftware.smackx.workgroup.settings.OfflineSettings;
 import org.jivesoftware.smackx.workgroup.settings.SoundSettings;
 import org.jivesoftware.smackx.workgroup.settings.WorkgroupProperties;
-import org.jivesoftware.smackx.xdata.Form;
 import org.jivesoftware.smackx.xdata.FormField;
+import org.jivesoftware.smackx.xdata.TextSingleFormField;
+import org.jivesoftware.smackx.xdata.form.FillableForm;
+import org.jivesoftware.smackx.xdata.form.Form;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 import org.jxmpp.jid.DomainBareJid;
@@ -182,14 +184,17 @@ public class Workgroup {
      * available only when agents are available for this workgroup.
      *
      * @return true if the workgroup is available for receiving new requests.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public boolean isAvailable() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        Presence directedPresence = new Presence(Presence.Type.available);
-        directedPresence.setTo(workgroupJID);
+        Presence directedPresence = connection.getStanzaFactory().buildPresenceStanza()
+                .ofType(Presence.Type.available)
+                .to(workgroupJID)
+                .build();
+
         StanzaFilter typeFilter = new StanzaTypeFilter(Presence.class);
         StanzaFilter fromFilter = FromMatchesFilter.create(workgroupJID);
         StanzaCollector collector = connection.createStanzaCollectorAndSend(new AndFilter(fromFilter,
@@ -244,7 +249,7 @@ public class Workgroup {
      * this method will throw an IllegalStateException if the user is already in the queue.<p>
      *
      * Some servers may be configured to require certain meta-data in order to
-     * join the queue. In that case, the {@link #joinQueue(Form)} method should be
+     * join the queue. In that case, the {@link #joinQueue(FillableForm)} method should be
      * used instead of this method so that meta-data may be passed in.<p>
      *
      * The server tracks the conversations that a user has with agents over time. By
@@ -252,7 +257,7 @@ public class Workgroup {
      * possible. For example, when the user is logged in anonymously using a web client.
      * In that case the user ID might be a randomly generated value put into a persistent
      * cookie or a username obtained via the session. A userID can be explicitly
-     * passed in by using the {@link #joinQueue(Form, Jid)} method. When specified,
+     * passed in by using the {@link #joinQueue(DataForm, Jid)} method. When specified,
      * that userID will be used instead of the user's JID to track conversations. The
      * server will ignore a manually specified userID if the user's connection to the server
      * is not anonymous.
@@ -260,8 +265,8 @@ public class Workgroup {
      * @throws XMPPException if an error occurred joining the queue. An error may indicate
      *                       that a connection failure occurred or that the server explicitly rejected the
      *                       request to join the queue.
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void joinQueue() throws XMPPException, SmackException, InterruptedException {
         joinQueue(null);
@@ -290,7 +295,7 @@ public class Workgroup {
      * possible. For example, when the user is logged in anonymously using a web client.
      * In that case the user ID might be a randomly generated value put into a persistent
      * cookie or a username obtained via the session. A userID can be explicitly
-     * passed in by using the {@link #joinQueue(Form, Jid)} method. When specified,
+     * passed in by using the {@link #joinQueue(DataForm, Jid)} method. When specified,
      * that userID will be used instead of the user's JID to track conversations. The
      * server will ignore a manually specified userID if the user's connection to the server
      * is not anonymous.
@@ -299,11 +304,11 @@ public class Workgroup {
      * @throws XMPPException if an error occurred joining the queue. An error may indicate
      *                       that a connection failure occurred or that the server explicitly rejected the
      *                       request to join the queue.
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public void joinQueue(Form answerForm) throws XMPPException, SmackException, InterruptedException {
-        joinQueue(answerForm, null);
+    public void joinQueue(FillableForm answerForm) throws XMPPException, SmackException, InterruptedException {
+        joinQueue(answerForm.getDataFormToSubmit(), null);
     }
 
     /**
@@ -334,15 +339,15 @@ public class Workgroup {
      *
      * @param answerForm the completed form associated with the join request.
      * @param userID     String that represents the ID of the user when using anonymous sessions
-     *                   or <tt>null</tt> if a userID should not be used.
+     *                   or <code>null</code> if a userID should not be used.
      * @throws XMPPErrorException if an error occurred joining the queue. An error may indicate
      *                       that a connection failure occurred or that the server explicitly rejected the
      *                       request to join the queue.
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public void joinQueue(Form answerForm, Jid userID) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
+    public void joinQueue(DataForm answerForm, Jid userID) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         // If already in the queue ignore the join request.
         if (inQueue) {
             throw new IllegalStateException("Already in queue " + workgroupJID);
@@ -383,32 +388,31 @@ public class Workgroup {
      *
      * @param metadata metadata to create a dataform from.
      * @param userID   String that represents the ID of the user when using anonymous sessions
-     *                 or <tt>null</tt> if a userID should not be used.
+     *                 or <code>null</code> if a userID should not be used.
      * @throws XMPPException if an error occurred joining the queue. An error may indicate
      *                       that a connection failure occurred or that the server explicitly rejected the
      *                       request to join the queue.
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public void joinQueue(Map<String,Object> metadata, Jid userID) throws XMPPException, SmackException, InterruptedException {
+    public void joinQueue(Map<String, Object> metadata, Jid userID) throws XMPPException, SmackException, InterruptedException {
         // If already in the queue ignore the join request.
         if (inQueue) {
             throw new IllegalStateException("Already in queue " + workgroupJID);
         }
 
         // Build dataform from metadata
-        Form form = new Form(DataForm.Type.submit);
+        DataForm.Builder form = DataForm.builder();
         Iterator<String> iter = metadata.keySet().iterator();
         while (iter.hasNext()) {
             String name = iter.next();
             String value = metadata.get(name).toString();
 
-            FormField field = new FormField(name);
-            field.setType(FormField.Type.text_single);
-            form.addField(field);
-            form.setAnswer(name, value);
+            TextSingleFormField.Builder field = FormField.builder(name);
+            field.setValue(value);
+            form.addField(field.build());
         }
-        joinQueue(form, userID);
+        joinQueue(form.build(), userID);
     }
 
     /**
@@ -421,9 +425,9 @@ public class Workgroup {
      *
      * @throws XMPPErrorException if an error occurred trying to send the depart queue
      *                       request to the server.
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void departQueue() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         // If not in the queue ignore the depart request.
@@ -478,17 +482,13 @@ public class Workgroup {
 
     private void fireInvitationEvent(WorkgroupInvitation invitation) {
         for (WorkgroupInvitationListener listener : invitationListeners) {
-            // CHECKSTYLE:OFF
-    	    listener.invitationReceived(invitation);
-            // CHECKSTYLE:ON
+            listener.invitationReceived(invitation);
         }
     }
 
     private void fireQueueJoinedEvent() {
         for (QueueListener listener : queueListeners) {
-            // CHECKSTYLE:OFF
-    	    listener.joinedQueue();
-            // CHECKSTYLE:ON
+            listener.joinedQueue();
         }
     }
 
@@ -516,8 +516,8 @@ public class Workgroup {
         if (packet instanceof Message) {
             Message msg = (Message) packet;
             // Check to see if the user left the queue.
-            ExtensionElement pe = msg.getExtension("depart-queue", "http://jabber.org/protocol/workgroup");
-            ExtensionElement queueStatus = msg.getExtension("queue-status", "http://jabber.org/protocol/workgroup");
+            ExtensionElement pe = msg.getExtensionElement("depart-queue", "http://jabber.org/protocol/workgroup");
+            ExtensionElement queueStatus = msg.getExtensionElement("queue-status", "http://jabber.org/protocol/workgroup");
 
             if (pe != null) {
                 fireQueueDepartedEvent();
@@ -534,19 +534,19 @@ public class Workgroup {
 
             else {
                 // Check if a room invitation was sent and if the sender is the workgroup
-                MUCUser mucUser = msg.getExtension("x", "http://jabber.org/protocol/muc#user");
+                MUCUser mucUser = MUCUser.from(msg);
                 MUCUser.Invite invite = mucUser != null ? mucUser.getInvite() : null;
                 if (invite != null && workgroupJID.equals(invite.getFrom())) {
                     String sessionID = null;
                     Map<String, List<String>> metaData = null;
 
-                    pe = msg.getExtension(SessionID.ELEMENT_NAME,
+                    pe = msg.getExtensionElement(SessionID.ELEMENT_NAME,
                             SessionID.NAMESPACE);
                     if (pe != null) {
                         sessionID = ((SessionID) pe).getSessionID();
                     }
 
-                    pe = msg.getExtension(MetaData.ELEMENT_NAME,
+                    pe = msg.getExtensionElement(MetaData.ELEMENT_NAME,
                             MetaData.NAMESPACE);
                     if (pe != null) {
                         metaData = ((MetaData) pe).getMetaData();
@@ -570,14 +570,14 @@ public class Workgroup {
         private final Jid userID;
         private final DataForm form;
 
-        private JoinQueuePacket(EntityBareJid workgroup, Form answerForm, Jid userID) {
+        private JoinQueuePacket(EntityBareJid workgroup, DataForm answerForm, Jid userID) {
             super("join-queue", "http://jabber.org/protocol/workgroup");
             this.userID = userID;
 
             setTo(workgroup);
             setType(IQ.Type.set);
 
-            form = answerForm.getDataFormToSend();
+            form = answerForm;
             addExtension(form);
         }
 
@@ -587,11 +587,11 @@ public class Workgroup {
             buf.append("<queue-notifications/>");
             // Add the user unique identification if the session is anonymous
             if (connection.isAnonymous()) {
-                buf.append(new UserID(userID).toXML(null));
+                buf.append(new UserID(userID).toXML());
             }
 
             // Append data form text
-            buf.append(form.toXML(null));
+            buf.append(form.toXML());
 
             return buf;
         }
@@ -603,8 +603,8 @@ public class Workgroup {
      * @param key the key to find.
      * @return the ChatSetting if found, otherwise false.
      * @throws XMPPException if an error occurs while getting information from the server.
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public ChatSetting getChatSetting(String key) throws XMPPException, SmackException, InterruptedException {
         ChatSettings chatSettings = getChatSettings(key, -1);
@@ -617,8 +617,8 @@ public class Workgroup {
      * @param type the type of ChatSettings to return.
      * @return the ChatSettings of given type, otherwise null.
      * @throws XMPPException if an error occurs while getting information from the server.
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public ChatSettings getChatSettings(int type) throws XMPPException, SmackException, InterruptedException {
         return getChatSettings(null, type);
@@ -629,8 +629,8 @@ public class Workgroup {
      *
      * @return all ChatSettings of a given workgroup.
      * @throws XMPPException if an error occurs while getting information from the server.
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public ChatSettings getChatSettings() throws XMPPException, SmackException, InterruptedException {
         return getChatSettings(null, -1);
@@ -641,10 +641,10 @@ public class Workgroup {
      * Asks the workgroup for it's Chat Settings.
      *
      * @return key specify a key to retrieve only that settings. Otherwise for all settings, key should be null.
-     * @throws NoResponseException
+     * @throws NoResponseException if there was no response from the remote entity.
      * @throws XMPPErrorException if an error occurs while getting information from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     private ChatSettings getChatSettings(String key, int type) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         ChatSettings request = new ChatSettings();
@@ -667,8 +667,8 @@ public class Workgroup {
      * to see if the email service has been configured and is available.
      *
      * @return true if the email service is available, otherwise return false.
-     * @throws SmackException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public boolean isEmailAvailable() throws SmackException, InterruptedException {
         ServiceDiscoveryManager discoManager = ServiceDiscoveryManager.getInstanceFor(connection);
@@ -687,10 +687,10 @@ public class Workgroup {
      * Asks the workgroup for it's Offline Settings.
      *
      * @return offlineSettings the offline settings for this workgroup.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public OfflineSettings getOfflineSettings() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         OfflineSettings request = new OfflineSettings();
@@ -704,10 +704,10 @@ public class Workgroup {
      * Asks the workgroup for it's Sound Settings.
      *
      * @return soundSettings the sound settings for the specified workgroup.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public SoundSettings getSoundSettings() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         SoundSettings request = new SoundSettings();
@@ -721,10 +721,10 @@ public class Workgroup {
      * Asks the workgroup for it's Properties.
      *
      * @return the WorkgroupProperties for the specified workgroup.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public WorkgroupProperties getWorkgroupProperties() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException  {
         WorkgroupProperties request = new WorkgroupProperties();
@@ -739,10 +739,10 @@ public class Workgroup {
      *
      * @param jid the jid of the user who's information you would like the workgroup to retreive.
      * @return the WorkgroupProperties for the specified workgroup.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public WorkgroupProperties getWorkgroupProperties(String jid) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         WorkgroupProperties request = new WorkgroupProperties();
@@ -761,10 +761,10 @@ public class Workgroup {
      * for future submissions.
      *
      * @return the Form to use for searching transcripts.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public Form getWorkgroupForm() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         WorkgroupForm workgroupForm = new WorkgroupForm();
@@ -773,6 +773,6 @@ public class Workgroup {
 
         WorkgroupForm response = connection.createStanzaCollectorAndSend(
                         workgroupForm).nextResultOrThrow();
-        return Form.getFormFrom(response);
+        return Form.from(response);
     }
 }

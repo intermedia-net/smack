@@ -16,13 +16,18 @@
  */
 package org.jivesoftware.smackx.sid.element;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.util.XmlStringBuilder;
+
 import org.jivesoftware.smackx.sid.StableUniqueStanzaIdManager;
 
 public class StanzaIdElement extends StableAndUniqueIdElement {
 
     public static final String ELEMENT = "stanza-id";
+    public static final String NAMESPACE = StableUniqueStanzaIdManager.NAMESPACE;
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
     public static final String ATTR_BY = "by";
 
     private final String by;
@@ -54,7 +59,7 @@ public class StanzaIdElement extends StableAndUniqueIdElement {
      * @return stanza-id element of a jid, or null if absent.
      */
     public static StanzaIdElement getStanzaId(Message message) {
-        return message.getExtension(StanzaIdElement.ELEMENT, StableUniqueStanzaIdManager.NAMESPACE);
+        return message.getExtension(StanzaIdElement.class);
     }
 
     public String getBy() {
@@ -72,7 +77,7 @@ public class StanzaIdElement extends StableAndUniqueIdElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         return new XmlStringBuilder(this)
                 .attribute(ATTR_ID, getId())
                 .attribute(ATTR_BY, getBy())

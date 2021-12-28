@@ -16,15 +16,15 @@
  */
 package org.jivesoftware.smackx.httpfileupload;
 
-import static org.custommonkey.xmlunit.XMLAssert.assertXMLEqual;
+import static org.jivesoftware.smack.test.util.XmlAssertUtil.assertXmlSimilar;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.net.URL;
 
 import org.jivesoftware.smackx.httpfileupload.element.Slot;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xml.sax.SAXException;
 
 public class SlotCreateTest {
@@ -39,11 +39,11 @@ public class SlotCreateTest {
         Slot slot = new Slot(new URL("https://upload.montague.tld/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/my_juliet.png"),
                 new URL("https://download.montague.tld/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/my_juliet.png"));
 
-        Assert.assertEquals(new URL("https://upload.montague.tld/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/my_juliet.png"),
+        assertEquals(new URL("https://upload.montague.tld/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/my_juliet.png"),
                 slot.getPutUrl());
-        Assert.assertEquals(new URL("https://download.montague.tld/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/my_juliet.png"),
+        assertEquals(new URL("https://download.montague.tld/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/my_juliet.png"),
                 slot.getGetUrl());
 
-        assertXMLEqual(testSlot, slot.getChildElementXML().toString());
+        assertXmlSimilar(testSlot, slot.getChildElementXML().toString());
     }
 }

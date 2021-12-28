@@ -20,10 +20,13 @@ package org.jivesoftware.smackx.commands;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,7 +52,8 @@ import org.jivesoftware.smackx.disco.AbstractNodeInformationProvider;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 import org.jivesoftware.smackx.disco.packet.DiscoverItems;
-import org.jivesoftware.smackx.xdata.Form;
+import org.jivesoftware.smackx.xdata.form.FillableForm;
+import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 import org.jxmpp.jid.Jid;
 
@@ -126,15 +130,6 @@ public final class AdHocCommandManager extends Manager {
 
     private final ServiceDiscoveryManager serviceDiscoveryManager;
 
-    /**
-     * Thread that reaps stale sessions.
-     */
-    // FIXME The session sweeping is horrible implemented. The thread will never stop running. A different approach must
-    // be implemented. For example one that does stop reaping sessions and the thread if there are no more, and restarts
-    // the reaping process on demand. Or for every command a scheduled task should be created that removes the session
-    // if it's timed out. See SMACK-624.
-    private Thread sessionsSweeper;
-
     private AdHocCommandManager(XMPPConnection connection) {
         super(connection);
         this.serviceDiscoveryManager = ServiceDiscoveryManager.getInstanceFor(connection);
@@ -186,15 +181,13 @@ public final class AdHocCommandManager extends Manager {
                 }
             }
         });
-
-        sessionsSweeper = null;
     }
 
     /**
      * Registers a new command with this command manager, which is related to a
-     * connection. The <tt>node</tt> is an unique identifier of that command for
-     * the connection related to this command manager. The <tt>name</tt> is the
-     * human readable name of the command. The <tt>class</tt> is the class of
+     * connection. The <code>node</code> is an unique identifier of that command for
+     * the connection related to this command manager. The <code>name</code> is the
+     * human readable name of the command. The <code>class</code> is the class of
      * the command, which must extend {@link LocalCommand} and have a default
      * constructor.
      *
@@ -213,9 +206,9 @@ public final class AdHocCommandManager extends Manager {
 
     /**
      * Registers a new command with this command manager, which is related to a
-     * connection. The <tt>node</tt> is an unique identifier of that
-     * command for the connection related to this command manager. The <tt>name</tt>
-     * is the human readable name of the command. The <tt>factory</tt> generates
+     * connection. The <code>node</code> is an unique identifier of that
+     * command for the connection related to this command manager. The <code>name</code>
+     * is the human readable name of the command. The <code>factory</code> generates
      * new instances of the command.
      *
      * @param node the unique identifier of the command.
@@ -258,37 +251,10 @@ public final class AdHocCommandManager extends Manager {
      * @return the discovered items.
      * @throws XMPPException if the operation failed for some reason.
      * @throws SmackException if there was no response from the server.
-     * @throws InterruptedException
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public DiscoverItems discoverCommands(Jid jid) throws XMPPException, SmackException, InterruptedException {
         return serviceDiscoveryManager.discoverItems(jid, NAMESPACE);
-    }
-
-    /**
-     * Publish the commands to an specific JID.
-     *
-     * @param jid the full JID to publish the commands to.
-     * @throws XMPPException if the operation failed for some reason.
-     * @throws SmackException if there was no response from the server.
-     * @throws InterruptedException
-     * @deprecated This method uses no longer existent XEP-0030 features and will be removed.
-     */
-    @SuppressWarnings("deprecation")
-    @Deprecated
-    // TODO: Remove in Smack 4.4.
-    public void publishCommands(Jid jid) throws XMPPException, SmackException, InterruptedException {
-        // Collects the commands to publish as items
-        DiscoverItems discoverItems = new DiscoverItems();
-        Collection<AdHocCommandInfo> xCommandsList = getRegisteredCommands();
-
-        for (AdHocCommandInfo info : xCommandsList) {
-            DiscoverItems.Item item = new DiscoverItems.Item(info.getOwnerJID());
-            item.setName(info.getName());
-            item.setNode(info.getNode());
-            discoverItems.addItem(item);
-        }
-
-        serviceDiscoveryManager.publishItems(jid, NAMESPACE, discoverItems);
     }
 
     /**
@@ -326,11 +292,11 @@ public final class AdHocCommandManager extends Manager {
      *  <li>The action to execute is one of the available actions</li>
      * </ul>
      *
-     * @param requestData
+     * @param requestData TODO javadoc me please
      *            the stanza to process.
-     * @throws NotConnectedException
-     * @throws NoResponseException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     private IQ processAdHocCommand(AdHocCommandData requestData) throws NoResponseException, NotConnectedException, InterruptedException {
         // Creates the response with the corresponding data
@@ -364,7 +330,10 @@ public final class AdHocCommandManager extends Manager {
                 }
                 catch (InstantiationException | IllegalAccessException | IllegalArgumentException
                                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
-                    StanzaError.Builder xmppError = StanzaError.getBuilder().setCondition(StanzaError.Condition.internal_server_error).setDescriptiveEnText(e.getMessage());
+                    StanzaError xmppError = StanzaError.getBuilder()
+                                    .setCondition(StanzaError.Condition.internal_server_error)
+                                    .setDescriptiveEnText(e.getMessage())
+                                    .build();
                     return respondError(response, xmppError);
                 }
 
@@ -407,49 +376,8 @@ public final class AdHocCommandManager extends Manager {
                     // available for the next call
                     response.setStatus(Status.executing);
                     executingCommands.put(sessionId, command);
-                    // See if the session reaping thread is started. If not, start it.
-                    if (sessionsSweeper == null) {
-                        sessionsSweeper = new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                while (true) {
-                                    for (String sessionId : executingCommands.keySet()) {
-                                        LocalCommand command = executingCommands.get(sessionId);
-                                        // Since the command could be removed in the meanwhile
-                                        // of getting the key and getting the value - by a
-                                        // processed packet. We must check if it still in the
-                                        // map.
-                                        if (command != null) {
-                                            long creationStamp = command.getCreationDate();
-                                            // Check if the Session data has expired (default is
-                                            // 10 minutes)
-                                            // To remove it from the session list it waits for
-                                            // the double of the of time out time. This is to
-                                            // let
-                                            // the requester know why his execution request is
-                                            // not accepted. If the session is removed just
-                                            // after the time out, then whe the user request to
-                                            // continue the execution he will received an
-                                            // invalid session error and not a time out error.
-                                            if (System.currentTimeMillis() - creationStamp > SESSION_TIMEOUT * 1000 * 2) {
-                                                // Remove the expired session
-                                                executingCommands.remove(sessionId);
-                                            }
-                                        }
-                                    }
-                                    try {
-                                        Thread.sleep(1000);
-                                    }
-                                    catch (InterruptedException ie) {
-                                        // Ignore.
-                                    }
-                                }
-                            }
-
-                        });
-                        sessionsSweeper.setDaemon(true);
-                        sessionsSweeper.start();
-                    }
+                    // See if the session sweeper thread is scheduled. If not, start it.
+                    maybeWindUpSessionSweeper();
                 }
 
                 // Sends the response packet
@@ -469,7 +397,7 @@ public final class AdHocCommandManager extends Manager {
                     response.setStatus(Status.canceled);
                     executingCommands.remove(sessionId);
                 }
-                return respondError(response, StanzaError.getBuilder(error));
+                return respondError(response, error);
             }
         }
         else {
@@ -535,7 +463,8 @@ public final class AdHocCommandManager extends Manager {
 
                     if (Action.next.equals(action)) {
                         command.incrementStage();
-                        command.next(new Form(requestData.getForm()));
+                        DataForm dataForm = requestData.getForm();
+                        command.next(new FillableForm(dataForm));
                         if (command.isLastStage()) {
                             // If it is the last stage then the command is
                             // completed
@@ -548,7 +477,8 @@ public final class AdHocCommandManager extends Manager {
                     }
                     else if (Action.complete.equals(action)) {
                         command.incrementStage();
-                        command.complete(new Form(requestData.getForm()));
+                        DataForm dataForm = requestData.getForm();
+                        command.complete(new FillableForm(dataForm));
                         response.setStatus(Status.completed);
                         // Remove the completed session
                         executingCommands.remove(sessionId);
@@ -579,10 +509,51 @@ public final class AdHocCommandManager extends Manager {
                         response.setStatus(Status.canceled);
                         executingCommands.remove(sessionId);
                     }
-                    return respondError(response, StanzaError.getBuilder(error));
+                    return respondError(response, error);
                 }
             }
         }
+    }
+
+    private boolean sessionSweeperScheduled;
+
+    private void sessionSweeper() {
+        final long currentTime = System.currentTimeMillis();
+        synchronized (this) {
+            for (Iterator<Entry<String, LocalCommand>> it = executingCommands.entrySet().iterator(); it.hasNext();) {
+                Entry<String, LocalCommand> entry = it.next();
+                LocalCommand command = entry.getValue();
+
+                long creationStamp = command.getCreationDate();
+                // Check if the Session data has expired (default is 10 minutes)
+                // To remove it from the session list it waits for the double of
+                // the of time out time. This is to let
+                // the requester know why his execution request is
+                // not accepted. If the session is removed just
+                // after the time out, then once the user requests to
+                // continue the execution he will received an
+                // invalid session error and not a time out error.
+                if (currentTime - creationStamp > SESSION_TIMEOUT * 1000 * 2) {
+                    // Remove the expired session
+                    it.remove();
+                }
+            }
+
+            sessionSweeperScheduled = false;
+        }
+
+        if (!executingCommands.isEmpty()) {
+            maybeWindUpSessionSweeper();
+        }
+    };
+
+    private synchronized void maybeWindUpSessionSweeper() {
+        if (sessionSweeperScheduled) {
+            return;
+        }
+
+        sessionSweeperScheduled = true;
+        schedule(this::sessionSweeper, 10, TimeUnit.SECONDS);
     }
 
     /**
@@ -590,11 +561,11 @@ public final class AdHocCommandManager extends Manager {
      *
      * @param response the response to send.
      * @param condition the condition of the error.
-     * @throws NotConnectedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
      */
     private static IQ respondError(AdHocCommandData response,
             StanzaError.Condition condition) {
-        return respondError(response, StanzaError.getBuilder(condition));
+        return respondError(response, StanzaError.getBuilder(condition).build());
     }
 
     /**
@@ -603,11 +574,13 @@ public final class AdHocCommandManager extends Manager {
      * @param response the response to send.
      * @param condition the condition of the error.
      * @param specificCondition the adhoc command error condition.
-     * @throws NotConnectedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
      */
     private static IQ respondError(AdHocCommandData response, StanzaError.Condition condition,
             AdHocCommand.SpecificErrorCondition specificCondition) {
-        StanzaError.Builder error = StanzaError.getBuilder(condition).addExtension(new AdHocCommandData.SpecificError(specificCondition));
+        StanzaError error = StanzaError.getBuilder(condition)
+                        .addExtension(new AdHocCommandData.SpecificError(specificCondition))
+                        .build();
         return respondError(response, error);
     }
 
@@ -616,9 +589,9 @@ public final class AdHocCommandManager extends Manager {
      *
      * @param response the response to send.
      * @param error the error to send.
-     * @throws NotConnectedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
      */
-    private static IQ respondError(AdHocCommandData response, StanzaError.Builder error) {
+    private static IQ respondError(AdHocCommandData response, StanzaError error) {
         response.setType(IQ.Type.error);
         response.setError(error);
         return response;
@@ -631,10 +604,10 @@ public final class AdHocCommandManager extends Manager {
      * @param sessionID the session id of this execution.
      * @return the command instance to execute.
      * @throws XMPPErrorException if there is problem creating the new instance.
-     * @throws SecurityException
-     * @throws NoSuchMethodException
-     * @throws InvocationTargetException
-     * @throws IllegalArgumentException
+     * @throws SecurityException if there was a security violation.
+     * @throws NoSuchMethodException if no such method is declared
+     * @throws InvocationTargetException if a reflection-based method or constructor invocation threw.
+     * @throws IllegalArgumentException if an illegal argument was given.
      * @throws IllegalAccessException
      * @throws InstantiationException
      */

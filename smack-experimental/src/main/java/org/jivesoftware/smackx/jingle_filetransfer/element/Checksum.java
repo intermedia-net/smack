@@ -19,6 +19,7 @@ package org.jivesoftware.smackx.jingle_filetransfer.element;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.XmlStringBuilder;
+
 import org.jivesoftware.smackx.jingle.element.JingleContent;
 
 /**
@@ -46,12 +47,12 @@ public class Checksum implements ExtensionElement {
     }
 
     @Override
-    public CharSequence toXML(String enclosingNamespace) {
+    public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder sb = new XmlStringBuilder(this);
         sb.optAttribute(ATTR_CREATOR, creator);
         sb.optAttribute(ATTR_NAME, name);
         sb.rightAngleBracket();
-        sb.element(file);
+        sb.append(file);
         sb.closeElement(this);
         return sb;
     }

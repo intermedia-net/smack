@@ -24,6 +24,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.StanzaCollector;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageBuilder;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 import org.jivesoftware.smack.util.StringUtils;
 
 import org.jxmpp.jid.EntityJid;
@@ -65,7 +67,7 @@ public class Chat {
 
     /**
      * Returns the thread id associated with this chat, which corresponds to the
-     * <tt>thread</tt> field of XMPP messages. This method may return <tt>null</tt>
+     * <code>thread</code> field of XMPP messages. This method may return <code>null</code>
      * if there is no thread ID is associated with this Chat.
      *
      * @return the thread ID of this chat.
@@ -94,12 +96,12 @@ public class Chat {
      * </pre>
      *
      * @param text the text to send.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void sendMessage(String text) throws NotConnectedException, InterruptedException {
-        Message message = new Message();
-        message.setBody(text);
+        MessageBuilder message = StanzaBuilder.buildMessage()
+                .setBody(text);
         sendMessage(message);
     }
 
@@ -108,8 +110,25 @@ public class Chat {
      * and message type of the message will automatically set to those of this chat.
      *
      * @param message the message to send.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
+     */
+    public void sendMessage(MessageBuilder message) throws NotConnectedException, InterruptedException {
+        // Force the recipient, message type, and thread ID since the user elected
+        // to send the message through this chat object.
+        message.to(participant);
+        message.ofType(Message.Type.chat);
+        message.setThread(threadID);
+        chatManager.sendMessage(this, message.build());
+    }
+
+    /**
+     * Sends a message to the other chat participant. The thread ID, recipient,
+     * and message type of the message will automatically set to those of this chat.
+     *
+     * @param message the message to send.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void sendMessage(Message message) throws NotConnectedException, InterruptedException {
         // Force the recipient, message type, and thread ID since the user elected

@@ -81,11 +81,17 @@ public class JingleIBBTransport extends JingleContentTransport {
             return false;
         }
 
-        return this == other || this.hashCode() == other.hashCode();
+        if (this == other) {
+            return true;
+        }
+
+        JingleIBBTransport otherTransport = (JingleIBBTransport) other;
+        return this.getSessionId().equals(otherTransport.getSessionId()) &&
+            this.getBlockSize() == otherTransport.getBlockSize();
     }
 
     @Override
     public int hashCode() {
-        return this.toXML(null).toString().hashCode();
+        return this.toXML().toString().hashCode();
     }
 }

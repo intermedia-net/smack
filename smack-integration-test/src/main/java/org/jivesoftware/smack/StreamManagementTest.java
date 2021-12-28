@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
  */
 package org.jivesoftware.smack;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
 
@@ -28,23 +28,20 @@ import org.jivesoftware.smack.filter.MessageWithBodiesFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 
-import org.igniterealtime.smack.inttest.AbstractSmackLowLevelIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
+import org.igniterealtime.smack.inttest.AbstractSmackSpecificLowLevelIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
 import org.igniterealtime.smack.inttest.TestNotPossibleException;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 
-public class StreamManagementTest extends AbstractSmackLowLevelIntegrationTest {
+public class StreamManagementTest extends AbstractSmackSpecificLowLevelIntegrationTest<XMPPTCPConnection> {
 
     public StreamManagementTest(SmackIntegrationTestEnvironment environment) throws Exception {
-        super(environment);
-        performCheck(new ConnectionCallback() {
-            @Override
-            public void connectionCallback(XMPPTCPConnection connection) throws Exception {
-                if (!connection.isSmAvailable()) {
-                    throw new TestNotPossibleException("XEP-198: Stream Mangement not supported by service");
-                }
-            }
-        });
+        super(environment, XMPPTCPConnection.class);
+        XMPPTCPConnection connection = getSpecificUnconnectedConnection();
+        connection.connect().login();
+        if (!connection.isSmAvailable()) {
+            throw new TestNotPossibleException("XEP-198: Stream Mangement not supported by service");
+        }
     }
 
     @SmackIntegrationTest
@@ -80,8 +77,10 @@ public class StreamManagementTest extends AbstractSmackLowLevelIntegrationTest {
 
     private static void send(String messageString, XMPPConnection from, XMPPConnection to)
                     throws NotConnectedException, InterruptedException {
-        Message message = new Message(to.getUser());
-        message.setBody(messageString);
+        Message message = from.getStanzaFactory().buildMessageStanza()
+                        .to(to.getUser())
+                        .setBody(messageString)
+                        .build();
         from.sendStanza(message);
     }
 

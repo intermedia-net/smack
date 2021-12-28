@@ -16,17 +16,18 @@
  */
 package org.jivesoftware.smackx.xdatavalidation;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.jivesoftware.smackx.xdata.FormField;
+import org.jivesoftware.smackx.xdata.JidSingleFormField;
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.BasicValidateElement;
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.ListRange;
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.OpenValidateElement;
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.RangeValidateElement;
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.RegexValidateElement;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Data validation helper test.
@@ -35,81 +36,50 @@ import org.junit.Test;
  */
 public class DataValidationHelperTest {
 
-
     @Test
     public void testCheckConsistencyFormFieldBasicValidateElement() {
-        FormField field = new FormField("var");
-        field.setType(FormField.Type.jid_single);
+        JidSingleFormField.Builder field = FormField.jidSingleBuilder("var");
         BasicValidateElement element = new BasicValidateElement(null);
-        try {
-            element.checkConsistency(field);
-            fail("No correct check on consistency");
-        }
-        catch (ValidationConsistencyException e) {
-            assertEquals("Field type 'jid-single' is not consistent with validation method 'basic'.", e.getMessage());
-        }
+        ValidationConsistencyException vce = assertThrows(ValidationConsistencyException.class,
+                        () -> element.checkConsistency(field));
+        assertEquals("Field type 'jid-single' is not consistent with validation method 'basic'.", vce.getMessage());
 
-        try {
-            new ListRange(-1L, 1L);
-            fail("No correct check on consistency");
-        }
-        catch (IllegalArgumentException e) {
-            assertEquals("unsigned 32-bit integers can't be negative", e.getMessage());
-        }
+        assertThrows(IllegalArgumentException.class,
+                        () -> new ListRange(-1L, 1L));
 
         element.setListRange(new ListRange(10L, 100L));
-        try {
-            element.checkConsistency(field);
-            fail("No correct check on consistency");
-        }
-        catch (ValidationConsistencyException e) {
-            assertEquals("Field type is not of type 'list-multi' while a 'list-range' is defined.", e.getMessage());
-        }
+        vce = assertThrows(ValidationConsistencyException.class, () -> element.checkConsistency(field));
+        assertEquals("Field type is not of type 'list-multi' while a 'list-range' is defined.", vce.getMessage());
 
-        field.setType(FormField.Type.list_multi);
-        element.checkConsistency(field);
+        FormField.Builder<?, ?> fieldListMulti = FormField.listMultiBuilder("var");
+        element.checkConsistency(fieldListMulti);
     }
 
 
     @Test
     public void testCheckConsistencyFormFieldOpenValidateElement() {
-        FormField field = new FormField("var");
-        field.setType(FormField.Type.hidden);
+        FormField.Builder<?, ?> field = FormField.hiddenBuilder("var");
         OpenValidateElement element = new OpenValidateElement(null);
-        try {
-            element.checkConsistency(field);
-            fail("No correct check on consistency");
-        }
-        catch (ValidationConsistencyException e) {
-            assertEquals("Field type 'hidden' is not consistent with validation method 'open'.", e.getMessage());
-        }
+        ValidationConsistencyException e = assertThrows(ValidationConsistencyException.class,
+                        () -> element.checkConsistency(field));
+        assertEquals("Field type 'hidden' is not consistent with validation method 'open'.", e.getMessage());
     }
 
     @Test
     public void testCheckConsistencyFormFieldRangeValidateElement() {
-        FormField field = new FormField("var");
-        field.setType(FormField.Type.text_multi);
-        RangeValidateElement element = new RangeValidateElement("xs:integer",null, "99");
-        try {
-            element.checkConsistency(field);
-            fail("No correct check on consistency");
-        }
-        catch (ValidationConsistencyException e) {
-            assertEquals("Field type 'text-multi' is not consistent with validation method 'range'.", e.getMessage());
-        }
+        FormField.Builder<?, ?> field = FormField.textMultiBuilder("var");
+        RangeValidateElement element = new RangeValidateElement("xs:integer", null,  "99");
+        ValidationConsistencyException e = assertThrows(ValidationConsistencyException.class,
+                        () -> element.checkConsistency(field));
+        assertEquals("Field type 'text-multi' is not consistent with validation method 'range'.", e.getMessage());
     }
 
     @Test
     public void testCheckConsistencyFormFieldRegexValidateElement() {
-        FormField field = new FormField("var");
-        field.setType(FormField.Type.list_multi);
+        FormField.Builder<?, ?> field = FormField.listMultiBuilder("var");
         RegexValidateElement element = new RegexValidateElement(null, ".*");
-        try {
-            element.checkConsistency(field);
-            fail("No correct check on consistency");
-        }
-        catch (ValidationConsistencyException e) {
-            assertEquals("Field type 'list-multi' is not consistent with validation method 'regex'.", e.getMessage());
-        }
+        ValidationConsistencyException e = assertThrows(ValidationConsistencyException.class,
+                        () -> element.checkConsistency(field));
+        assertEquals("Field type 'list-multi' is not consistent with validation method 'regex'.", e.getMessage());
     }
 }

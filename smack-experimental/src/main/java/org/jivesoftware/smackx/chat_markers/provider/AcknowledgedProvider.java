@@ -16,11 +16,11 @@
  */
 package org.jivesoftware.smackx.chat_markers.provider;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.chat_markers.element.ChatMarkersElements.AcknowledgedExtension;
-
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * Acknowledged extension provider class (XEP-0333).
@@ -33,7 +33,7 @@ import org.xmlpull.v1.XmlPullParser;
 public class AcknowledgedProvider extends ExtensionElementProvider<AcknowledgedExtension> {
 
     @Override
-    public AcknowledgedExtension parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public AcknowledgedExtension parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) {
         String id = parser.getAttributeValue("", "id");
         return new AcknowledgedExtension(id);
     }

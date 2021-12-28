@@ -66,6 +66,10 @@ public class Jingle extends IQ {
 
     /**
      * A constructor where the main components can be initialized.
+     *
+     * @param contents the contents.
+     * @param mi the jingle content info
+     * @param sid the sid.
      */
     public Jingle(final List<JingleContent> contents, final JingleContentInfo mi,
                   final String sid) {
@@ -176,25 +180,6 @@ public class Jingle extends IQ {
     public String getSid() {
 
         return sid;
-    }
-
-    /**
-     * Returns the XML element name of the extension sub-packet root element.
-     * Always returns "jingle"
-     *
-     * @return the XML element name of the stanza extension.
-     */
-    public static String getElementName() {
-        return NODENAME;
-    }
-
-    /**
-     * Returns the XML namespace of the extension sub-packet root element.
-     *
-     * @return the XML namespace of the stanza extension.
-     */
-    public static String getNamespace() {
-        return NAMESPACE;
     }
 
     /**
@@ -363,13 +348,13 @@ public class Jingle extends IQ {
 
         synchronized (contents) {
             for (JingleContent content : contents) {
-                buf.append(content.toXML(null));
+                buf.append(content.toXML());
             }
          }
 
         // and the same for audio jmf info
         if (contentInfo != null) {
-            buf.append(contentInfo.toXML(null));
+            buf.append(contentInfo.toXML());
         }
 
         return buf;

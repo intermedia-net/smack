@@ -16,22 +16,24 @@
  */
 package org.jivesoftware.smackx.muc;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 import org.jivesoftware.smackx.xdata.FormField;
+import org.jivesoftware.smackx.xdata.TextSingleFormField;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class RoomInfoTest {
     @Test
     public void validateRoomWithEmptyForm() {
-        DataForm dataForm = new DataForm(DataForm.Type.result);
+        DataForm dataForm = DataForm.builder(DataForm.Type.result).build();
 
-        DiscoverInfo discoInfo = new DiscoverInfo();
-        discoInfo.addExtension(dataForm);
+        DiscoverInfo discoInfo = DiscoverInfo.builder("disco1")
+                .addExtension(dataForm)
+                .build();
         RoomInfo roomInfo = new RoomInfo(discoInfo);
         assertTrue(roomInfo.getDescription().isEmpty());
         assertTrue(roomInfo.getSubject().isEmpty());
@@ -40,22 +42,23 @@ public class RoomInfoTest {
 
     @Test
     public void validateRoomWithForm() {
-        DataForm dataForm = new DataForm(DataForm.Type.result);
+        DataForm.Builder dataForm = DataForm.builder(DataForm.Type.result);
 
-        FormField desc = new FormField("muc#roominfo_description");
-        desc.addValue("The place for all good witches!");
-        dataForm.addField(desc);
+        TextSingleFormField.Builder desc = FormField.builder("muc#roominfo_description");
+        desc.setValue("The place for all good witches!");
+        dataForm.addField(desc.build());
 
-        FormField subject = new FormField("muc#roominfo_subject");
-        subject.addValue("Spells");
-        dataForm.addField(subject);
+        TextSingleFormField.Builder subject = FormField.builder("muc#roominfo_subject");
+        subject.setValue("Spells");
+        dataForm.addField(subject.build());
 
-        FormField occupants = new FormField("muc#roominfo_occupants");
-        occupants.addValue("3");
-        dataForm.addField(occupants);
+        TextSingleFormField.Builder occupants = FormField.builder("muc#roominfo_occupants");
+        occupants.setValue("3");
+        dataForm.addField(occupants.build());
 
-        DiscoverInfo discoInfo = new DiscoverInfo();
-        discoInfo.addExtension(dataForm);
+        DiscoverInfo discoInfo = DiscoverInfo.builder("disco1")
+                .addExtension(dataForm.build())
+                .build();
         RoomInfo roomInfo = new RoomInfo(discoInfo);
         assertEquals("The place for all good witches!", roomInfo.getDescription());
         assertEquals("Spells", roomInfo.getSubject());

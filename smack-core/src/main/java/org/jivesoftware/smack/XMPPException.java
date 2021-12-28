@@ -87,17 +87,6 @@ public abstract class XMPPException extends Exception {
         private final Stanza request;
 
         /**
-         * Creates a new XMPPErrorException with the given builder.
-         *
-         * @param xmppErrorBuilder
-         * @deprecated Use {@link #XMPPErrorException(Stanza, StanzaError)} instead.
-         */
-        @Deprecated
-        public XMPPErrorException(StanzaError.Builder xmppErrorBuilder) {
-            this(null, xmppErrorBuilder.build());
-        }
-
-        /**
          * Creates a new XMPPErrorException with the XMPPError that was the root case of the exception.
          *
          * @param stanza stanza that contained the exception.
@@ -123,25 +112,22 @@ public abstract class XMPPException extends Exception {
         }
 
         /**
-         * Returns the XMPPError associated with this exception, or <tt>null</tt> if there isn't
-         * one.
-         *
-         * @return the XMPPError associated with this exception.
-         * @deprecated use {@link #getStanzaError()} instead.
-         */
-        @Deprecated
-        // TODO Remove in Smack 4.4.
-        public StanzaError getXMPPError() {
-            return error;
-        }
-
-        /**
          * Returns the stanza error extension element associated with this exception.
          *
          * @return the stanza error extension element associated with this exception.
          */
         public StanzaError getStanzaError() {
             return error;
+        }
+
+        /**
+         * Gets the stanza associated with this exception.
+         *
+         * @return the stanza from which this exception was created or {@code null} if the exception is not from a
+         * stanza.
+         */
+        public Stanza getStanza() {
+            return stanza;
         }
 
         /**
@@ -197,6 +183,10 @@ public abstract class XMPPException extends Exception {
         private final StanzaError.Condition condition;
 
         private final Nonza nonza;
+
+        public FailedNonzaException(Nonza failedNonza) {
+            this(failedNonza, null);
+        }
 
         public FailedNonzaException(Nonza nonza, StanzaError.Condition condition) {
             this.condition = condition;

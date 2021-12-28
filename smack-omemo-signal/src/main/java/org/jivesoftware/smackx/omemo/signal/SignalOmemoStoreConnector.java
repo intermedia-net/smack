@@ -20,16 +20,19 @@
  */
 package org.jivesoftware.smackx.omemo.signal;
 
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jivesoftware.smackx.omemo.OmemoManager;
 import org.jivesoftware.smackx.omemo.OmemoStore;
 import org.jivesoftware.smackx.omemo.exceptions.CorruptedOmemoKeyException;
+import org.jivesoftware.smackx.omemo.internal.OmemoDevice;
 
+import org.jxmpp.jid.BareJid;
 import org.jxmpp.jid.impl.JidCreate;
 import org.jxmpp.stringprep.XmppStringprepException;
 import org.whispersystems.libsignal.IdentityKey;
@@ -57,28 +60,36 @@ public class SignalOmemoStoreConnector
 
     private static final Logger LOGGER = Logger.getLogger(SignalOmemoStoreConnector.class.getName());
 
-    private final OmemoManager omemoManager;
-    private final OmemoStore<IdentityKeyPair, IdentityKey, PreKeyRecord, SignedPreKeyRecord, SessionRecord, SignalProtocolAddress, ECPublicKey, PreKeyBundle, SessionCipher>
+    private final OmemoStore<IdentityKeyPair, IdentityKey, PreKeyRecord, SignedPreKeyRecord, SessionRecord,
+            SignalProtocolAddress, ECPublicKey, PreKeyBundle, SessionCipher>
             omemoStore;
+    private final OmemoManager omemoManager;
 
-    public SignalOmemoStoreConnector(OmemoManager omemoManager, OmemoStore<IdentityKeyPair, IdentityKey, PreKeyRecord, SignedPreKeyRecord, SessionRecord, SignalProtocolAddress, ECPublicKey, PreKeyBundle, SessionCipher> store) {
+    public SignalOmemoStoreConnector(OmemoManager omemoManager, OmemoStore<IdentityKeyPair,
+            IdentityKey, PreKeyRecord, SignedPreKeyRecord, SessionRecord, SignalProtocolAddress, ECPublicKey,
+            PreKeyBundle, SessionCipher> store) {
         this.omemoManager = omemoManager;
         this.omemoStore = store;
+    }
+
+    OmemoDevice getOurDevice() {
+        return omemoManager.getOwnDevice();
     }
 
     @Override
     public IdentityKeyPair getIdentityKeyPair() {
         try {
-            return omemoStore.loadOmemoIdentityKeyPair(omemoManager);
-        } catch (CorruptedOmemoKeyException e) {
-            LOGGER.log(Level.SEVERE, "getIdentityKeyPair has failed: " + e, e);
+            return omemoStore.loadOmemoIdentityKeyPair(getOurDevice());
+        } catch (CorruptedOmemoKeyException | IOException e) {
+            LOGGER.log(Level.SEVERE, "IdentityKeyPair seems to be invalid.", e);
             return null;
         }
     }
 
     /**
-     * We don't use this.
-     * @return dummy
+     * The OMEMO protocol does not make use of a local registration ID, so we can simply return 0 here.
+     *
+     * @return local registration id.
      */
     @Override
     public int getLocalRegistrationId() {
@@ -86,130 +97,194 @@ public class SignalOmemoStoreConnector
     }
 
     @Override
-    public void saveIdentity(SignalProtocolAddress signalProtocolAddress, IdentityKey identityKey) {
+    public boolean saveIdentity(SignalProtocolAddress signalProtocolAddress, IdentityKey identityKey) {
+        OmemoDevice device;
         try {
-            omemoStore.storeOmemoIdentityKey(omemoManager, omemoStore.keyUtil().addressAsOmemoDevice(signalProtocolAddress), identityKey);
+            device = asOmemoDevice(signalProtocolAddress);
         } catch (XmppStringprepException e) {
             throw new AssertionError(e);
         }
+
+        try {
+            omemoStore.storeOmemoIdentityKey(getOurDevice(), device, identityKey);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        return true;
     }
 
     @Override
-    public boolean isTrustedIdentity(SignalProtocolAddress signalProtocolAddress, IdentityKey identityKey) {
-        // Disable internal trust management. Instead we use OmemoStore.isTrustedOmemoIdentity() before encrypting for a
-        // recipient.
+    public boolean isTrustedIdentity(SignalProtocolAddress signalProtocolAddress,
+                                     IdentityKey identityKey,
+                                     Direction direction) {
+        // Disable internal trust management. Instead we use OmemoStore.isTrustedOmemoIdentity() before encrypting
+        // for a recipient.
         return true;
     }
 
     @Override
     public PreKeyRecord loadPreKey(int i) throws InvalidKeyIdException {
-        PreKeyRecord pr = omemoStore.loadOmemoPreKey(omemoManager, i);
-        if (pr == null) {
-            throw new InvalidKeyIdException("No PreKey with Id " + i + " found!");
+        PreKeyRecord preKey;
+        try {
+            preKey = omemoStore.loadOmemoPreKey(getOurDevice(), i);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
         }
-        return pr;
+
+        if (preKey == null) {
+            throw new InvalidKeyIdException("No PreKey with Id " + i + " found.");
+        }
+
+        return preKey;
     }
 
     @Override
     public void storePreKey(int i, PreKeyRecord preKeyRecord) {
-        omemoStore.storeOmemoPreKey(omemoManager, i, preKeyRecord);
+        try {
+            omemoStore.storeOmemoPreKey(getOurDevice(), i, preKeyRecord);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Override
     public boolean containsPreKey(int i) {
         try {
-            return (loadPreKey(i) != null);
+            return loadPreKey(i) != null;
         } catch (InvalidKeyIdException e) {
-            LOGGER.log(Level.WARNING, "containsPreKey has failed: " + e.getMessage());
             return false;
         }
     }
 
     @Override
     public void removePreKey(int i) {
-        omemoStore.removeOmemoPreKey(omemoManager, i);
+        omemoStore.removeOmemoPreKey(getOurDevice(), i);
     }
 
     @Override
     public SessionRecord loadSession(SignalProtocolAddress signalProtocolAddress) {
+        OmemoDevice device;
         try {
-            SessionRecord s = omemoStore.loadRawSession(omemoManager, omemoStore.keyUtil().addressAsOmemoDevice(signalProtocolAddress));
-            return (s != null ? s : new SessionRecord());
+            device = asOmemoDevice(signalProtocolAddress);
         } catch (XmppStringprepException e) {
             throw new AssertionError(e);
+        }
+
+        SessionRecord record;
+        try {
+            record = omemoStore.loadRawSession(getOurDevice(), device);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+
+        if (record != null) {
+            return record;
+        } else {
+            return new SessionRecord();
         }
     }
 
     @Override
     public List<Integer> getSubDeviceSessions(String s) {
-        HashMap<Integer, SessionRecord> contactsSessions;
+        BareJid jid;
         try {
-            contactsSessions = omemoStore.loadAllRawSessionsOf(omemoManager, JidCreate.bareFrom(s));
+            jid = JidCreate.bareFrom(s);
         } catch (XmppStringprepException e) {
             throw new AssertionError(e);
         }
-        if (contactsSessions != null) {
-            return new ArrayList<>(contactsSessions.keySet());
+
+        try {
+            return new ArrayList<>(omemoStore.loadAllRawSessionsOf(getOurDevice(), jid).keySet());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
         }
-        return new ArrayList<>();
     }
 
     @Override
     public void storeSession(SignalProtocolAddress signalProtocolAddress, SessionRecord sessionRecord) {
+        OmemoDevice device;
         try {
-            omemoStore.storeRawSession(omemoManager, omemoStore.keyUtil().addressAsOmemoDevice(signalProtocolAddress), sessionRecord);
+            device = asOmemoDevice(signalProtocolAddress);
         } catch (XmppStringprepException e) {
             throw new AssertionError(e);
+        }
+
+        try {
+            omemoStore.storeRawSession(getOurDevice(), device, sessionRecord);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
         }
     }
 
     @Override
     public boolean containsSession(SignalProtocolAddress signalProtocolAddress) {
+        OmemoDevice device;
         try {
-            return omemoStore.containsRawSession(omemoManager, omemoStore.keyUtil().addressAsOmemoDevice(signalProtocolAddress));
+            device = asOmemoDevice(signalProtocolAddress);
         } catch (XmppStringprepException e) {
             throw new AssertionError(e);
         }
+
+        return omemoStore.containsRawSession(getOurDevice(), device);
     }
 
     @Override
     public void deleteSession(SignalProtocolAddress signalProtocolAddress) {
+        OmemoDevice device;
         try {
-            omemoStore.removeRawSession(omemoManager, omemoStore.keyUtil().addressAsOmemoDevice(signalProtocolAddress));
+            device = asOmemoDevice(signalProtocolAddress);
         } catch (XmppStringprepException e) {
             throw new AssertionError(e);
         }
+
+        omemoStore.removeRawSession(getOurDevice(), device);
     }
 
     @Override
     public void deleteAllSessions(String s) {
+        BareJid jid;
         try {
-            omemoStore.removeAllRawSessionsOf(omemoManager, JidCreate.bareFrom(s));
+            jid = JidCreate.bareFrom(s);
         } catch (XmppStringprepException e) {
             throw new AssertionError(e);
         }
+
+        omemoStore.removeAllRawSessionsOf(getOurDevice(), jid);
     }
 
     @Override
     public SignedPreKeyRecord loadSignedPreKey(int i) throws InvalidKeyIdException {
-        SignedPreKeyRecord spkr = omemoStore.loadOmemoSignedPreKey(omemoManager, i);
-        if (spkr == null) {
-            throw new InvalidKeyIdException("No SignedPreKey with Id " + i + " found!");
+        SignedPreKeyRecord signedPreKeyRecord;
+        try {
+            signedPreKeyRecord = omemoStore.loadOmemoSignedPreKey(getOurDevice(), i);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
         }
-        return spkr;
+        if (signedPreKeyRecord == null) {
+            throw new InvalidKeyIdException("No signed preKey with id " + i + " found.");
+        }
+        return signedPreKeyRecord;
     }
 
     @Override
     public List<SignedPreKeyRecord> loadSignedPreKeys() {
-        HashMap<Integer, SignedPreKeyRecord> signedPreKeyRecordHashMap = omemoStore.loadOmemoSignedPreKeys(omemoManager);
-        List<SignedPreKeyRecord> signedPreKeyRecordList = new ArrayList<>();
-        signedPreKeyRecordList.addAll(signedPreKeyRecordHashMap.values());
-        return signedPreKeyRecordList;
+
+        TreeMap<Integer, SignedPreKeyRecord> signedPreKeyRecordHashMap;
+        try {
+            signedPreKeyRecordHashMap = omemoStore.loadOmemoSignedPreKeys(getOurDevice());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        return new ArrayList<>(signedPreKeyRecordHashMap.values());
     }
 
     @Override
     public void storeSignedPreKey(int i, SignedPreKeyRecord signedPreKeyRecord) {
-        omemoStore.storeOmemoSignedPreKey(omemoManager, i, signedPreKeyRecord);
+        try {
+            omemoStore.storeOmemoSignedPreKey(getOurDevice(), i, signedPreKeyRecord);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Override
@@ -224,6 +299,14 @@ public class SignalOmemoStoreConnector
 
     @Override
     public void removeSignedPreKey(int i) {
-        omemoStore.removeOmemoSignedPreKey(omemoManager, i);
+        omemoStore.removeOmemoSignedPreKey(getOurDevice(), i);
+    }
+
+    private static OmemoDevice asOmemoDevice(SignalProtocolAddress address) throws XmppStringprepException {
+        return new OmemoDevice(JidCreate.bareFrom(address.getName()), address.getDeviceId());
+    }
+
+    public static SignalProtocolAddress asAddress(OmemoDevice device) {
+        return new SignalProtocolAddress(device.getJid().toString(), device.getDeviceId());
     }
 }

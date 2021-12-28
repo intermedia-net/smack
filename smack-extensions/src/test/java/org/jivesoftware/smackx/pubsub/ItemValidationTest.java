@@ -16,33 +16,33 @@
  */
 package org.jivesoftware.smackx.pubsub;
 
-import static org.custommonkey.xmlunit.XMLAssert.assertXMLEqual;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.jivesoftware.smack.test.util.XmlAssertUtil.assertXmlSimilar;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.jivesoftware.smack.ThreadedDummyConnection;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.NamedElement;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.pubsub.packet.PubSubNamespace;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.xmlpull.v1.XmlPullParser;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Item validation test.
  * @author Robin Collier
  *
  */
-public class ItemValidationTest extends InitExtensions {
+public class ItemValidationTest extends SmackTestSuite {
     private ThreadedDummyConnection connection;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         // Uncomment this to enable debug output
         // SmackConfiguration.DEBUG = true;
@@ -52,7 +52,7 @@ public class ItemValidationTest extends InitExtensions {
         connection.login();
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         if (connection != null)
             connection.disconnect();
@@ -62,15 +62,15 @@ public class ItemValidationTest extends InitExtensions {
     public void verifyBasicItem() throws Exception {
         Item simpleItem = new Item();
         String simpleCtrl = "<item xmlns='http://jabber.org/protocol/pubsub' />";
-        assertXMLEqual(simpleCtrl, simpleItem.toXML(null).toString());
+        assertXmlSimilar(simpleCtrl, simpleItem.toXML().toString());
 
         Item idItem = new Item("uniqueid");
         String idCtrl = "<item xmlns='http://jabber.org/protocol/pubsub' id='uniqueid'/>";
-        assertXMLEqual(idCtrl, idItem.toXML(null).toString());
+        assertXmlSimilar(idCtrl, idItem.toXML().toString());
 
         Item itemWithNodeId = new Item("testId", "testNode");
         String nodeIdCtrl = "<item xmlns='http://jabber.org/protocol/pubsub' id='testId' node='testNode' />";
-        assertXMLEqual(nodeIdCtrl, itemWithNodeId.toXML(null).toString());
+        assertXmlSimilar(nodeIdCtrl, itemWithNodeId.toXML().toString());
     }
 
     @Test
@@ -78,16 +78,16 @@ public class ItemValidationTest extends InitExtensions {
         SimplePayload payload = new SimplePayload("<data xmlns='https://example.org'>This is the payload</data>");
 
         PayloadItem<SimplePayload> simpleItem = new PayloadItem<>(payload);
-        String simpleCtrl = "<item xmlns='http://jabber.org/protocol/pubsub'>" + payload.toXML(null) + "</item>";
-        assertXMLEqual(simpleCtrl, simpleItem.toXML(null).toString());
+        String simpleCtrl = "<item xmlns='http://jabber.org/protocol/pubsub'>" + payload.toXML() + "</item>";
+        assertXmlSimilar(simpleCtrl, simpleItem.toXML().toString());
 
         PayloadItem<SimplePayload> idItem = new PayloadItem<>("uniqueid", payload);
-        String idCtrl = "<item xmlns='http://jabber.org/protocol/pubsub' id='uniqueid'>" + payload.toXML(null) + "</item>";
-        assertXMLEqual(idCtrl, idItem.toXML(null).toString());
+        String idCtrl = "<item xmlns='http://jabber.org/protocol/pubsub' id='uniqueid'>" + payload.toXML() + "</item>";
+        assertXmlSimilar(idCtrl, idItem.toXML().toString());
 
         PayloadItem<SimplePayload> itemWithNodeId = new PayloadItem<>("testId", "testNode", payload);
-        String nodeIdCtrl = "<item xmlns='http://jabber.org/protocol/pubsub' id='testId' node='testNode'>" + payload.toXML(null) + "</item>";
-        assertXMLEqual(nodeIdCtrl, itemWithNodeId.toXML(null).toString());
+        String nodeIdCtrl = "<item xmlns='http://jabber.org/protocol/pubsub' id='testId' node='testNode'>" + payload.toXML() + "</item>";
+        assertXmlSimilar(nodeIdCtrl, itemWithNodeId.toXML().toString());
     }
 
     @Test
@@ -145,7 +145,7 @@ public class ItemValidationTest extends InitExtensions {
         SimplePayload payload = (SimplePayload) item.getPayload();
         assertEquals("foo", payload.getElementName());
         assertEquals("smack:test", payload.getNamespace());
-        assertXMLEqual(itemContent, payload.toXML(null).toString());
+        assertXmlSimilar(itemContent, payload.toXML().toString());
     }
 
     @Test
@@ -191,7 +191,7 @@ public class ItemValidationTest extends InitExtensions {
         SimplePayload payload = (SimplePayload) item.getPayload();
         assertEquals("entry", payload.getElementName());
         assertEquals("http://www.w3.org/2005/Atom", payload.getNamespace());
-        assertXMLEqual(itemContent, payload.toXML(null).toString());
+        assertXmlSimilar(itemContent, payload.toXML().toString());
     }
 
     @Test
@@ -226,6 +226,6 @@ public class ItemValidationTest extends InitExtensions {
         assertEquals("testid1", item.getId());
         assertTrue(item.getPayload() instanceof SimplePayload);
 
-        assertXMLEqual(itemContent, item.getPayload().toXML(null).toString());
+        assertXmlSimilar(itemContent, item.getPayload().toXML().toString());
     }
 }

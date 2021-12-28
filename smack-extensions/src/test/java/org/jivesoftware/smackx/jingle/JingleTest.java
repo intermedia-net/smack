@@ -16,16 +16,17 @@
  */
 package org.jivesoftware.smackx.jingle;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertNotNull;
-import static junit.framework.TestCase.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.jivesoftware.smack.test.util.SmackTestSuite;
 
 import org.jivesoftware.smackx.jingle.element.Jingle;
 import org.jivesoftware.smackx.jingle.element.JingleAction;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.FullJid;
 import org.jxmpp.jid.impl.JidCreate;
 import org.jxmpp.stringprep.XmppStringprepException;
@@ -35,26 +36,30 @@ import org.jxmpp.stringprep.XmppStringprepException;
  */
 public class JingleTest extends SmackTestSuite {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void emptyBuilderTest() {
-        Jingle.Builder builder = Jingle.getBuilder();
-        builder.build();
+        Jingle.Builder builder = Jingle.builder("id");
+        assertThrows(IllegalArgumentException.class, () -> {
+            builder.build();
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void onlySessionIdBuilderTest() {
         String sessionId = "testSessionId";
 
-        Jingle.Builder builder = Jingle.getBuilder();
+        Jingle.Builder builder = Jingle.builder("id");
         builder.setSessionId(sessionId);
-        builder.build();
+        assertThrows(IllegalArgumentException.class, () -> {
+            builder.build();
+        });
     }
 
     @Test
     public void parserTest() throws XmppStringprepException {
         String sessionId = "testSessionId";
 
-        Jingle.Builder builder = Jingle.getBuilder();
+        Jingle.Builder builder = Jingle.builder("id");
         builder.setSessionId(sessionId);
         builder.setAction(JingleAction.session_initiate);
 
@@ -76,6 +81,6 @@ public class JingleTest extends SmackTestSuite {
                 "action='session-initiate' " +
                 "sid='" + sessionId + "'>" +
                 "</jingle>";
-        assertTrue(jingle.toXML(null).toString().contains(xml));
+        assertTrue(jingle.toXML().toString().contains(xml));
     }
 }

@@ -26,7 +26,7 @@ import org.jivesoftware.smack.util.XmlStringBuilder;
 /**
  * Represents a stream error packet. Stream errors are unrecoverable errors where the server
  * will close the underlying TCP connection after the stream error was sent to the client.
- * These is the list of stream errors as defined in the XMPP spec:<p>
+ * These is the list of stream errors as defined in the XMPP spec:
  *
  * <table border=1>
  *      <caption>Stream Errors</caption>
@@ -136,11 +136,11 @@ public class StreamError extends AbstractError implements Nonza {
 
     @Override
     public String toString() {
-        return toXML(null).toString();
+        return toXML().toString();
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder();
         xml.openElement(ELEMENT);
         xml.halfOpenElement(condition.toString()).xmlnsAttribute(NAMESPACE).closeEmptyElement();
@@ -186,6 +186,11 @@ public class StreamError extends AbstractError implements Nonza {
         }
 
         public static Condition fromString(String string) {
+            // Backwards compatibility for older implementations still using RFC 3920. RFC 6120
+            // changed 'xml-not-well-formed' to 'not-well-formed'.
+            if ("xml-not-well-formed".equals(string)) {
+                string = "not-well-formed";
+            }
             string = string.replace('-', '_');
             Condition condition = null;
             try {

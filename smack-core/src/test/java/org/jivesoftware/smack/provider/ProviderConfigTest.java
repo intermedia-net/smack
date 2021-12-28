@@ -20,11 +20,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.util.FileUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.xmlpull.v1.XmlPullParser;
 
 public class ProviderConfigTest {
 
@@ -62,7 +63,7 @@ public class ProviderConfigTest {
     public static class TestIQProvider extends IQProvider<IQ> {
 
         @Override
-        public IQ parse(XmlPullParser parser, int initialDepth) {
+        public IQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) {
             return null;
         }
 

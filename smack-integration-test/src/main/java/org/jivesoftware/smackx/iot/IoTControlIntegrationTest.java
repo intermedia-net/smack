@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2016 Florian Schmaus
+ * Copyright 2016-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,12 @@
  */
 package org.jivesoftware.smackx.iot;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.Collection;
 import java.util.concurrent.TimeoutException;
 
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
-import org.jivesoftware.smack.roster.RosterIntegrationTest;
 import org.jivesoftware.smack.util.StringUtils;
 
 import org.jivesoftware.smackx.iot.control.IoTControlManager;
@@ -32,8 +31,9 @@ import org.jivesoftware.smackx.iot.control.element.SetBoolData;
 import org.jivesoftware.smackx.iot.control.element.SetData;
 
 import org.igniterealtime.smack.inttest.AbstractSmackIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
+import org.igniterealtime.smack.inttest.util.IntegrationTestRosterUtil;
 import org.igniterealtime.smack.inttest.util.SimpleResultSyncPoint;
 import org.jxmpp.jid.Jid;
 
@@ -52,8 +52,8 @@ public class IoTControlIntegrationTest extends AbstractSmackIntegrationTest {
     /**
      * Connection one provides a thing, which is controlled by connection two.
      *
-     * @throws Exception
-     * @throws TimeoutException
+     * @throws Exception if an exception occurs.
+     * @throws TimeoutException if there was a timeout.
      */
     @SmackIntegrationTest
     // @SmackSerialIntegrationTest
@@ -83,7 +83,7 @@ public class IoTControlIntegrationTest extends AbstractSmackIntegrationTest {
         IoTControlManagerOne.installThing(controlThing);
 
         try {
-            RosterIntegrationTest.ensureBothAccountsAreSubscribedToEachOther(conOne, conTwo, timeout);
+            IntegrationTestRosterUtil.ensureBothAccountsAreSubscribedToEachOther(conOne, conTwo, timeout);
 
             SetData data = new SetBoolData(testRunId, true);
             IoTSetResponse response = IoTControlManagerTwo.setUsingIq(conOne.getUser(), data);
@@ -91,7 +91,7 @@ public class IoTControlIntegrationTest extends AbstractSmackIntegrationTest {
         }
         finally {
             IoTControlManagerOne.uninstallThing(controlThing);
-            RosterIntegrationTest.ensureBothAccountsAreNotInEachOthersRoster(conOne, conTwo);
+            IntegrationTestRosterUtil.ensureBothAccountsAreNotInEachOthersRoster(conOne, conTwo);
         }
 
         syncPoint.waitForResult(timeout);

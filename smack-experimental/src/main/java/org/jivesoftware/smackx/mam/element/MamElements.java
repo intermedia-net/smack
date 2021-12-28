@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2016 Florian Schmaus and Fernando Ramirez
+ * Copyright © 2016-2020 Florian Schmaus and Fernando Ramirez
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,12 @@ package org.jivesoftware.smackx.mam.element;
 
 import java.util.List;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.Element;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageView;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 import org.jivesoftware.smackx.delay.packet.DelayInformation;
@@ -55,6 +58,11 @@ public class MamElements {
         public static final String ELEMENT = "result";
 
         /**
+         * The qualified name of the MAM result extension element.
+         */
+        public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
+        /**
          * id of the result.
          */
         private final String id;
@@ -62,7 +70,7 @@ public class MamElements {
         /**
          * the forwarded element.
          */
-        private final Forwarded forwarded;
+        private final Forwarded<Message> forwarded;
 
         /**
          * the message element.
@@ -77,11 +85,11 @@ public class MamElements {
         /**
          * MAM result extension constructor.
          *
-         * @param queryId
-         * @param id
-         * @param forwarded
+         * @param queryId TODO javadoc me please
+         * @param id TODO javadoc me please
+         * @param forwarded TODO javadoc me please
          */
-        public MamResultExtension(String queryId, String id, Forwarded forwarded) {
+        public MamResultExtension(String queryId, String id, Forwarded<Message> forwarded) {
             if (StringUtils.isEmpty(id)) {
                 throw new IllegalArgumentException("id must not be null or empty");
             }
@@ -122,7 +130,7 @@ public class MamElements {
          *
          * @return the forwarded element
          */
-        public Forwarded getForwarded() {
+        public Forwarded<Message> getForwarded() {
             return forwarded;
         }
 
@@ -150,22 +158,21 @@ public class MamElements {
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
-            XmlStringBuilder xml = new XmlStringBuilder();
-            xml.halfOpenElement(this);
-            xml.xmlnsAttribute(NAMESPACE);
+        public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
+            XmlStringBuilder xml = new XmlStringBuilder(this, enclosingNamespace);
+
             xml.optAttribute("queryid", getQueryId());
             xml.optAttribute("id", getId());
             xml.rightAngleBracket();
 
-            xml.element(getForwarded());
+            xml.append(getForwarded());
 
             xml.closeElement(this);
             return xml;
         }
 
-        public static MamResultExtension from(Message message) {
-            return (MamResultExtension) message.getExtension(ELEMENT, NAMESPACE);
+        public static MamResultExtension from(MessageView message) {
+            return message.getExtension(MamResultExtension.class);
         }
 
     }
@@ -184,14 +191,14 @@ public class MamElements {
         /**
          * Always JID list element constructor.
          *
-         * @param alwaysJids
+         * @param alwaysJids TODO javadoc me please
          */
         AlwaysJidListElement(List<Jid> alwaysJids) {
             this.alwaysJids = alwaysJids;
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder();
             xml.openElement("always");
 
@@ -218,14 +225,14 @@ public class MamElements {
         /**
          * Never JID list element constructor.
          *
-         * @param neverJids
+         * @param neverJids TODO javadoc me please
          */
         public NeverJidListElement(List<Jid> neverJids) {
             this.neverJids = neverJids;
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder();
             xml.openElement("never");
 

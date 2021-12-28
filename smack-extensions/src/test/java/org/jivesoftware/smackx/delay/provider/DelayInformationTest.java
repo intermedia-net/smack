@@ -16,9 +16,9 @@
  */
 package org.jivesoftware.smackx.delay.provider;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -31,19 +31,19 @@ import java.util.TimeZone;
 import javax.xml.parsers.FactoryConfigurationError;
 
 import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.delay.DelayInformationManager;
 import org.jivesoftware.smackx.delay.packet.DelayInformation;
 
 import com.jamesmurty.utils.XMLBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.util.XmppDateTime;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
-public class DelayInformationTest extends InitExtensions {
+public class DelayInformationTest extends SmackTestSuite {
 
     private static final Calendar calendar = new GregorianCalendar(2002, 9 - 1, 10, 23, 8, 25);
     private static Properties outputProperties = new Properties();
@@ -76,7 +76,7 @@ public class DelayInformationTest extends InitExtensions {
         assertEquals(date, delayInfo.getStamp());
         assertEquals("Offline Storage", delayInfo.getReason());
 
-        assertEquals(XmlPullParser.END_TAG, parser.getEventType());
+        assertEquals(XmlPullParser.Event.END_ELEMENT, parser.getEventType());
         assertEquals("x", parser.getName());
 
         control = XMLBuilder.create("x")
@@ -92,7 +92,7 @@ public class DelayInformationTest extends InitExtensions {
         assertEquals(date, delayInfo.getStamp());
         assertNull(delayInfo.getReason());
 
-        assertEquals(XmlPullParser.END_TAG, parser.getEventType());
+        assertEquals(XmlPullParser.Event.END_ELEMENT, parser.getEventType());
         assertEquals("x", parser.getName());
 
     }

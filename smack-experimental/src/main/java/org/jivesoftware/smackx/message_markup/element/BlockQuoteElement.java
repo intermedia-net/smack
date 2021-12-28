@@ -16,13 +16,12 @@
  */
 package org.jivesoftware.smackx.message_markup.element;
 
-import org.jivesoftware.smack.util.XmlStringBuilder;
+import javax.xml.namespace.QName;
 
-public class BlockQuoteElement implements MarkupElement.BlockLevelMarkupElement {
+public class BlockQuoteElement extends MarkupElement.BlockLevelMarkupElement {
 
     public static final String ELEMENT = "bquote";
-
-    private final int start, end;
+    public static final QName QNAME = new QName(MarkupElement.NAMESPACE, ELEMENT);
 
     /**
      * Create a new Block Quote element.
@@ -31,32 +30,12 @@ public class BlockQuoteElement implements MarkupElement.BlockLevelMarkupElement 
      * @param end end index
      */
     public BlockQuoteElement(int start, int end) {
-        this.start = start;
-        this.end = end;
-    }
-
-    @Override
-    public int getStart() {
-        return start;
-    }
-
-    @Override
-    public int getEnd() {
-        return end;
+        super(start, end);
     }
 
     @Override
     public String getElementName() {
-        return ELEMENT;
+        return QNAME.getLocalPart();
     }
 
-    @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = new XmlStringBuilder();
-        xml.halfOpenElement(this);
-        xml.attribute(ATTR_START, getStart());
-        xml.attribute(ATTR_END, getEnd());
-        xml.closeEmptyElement();
-        return xml;
-    }
 }

@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2016 Florian Schmaus
+ * Copyright 2016-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,8 +140,10 @@ public final class IoTProvisioningManager extends Manager {
                                     + " is already not subscribed to our presence.");
                     return;
                 }
-                Presence unsubscribed = new Presence(Presence.Type.unsubscribed);
-                unsubscribed.setTo(unfriendJid);
+                Presence unsubscribed = connection.getStanzaFactory().buildPresenceStanza()
+                        .ofType(Presence.Type.unsubscribed)
+                        .to(unfriendJid)
+                        .build();
                 connection.sendStanza(unsubscribed);
             }
         }, UNFRIEND_MESSAGE);
@@ -162,7 +164,10 @@ public final class IoTProvisioningManager extends Manager {
                     // friendship requests.
                     final XMPPConnection connection = connection();
                     Friend friendNotification = new Friend(connection.getUser().asBareJid());
-                    Message notificationMessage = new Message(friendJid, friendNotification);
+                    Message notificationMessage = connection.getStanzaFactory().buildMessageStanza()
+                            .to(friendJid)
+                            .addExtension(friendNotification)
+                            .build();
                     connection.sendStanza(notificationMessage);
                 } else {
                     // Check is the message was send from a thing we previously
@@ -284,7 +289,7 @@ public final class IoTProvisioningManager extends Manager {
      * Set the configured provisioning server. Use <code>null</code> as provisioningServer to use
      * automatic discovery of the provisioning server (the default behavior).
      *
-     * @param provisioningServer
+     * @param provisioningServer TODO javadoc me please
      */
     public void setConfiguredProvisioningServer(Jid provisioningServer) {
         this.configuredProvisioningServer = provisioningServer;
@@ -302,10 +307,10 @@ public final class IoTProvisioningManager extends Manager {
      * Try to find a provisioning server component.
      *
      * @return the XMPP address of the provisioning server component if one was found.
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @see <a href="http://xmpp.org/extensions/xep-0324.html#servercomponent">XEP-0324 § 3.1.2 Provisioning Server as a server component</a>
      */
     public DomainBareJid findProvisioningServerComponent() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -316,7 +321,7 @@ public final class IoTProvisioningManager extends Manager {
             return null;
         }
         Jid jid = discoverInfos.get(0).getFrom();
-        assert (jid.isDomainBareJid());
+        assert jid.isDomainBareJid();
         return jid.asDomainBareJid();
     }
 
@@ -326,10 +331,10 @@ public final class IoTProvisioningManager extends Manager {
      * @param provisioningServer the provisioning server to ask.
      * @param friendInQuestion the JID to ask about.
      * @return <code>true</code> if the JID is a friend, <code>false</code> otherwise.
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public boolean isFriend(Jid provisioningServer, BareJid friendInQuestion) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         LruCache<BareJid, Void> cache = negativeFriendshipRequestCache.lookup(provisioningServer);
@@ -341,7 +346,7 @@ public final class IoTProvisioningManager extends Manager {
         IoTIsFriend iotIsFriend = new IoTIsFriend(friendInQuestion);
         iotIsFriend.setTo(provisioningServer);
         IoTIsFriendResponse response = connection().createStanzaCollectorAndSend(iotIsFriend).nextResultOrThrow();
-        assert (response.getJid().equals(friendInQuestion));
+        assert response.getJid().equals(friendInQuestion);
         boolean isFriend = response.getIsFriendResult();
         if (!isFriend) {
             // Cache the negative is friend response.
@@ -359,8 +364,11 @@ public final class IoTProvisioningManager extends Manager {
     }
 
     public void sendFriendshipRequest(BareJid bareJid) throws NotConnectedException, InterruptedException {
-        Presence presence = new Presence(Presence.Type.subscribe);
-        presence.setTo(bareJid);
+        XMPPConnection connection = connection();
+        Presence presence = connection.getStanzaFactory().buildPresenceStanza()
+            .ofType(Presence.Type.subscribe)
+            .to(bareJid)
+            .build();
 
         friendshipRequestedCache.put(bareJid, null);
 
@@ -379,9 +387,12 @@ public final class IoTProvisioningManager extends Manager {
 
     public void unfriend(Jid friend) throws NotConnectedException, InterruptedException {
         if (isMyFriend(friend)) {
-            Presence presence = new Presence(Presence.Type.unsubscribed);
-            presence.setTo(friend);
-            connection().sendStanza(presence);
+            XMPPConnection connection = connection();
+            Presence presence = connection.getStanzaFactory().buildPresenceStanza()
+                    .ofType(Presence.Type.unsubscribed)
+                    .to(friend)
+                    .build();
+            connection.sendStanza(presence);
         }
     }
 

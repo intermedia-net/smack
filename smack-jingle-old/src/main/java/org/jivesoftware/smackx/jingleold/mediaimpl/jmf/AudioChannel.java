@@ -100,6 +100,7 @@ public class AudioChannel {
      * @param localPort       local port number
      * @param remotePort      remote port number
      * @param format          audio format
+     * @param jingleMediaSession the jingle media session.
      */
     public AudioChannel(MediaLocator locator,
             String localIpAddress,
@@ -312,12 +313,12 @@ public class AudioChannel {
     /**
      * Get the best stanza size for a given codec and a codec rate
      *
-     * @param codecFormat
-     * @param milliseconds
+     * @param codecFormat TODO javadoc me please
+     * @param milliseconds TODO javadoc me please
      * @return the best stanza size
-     * @throws IllegalArgumentException
+     * @throws IllegalArgumentException if an illegal argument was given.
      */
-    private int getPacketSize(Format codecFormat, int milliseconds) throws IllegalArgumentException {
+    private static int getPacketSize(Format codecFormat, int milliseconds) throws IllegalArgumentException {
         String encoding = codecFormat.getEncoding();
         if (encoding.equalsIgnoreCase(AudioFormat.GSM) ||
                 encoding.equalsIgnoreCase(AudioFormat.GSM_RTP)) {
@@ -336,7 +337,7 @@ public class AudioChannel {
      * Use the RTPManager API to create sessions for each jmf
      * track of the processor.
      *
-     * @return description
+     * @return description TODO javadoc me please
      */
     private String createTransmitter() {
 

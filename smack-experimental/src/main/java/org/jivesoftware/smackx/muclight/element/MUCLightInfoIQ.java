@@ -46,9 +46,9 @@ public class MUCLightInfoIQ extends IQ {
     /**
      * MUCLight info response IQ constructor.
      *
-     * @param version
-     * @param configuration
-     * @param occupants
+     * @param version TODO javadoc me please
+     * @param configuration TODO javadoc me please
+     * @param occupants TODO javadoc me please
      */
     public MUCLightInfoIQ(String version, MUCLightRoomConfiguration configuration,
             HashMap<Jid, MUCLightAffiliation> occupants) {
@@ -62,8 +62,8 @@ public class MUCLightInfoIQ extends IQ {
     protected IQChildElementXmlStringBuilder getIQChildElementBuilder(IQChildElementXmlStringBuilder xml) {
         xml.rightAngleBracket();
         xml.optElement("version", version);
-        xml.element(new ConfigurationElement(configuration));
-        xml.element(new OccupantsElement(occupants));
+        xml.append(new ConfigurationElement(configuration));
+        xml.append(new OccupantsElement(occupants));
         return xml;
     }
 

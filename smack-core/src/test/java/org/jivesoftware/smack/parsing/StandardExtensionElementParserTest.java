@@ -20,7 +20,6 @@ import static org.jivesoftware.smack.util.PacketParserUtils.getParserFor;
 import static org.junit.Assert.assertEquals;
 
 import org.jivesoftware.smack.packet.StandardExtensionElement;
-import org.jivesoftware.smack.packet.StandardExtensionElement.Builder;
 
 import org.junit.Test;
 
@@ -28,11 +27,11 @@ public class StandardExtensionElementParserTest {
 
     @Test
     public void buildAndParse() throws Exception {
-        Builder builder = StandardExtensionElement.builder("foo", "ns1");
+        StandardExtensionElement.Builder builder = StandardExtensionElement.builder("foo", "ns1");
         builder.addAttribute("attr1", "attr1-value");
         builder.addElement(StandardExtensionElement.builder("bar", "ns2").addAttribute("attr2", "attr2-value").build());
         builder.addElement("another-element", "another-element-text");
-        final String elementString = builder.build().toXML(null).toString();
+        final String elementString = builder.build().toXML().toString();
 
         StandardExtensionElement parsedElement = StandardExtensionElementProvider.INSTANCE.parse(getParserFor(elementString));
 
@@ -47,16 +46,16 @@ public class StandardExtensionElementParserTest {
 
         assertEquals("another-element-text", parsedElement.getFirstElement("another-element").getText());
 
-        String parsedElementString = parsedElement.toXML(null).toString();
+        String parsedElementString = parsedElement.toXML().toString();
         assertEquals(elementString, parsedElementString);
     }
 
     @Test
     public void buildWithAttrNamespacesAndParse() throws Exception {
-        Builder builder = StandardExtensionElement.builder("foo", "ns1-value");
+        StandardExtensionElement.Builder builder = StandardExtensionElement.builder("foo", "ns1-value");
         builder.addAttribute("xmlns:ns2", "ns2-value");
         builder.addAttribute("ns2:bar", "bar-ns2-value");
-        final String elementString = builder.build().toXML(null).toString();
+        final String elementString = builder.build().toXML().toString();
 
         StandardExtensionElement parsedElement = StandardExtensionElementProvider.INSTANCE.parse(getParserFor(elementString));
         assertEquals("foo", parsedElement.getElementName());

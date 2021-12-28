@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.NamedElement;
+import org.jivesoftware.smack.util.XmlStringBuilder;
 
 /**
  * This class is used for multiple purposes.
@@ -106,7 +107,7 @@ public class ItemsExtension extends NodeExtension implements EmbeddedPacketExten
      *
      * @param nodeId The node to which the items are being sent or deleted
      * @param items The list of {@link Item} or {@link RetractItem}
-     * @param notify
+     * @param notify TODO javadoc me please
      */
     public ItemsExtension(String nodeId, List<? extends ExtensionElement> items, boolean notify) {
         super(ItemsElementType.retract.getNodeElement(), nodeId);
@@ -135,6 +136,7 @@ public class ItemsExtension extends NodeExtension implements EmbeddedPacketExten
      *
      * @return List of {@link Item}, {@link RetractItem}, or null
      */
+    // TODO: Shouldn't this return List<Item>? Why is RetractItem not a subtype of item?
     public List<? extends NamedElement> getItems() {
         return items;
     }
@@ -149,40 +151,26 @@ public class ItemsExtension extends NodeExtension implements EmbeddedPacketExten
     }
 
     @Override
-    public CharSequence toXML(String enclosingNamespace) {
+    protected void addXml(XmlStringBuilder xml) {
         if ((items == null) || (items.size() == 0)) {
-            return super.toXML(enclosingNamespace);
+            xml.closeEmptyElement();
+            return;
         }
-        else {
-            StringBuilder builder = new StringBuilder("<");
-            builder.append(getElementName());
-            builder.append(" node='");
-            builder.append(getNode());
 
-            if (notify != null) {
-                builder.append("' ");
-                builder.append(type.getElementAttribute());
-                builder.append("='");
-                builder.append(notify.equals(Boolean.TRUE) ? 1 : 0);
-                builder.append("'>");
-            }
-            else {
-                builder.append("'>");
-                for (NamedElement item : items) {
-                    builder.append(item.toXML(null));
-                }
-            }
-
-            builder.append("</");
-            builder.append(getElementName());
-            builder.append('>');
-            return builder.toString();
+        if (notify != null) {
+            xml.attribute(type.getElementAttribute(), notify);
+            xml.rightAngleBracket();
+        } else {
+            xml.rightAngleBracket();
+            xml.append(items);
         }
+
+        xml.closeElement(this);
     }
 
     @Override
     public String toString() {
-        return getClass().getName() + "Content [" + toXML(null) + "]";
+        return getClass().getName() + "Content [" + toXML() + "]";
     }
 
 }

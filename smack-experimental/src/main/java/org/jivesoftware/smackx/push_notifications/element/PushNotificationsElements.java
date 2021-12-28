@@ -16,6 +16,8 @@
  */
 package org.jivesoftware.smackx.push_notifications.element;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.util.XmlStringBuilder;
@@ -40,6 +42,7 @@ public class PushNotificationsElements {
 
         public static final String NAMESPACE = PubSub.NAMESPACE;
         public static final String ELEMENT = PubSub.ELEMENT;
+        public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
         private final String node;
         private final Jid userJid;
@@ -78,7 +81,7 @@ public class PushNotificationsElements {
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder(this);
 
             xml.attribute("node", node);
@@ -94,7 +97,7 @@ public class PushNotificationsElements {
         }
 
         public static RemoteDisablingExtension from(Message message) {
-            return message.getExtension(ELEMENT, NAMESPACE);
+            return message.getExtension(RemoteDisablingExtension.class);
         }
 
     }

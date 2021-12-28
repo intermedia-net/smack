@@ -25,21 +25,24 @@ import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.StanzaCollector;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.provider.ProviderManager;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jxmpp.jid.DomainBareJid;
+import org.jxmpp.jid.impl.JidCreate;
+import org.jxmpp.stringprep.XmppStringprepException;
 
 /**
  * RTPBridge IQ Stanza used to request and retrieve a RTPBridge Candidates that can be used for a Jingle Media Transmission between two parties that are behind NAT.
@@ -93,7 +96,7 @@ public class RTPBridge extends IQ {
     /**
      * Creates a RTPBridge Instance with defined Session ID.
      *
-     * @param sid
+     * @param sid TODO javadoc me please
      */
     public RTPBridge(String sid) {
         this();
@@ -103,7 +106,7 @@ public class RTPBridge extends IQ {
     /**
      * Creates a RTPBridge Instance with defined Session ID.
      *
-     * @param action
+     * @param action TODO javadoc me please
      */
     public RTPBridge(BridgeAction action) {
         this();
@@ -113,8 +116,8 @@ public class RTPBridge extends IQ {
     /**
      * Creates a RTPBridge Instance with defined Session ID.
      *
-     * @param sid
-     * @param bridgeAction
+     * @param sid TODO javadoc me please
+     * @param bridgeAction TODO javadoc me please
      */
     public RTPBridge(String sid, BridgeAction bridgeAction) {
         this();
@@ -131,6 +134,8 @@ public class RTPBridge extends IQ {
 
     /**
      * Get the attributes string.
+     *
+     * @return the attributes.
      */
     public String getAttributes() {
         StringBuilder str = new StringBuilder();
@@ -168,7 +173,7 @@ public class RTPBridge extends IQ {
     /**
      * Set the Session ID of the Stanza (usually same as Jingle Session ID).
      *
-     * @param sid
+     * @param sid TODO javadoc me please
      */
     public void setSid(String sid) {
         this.sid = sid;
@@ -186,7 +191,7 @@ public class RTPBridge extends IQ {
     /**
      * Set the Host A IP Address.
      *
-     * @param hostA
+     * @param hostA TODO javadoc me please
      */
     public void setHostA(String hostA) {
         this.hostA = hostA;
@@ -204,7 +209,7 @@ public class RTPBridge extends IQ {
     /**
      * Set the Host B IP Address.
      *
-     * @param hostB
+     * @param hostB TODO javadoc me please
      */
     public void setHostB(String hostB) {
         this.hostB = hostB;
@@ -222,7 +227,7 @@ public class RTPBridge extends IQ {
     /**
      * Set Side A receive port.
      *
-     * @param portA
+     * @param portA TODO javadoc me please
      */
     public void setPortA(int portA) {
         this.portA = portA;
@@ -240,7 +245,7 @@ public class RTPBridge extends IQ {
     /**
      * Set Side B receive port.
      *
-     * @param portB
+     * @param portB TODO javadoc me please
      */
     public void setPortB(int portB) {
         this.portB = portB;
@@ -258,7 +263,7 @@ public class RTPBridge extends IQ {
     /**
      * Set the RTP Bridge IP.
      *
-     * @param ip
+     * @param ip TODO javadoc me please
      */
     public void setIp(String ip) {
         this.ip = ip;
@@ -276,7 +281,7 @@ public class RTPBridge extends IQ {
     /**
      * Set the RTP Agent Pass.
      *
-     * @param pass
+     * @param pass TODO javadoc me please
      */
     public void setPass(String pass) {
         this.pass = pass;
@@ -294,7 +299,7 @@ public class RTPBridge extends IQ {
     /**
      * Set the name of the Candidate.
      *
-     * @param name
+     * @param name TODO javadoc me please
      */
     public void setName(String name) {
         this.name = name;
@@ -329,17 +334,17 @@ public class RTPBridge extends IQ {
     public static class Provider extends IQProvider<RTPBridge> {
 
         @Override
-        public RTPBridge parse(XmlPullParser parser, int initialDepth)
-                        throws SmackException, XmlPullParserException,
+        public RTPBridge parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
+                        throws XmlPullParserException,
                         IOException {
 
             boolean done = false;
 
-            int eventType;
-            String elementName;
+            XmlPullParser.Event eventType;
 
             if (!parser.getNamespace().equals(RTPBridge.NAMESPACE))
-                throw new SmackException("Not a RTP Bridge packet");
+                // TODO: Should be SmackParseException.
+                throw new IOException("Not a RTP Bridge packet");
 
             RTPBridge iq = new RTPBridge();
 
@@ -351,9 +356,9 @@ public class RTPBridge extends IQ {
             // Start processing sub-elements
             while (!done) {
                 eventType = parser.next();
-                elementName = parser.getName();
 
-                if (eventType == XmlPullParser.START_TAG) {
+                if (eventType == XmlPullParser.Event.START_ELEMENT) {
+                    String elementName = parser.getName();
                     if (elementName.equals("candidate")) {
                         for (int i = 0; i < parser.getAttributeCount(); i++) {
                             if (parser.getAttributeName(i).equals("ip"))
@@ -375,7 +380,7 @@ public class RTPBridge extends IQ {
                         }
                     }
                 }
-                else if (eventType == XmlPullParser.END_TAG) {
+                else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                     if (parser.getName().equals(RTPBridge.ELEMENT_NAME)) {
                         done = true;
                     }
@@ -389,13 +394,12 @@ public class RTPBridge extends IQ {
      * Get a new RTPBridge Candidate from the server.
      * If a error occurs or the server don't support RTPBridge Service, null is returned.
      *
-     * @param connection
-     * @param sessionID
+     * @param connection TODO javadoc me please
+     * @param sessionID TODO javadoc me please
      * @return the new RTPBridge
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    @SuppressWarnings("deprecation")
     public static RTPBridge getRTPBridge(XMPPConnection connection, String sessionID) throws NotConnectedException, InterruptedException {
 
         if (!connection.isConnected()) {
@@ -403,7 +407,13 @@ public class RTPBridge extends IQ {
         }
 
         RTPBridge rtpPacket = new RTPBridge(sessionID);
-        rtpPacket.setTo(RTPBridge.NAME + "." + connection.getXMPPServiceDomain());
+        DomainBareJid jid;
+        try {
+            jid = JidCreate.domainBareFrom(RTPBridge.NAME + "." + connection.getXMPPServiceDomain());
+        } catch (XmppStringprepException e) {
+            throw new AssertionError(e);
+        }
+        rtpPacket.setTo(jid);
 
         StanzaCollector collector = connection.createStanzaCollectorAndSend(rtpPacket);
 
@@ -418,12 +428,12 @@ public class RTPBridge extends IQ {
     /**
      * Check if the server support RTPBridge Service.
      *
-     * @param connection
+     * @param connection TODO javadoc me please
      * @return true if the server supports the RTPBridge service
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public static boolean serviceAvailable(XMPPConnection connection) throws NoResponseException,
                     XMPPErrorException, NotConnectedException, InterruptedException {
@@ -447,7 +457,7 @@ public class RTPBridge extends IQ {
 
         DiscoverInfo discoInfo = disco.discoverInfo(connection.getXMPPServiceDomain());
         for (DiscoverInfo.Identity identity : discoInfo.getIdentities()) {
-            if ((identity.getName() != null) && (identity.getName().startsWith("rtpbridge"))) {
+            if (identity.getName() != null && identity.getName().startsWith("rtpbridge")) {
                 return true;
             }
         }
@@ -458,12 +468,15 @@ public class RTPBridge extends IQ {
     /**
      * Check if the server support RTPBridge Service.
      *
-     * @param connection
+     * @param connection TODO javadoc me please
+     * @param sessionID the session id.
+     * @param pass the password.
+     * @param proxyCandidate the proxy candidate.
+     * @param localCandidate the local candidate.
      * @return the RTPBridge
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    @SuppressWarnings("deprecation")
     public static RTPBridge relaySession(XMPPConnection connection, String sessionID, String pass, TransportCandidate proxyCandidate, TransportCandidate localCandidate) throws NotConnectedException, InterruptedException {
 
         if (!connection.isConnected()) {
@@ -471,7 +484,13 @@ public class RTPBridge extends IQ {
         }
 
         RTPBridge rtpPacket = new RTPBridge(sessionID, RTPBridge.BridgeAction.change);
-        rtpPacket.setTo(RTPBridge.NAME + "." + connection.getXMPPServiceDomain());
+        DomainBareJid jid;
+        try {
+            jid = JidCreate.domainBareFrom(RTPBridge.NAME + "." + connection.getXMPPServiceDomain());
+        } catch (XmppStringprepException e) {
+            throw new AssertionError(e);
+        }
+        rtpPacket.setTo(jid);
         rtpPacket.setType(Type.set);
 
         rtpPacket.setPass(pass);
@@ -495,12 +514,11 @@ public class RTPBridge extends IQ {
     /**
      * Get Public Address from the Server.
      *
-     * @param xmppConnection
+     * @param xmppConnection TODO javadoc me please
      * @return public IP String or null if not found
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    @SuppressWarnings("deprecation")
     public static String getPublicIP(XMPPConnection xmppConnection) throws NotConnectedException, InterruptedException {
 
         if (!xmppConnection.isConnected()) {
@@ -508,7 +526,13 @@ public class RTPBridge extends IQ {
         }
 
         RTPBridge rtpPacket = new RTPBridge(RTPBridge.BridgeAction.publicip);
-        rtpPacket.setTo(RTPBridge.NAME + "." + xmppConnection.getXMPPServiceDomain());
+        DomainBareJid jid;
+        try {
+            jid = JidCreate.domainBareFrom(RTPBridge.NAME + "." + xmppConnection.getXMPPServiceDomain());
+        } catch (XmppStringprepException e) {
+            throw new AssertionError(e);
+        }
+        rtpPacket.setTo(jid);
         rtpPacket.setType(Type.set);
 
         // LOGGER.debug("Relayed to: " + candidate.getIp() + ":" + candidate.getPort());

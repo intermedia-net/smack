@@ -41,7 +41,10 @@ public class JingleContent implements ExtensionElement {
     private final List<JingleTransport> transports = new ArrayList<>();
 
     /**
-     * Creates a content description..
+     * Creates a content description.
+     *
+     * @param creator the creator.
+     * @param name the name.
      */
     public JingleContent(String creator, String name) {
         super();
@@ -81,7 +84,7 @@ public class JingleContent implements ExtensionElement {
     /**
      * Sets the description for this Jingle content.
      *
-     * @param description
+     * @param description TODO javadoc me please
      *            The description
      */
     public void setDescription(JingleDescription description) {
@@ -100,7 +103,7 @@ public class JingleContent implements ExtensionElement {
     /**
      * Adds a JingleTransport type to the packet.
      *
-     * @param transport
+     * @param transport TODO javadoc me please
      *            the JingleTransport to add.
      */
     public void addJingleTransport(final JingleTransport transport) {
@@ -112,7 +115,7 @@ public class JingleContent implements ExtensionElement {
     /**
      * Adds a list of transports to add to the packet.
      *
-     * @param transports
+     * @param transports TODO javadoc me please
      *            the transports to add.
      */
     public void addTransports(final List<JingleTransport> transports) {
@@ -160,7 +163,7 @@ public class JingleContent implements ExtensionElement {
      * @return a string with the XML representation
      */
     @Override
-    public String toXML(String enclosingNamespace) {
+    public String toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         StringBuilder buf = new StringBuilder();
 
         synchronized (transports) {
@@ -171,12 +174,12 @@ public class JingleContent implements ExtensionElement {
 
             // Add the description.
             if (description != null) {
-                buf.append(description.toXML(null));
+                buf.append(description.toXML());
             }
 
             // Add all of the transports.
             for (JingleTransport transport : transports) {
-                buf.append(transport.toXML(null));
+                buf.append(transport.toXML());
             }
             buf.append("</").append(getElementName()).append('>');
         }

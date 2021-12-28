@@ -55,14 +55,17 @@ public final class JingleError implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
         xml.closeEmptyElement();
         return xml;
     }
 
     /**
-     * Returns a Action instance associated with the String value.
+     * Returns a error instance associated with the String value.
+     *
+     * @param value the input String.
+     * @return the jingle error instance associated with the input String.
      */
     public static JingleError fromString(String value) {
         value = value.toLowerCase(Locale.US);

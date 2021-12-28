@@ -18,6 +18,8 @@ package org.jivesoftware.smackx.delay.packet;
 
 import java.util.Date;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.util.XmlStringBuilder;
@@ -39,6 +41,7 @@ import org.jxmpp.util.XmppDateTime;
 public class DelayInformation implements ExtensionElement {
     public static final String ELEMENT = "delay";
     public static final String NAMESPACE = "urn:xmpp:delay";
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
     private final Date stamp;
     private final String from;
@@ -62,7 +65,7 @@ public class DelayInformation implements ExtensionElement {
 
     /**
      * Returns the JID of the entity that originally sent the stanza or that delayed the
-     * delivery of the stanza or <tt>null</tt> if this information is not available.
+     * delivery of the stanza or <code>null</code> if this information is not available.
      *
      * @return the JID of the entity that originally sent the stanza or that delayed the
      *         delivery of the packet.
@@ -82,10 +85,10 @@ public class DelayInformation implements ExtensionElement {
     }
 
     /**
-     * Returns a natural-language description of the reason for the delay or <tt>null</tt> if
+     * Returns a natural-language description of the reason for the delay or <code>null</code> if
      * this information is not available.
      *
-     * @return a natural-language description of the reason for the delay or <tt>null</tt>.
+     * @return a natural-language description of the reason for the delay or <code>null</code>.
      */
     public String getReason() {
         return reason;
@@ -102,20 +105,18 @@ public class DelayInformation implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = new XmlStringBuilder(this);
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
+        XmlStringBuilder xml = new XmlStringBuilder(this, enclosingNamespace);
         xml.attribute("stamp", XmppDateTime.formatXEP0082Date(stamp));
         xml.optAttribute("from", from);
-        xml.rightAngleBracket();
-        xml.optAppend(reason);
-        xml.closeElement(this);
+        xml.optTextChild(reason, this);
         return xml;
     }
 
     /**
      * Return delay information from the given stanza.
      *
-     * @param packet
+     * @param packet TODO javadoc me please
      * @return the DelayInformation or null
      * @deprecated use {@link #from(Stanza)} instead
      */
@@ -127,10 +128,10 @@ public class DelayInformation implements ExtensionElement {
     /**
      * Return delay information from the given stanza.
      *
-     * @param packet
+     * @param packet TODO javadoc me please
      * @return the DelayInformation or null
      */
     public static DelayInformation from(Stanza packet) {
-        return packet.getExtension(ELEMENT, NAMESPACE);
+        return packet.getExtension(DelayInformation.class);
     }
 }

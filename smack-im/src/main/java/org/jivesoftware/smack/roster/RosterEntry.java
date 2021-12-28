@@ -31,6 +31,7 @@ import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Presence.Type;
 import org.jivesoftware.smack.roster.packet.RosterPacket;
+import org.jivesoftware.smack.util.EqualsUtil;
 
 import org.jxmpp.jid.BareJid;
 
@@ -93,10 +94,10 @@ public final class RosterEntry extends Manager {
      * Sets the name associated with this entry.
      *
      * @param name the name.
-     * @throws NotConnectedException
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public synchronized void setName(String name) throws NotConnectedException, NoResponseException, XMPPErrorException, InterruptedException {
         // Do nothing if the name hasn't changed.
@@ -122,7 +123,7 @@ public final class RosterEntry extends Manager {
      * @param item new item
      */
     void updateItem(RosterPacket.Item item) {
-        assert (item != null);
+        assert item != null;
         this.item = item;
     }
 
@@ -212,13 +213,17 @@ public final class RosterEntry extends Manager {
     /**
      * Cancel the presence subscription the XMPP entity representing this roster entry has with us.
      *
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @since 4.2
      */
     public void cancelSubscription() throws NotConnectedException, InterruptedException {
-        Presence unsubscribed = new Presence(item.getJid(), Type.unsubscribed);
-        connection().sendStanza(unsubscribed);
+        XMPPConnection connection = connection();
+        Presence unsubscribed = connection.getStanzaFactory().buildPresenceStanza()
+                .to(item.getJid())
+                .ofType(Type.unsubscribed)
+                .build();
+        connection.sendStanza(unsubscribed);
     }
 
     @Override
@@ -251,15 +256,9 @@ public final class RosterEntry extends Manager {
 
     @Override
     public boolean equals(Object object) {
-        if (this == object) {
-            return true;
-        }
-        if (object != null && object instanceof RosterEntry) {
-            return getJid().equals(((RosterEntry) object).getJid());
-        }
-        else {
-            return false;
-        }
+        return EqualsUtil.equals(this, object, (e, o) ->
+            e.append(getJid(), o.getJid())
+        );
     }
 
     /**
@@ -272,14 +271,9 @@ public final class RosterEntry extends Manager {
      *         otherwise.
      */
     public boolean equalsDeep(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        RosterEntry other = (RosterEntry) obj;
-        return other.item.equals(this.item);
+        return EqualsUtil.equals(this, obj, (e, o) ->
+            e.append(item, o.item)
+        );
     }
 
     /**

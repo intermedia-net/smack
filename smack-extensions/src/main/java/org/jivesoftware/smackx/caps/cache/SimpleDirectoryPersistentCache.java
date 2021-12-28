@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2011-2014 Florian Schmaus
+ * Copyright © 2011-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ public class SimpleDirectoryPersistentCache implements EntityCapsPersistentCache
     private static final Logger LOGGER = Logger.getLogger(SimpleDirectoryPersistentCache.class.getName());
 
     private final File cacheDir;
-    private final StringEncoder filenameEncoder;
+    private final StringEncoder<String> filenameEncoder;
 
     /**
      * Creates a new SimpleDirectoryPersistentCache Object. Make sure that the
@@ -53,7 +53,7 @@ public class SimpleDirectoryPersistentCache implements EntityCapsPersistentCache
      * file systems, both case sensitive and case insensitive.  It does however
      * produce longer filenames.
      *
-     * @param cacheDir
+     * @param cacheDir TODO javadoc me please
      */
     public SimpleDirectoryPersistentCache(File cacheDir) {
         this(cacheDir, Base32.getStringEncoder());
@@ -69,7 +69,7 @@ public class SimpleDirectoryPersistentCache implements EntityCapsPersistentCache
      * @param cacheDir The directory where the cache will be stored.
      * @param filenameEncoder Encodes the node string into a filename.
      */
-    public SimpleDirectoryPersistentCache(File cacheDir, StringEncoder filenameEncoder) {
+    public SimpleDirectoryPersistentCache(File cacheDir, StringEncoder<String> filenameEncoder) {
         if (!cacheDir.exists())
             throw new IllegalStateException("Cache directory \"" + cacheDir + "\" does not exist");
         if (!cacheDir.isDirectory())
@@ -125,33 +125,27 @@ public class SimpleDirectoryPersistentCache implements EntityCapsPersistentCache
     /**
      * Writes the DiscoverInfo stanza to an file
      *
-     * @param file
-     * @param info
-     * @throws IOException
+     * @param file TODO javadoc me please
+     * @param info TODO javadoc me please
+     * @throws IOException if an I/O error occurred.
      */
     private static void writeInfoToFile(File file, DiscoverInfo info) throws IOException {
-        DataOutputStream dos = new DataOutputStream(new FileOutputStream(file));
-        try {
-            dos.writeUTF(info.toXML(null).toString());
-        } finally {
-            dos.close();
+        try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(file))) {
+            dos.writeUTF(info.toXML().toString());
         }
     }
 
     /**
      * Tries to restore an DiscoverInfo stanza from a file.
      *
-     * @param file
+     * @param file TODO javadoc me please
      * @return the restored DiscoverInfo
-     * @throws Exception
+     * @throws Exception if an exception occurs.
      */
     private static DiscoverInfo restoreInfoFromFile(File file) throws Exception {
-        DataInputStream dis = new DataInputStream(new FileInputStream(file));
         String fileContent;
-        try {
+        try (DataInputStream dis = new DataInputStream(new FileInputStream(file))) {
             fileContent = dis.readUTF();
-        } finally {
-            dis.close();
         }
         if (fileContent == null) {
             return null;

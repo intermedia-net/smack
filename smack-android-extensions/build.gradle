@@ -7,4 +7,7 @@ dependencies {
 	compile project(':smack-core')
 	compile project(':smack-android')
 	compile project(':smack-extensions')
+
+	// Add the Android jar to the Eclipse .classpath.
+	compileClasspath files(androidBootClasspath)
 }

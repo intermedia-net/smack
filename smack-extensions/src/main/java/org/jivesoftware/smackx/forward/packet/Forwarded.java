@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2013-2014 Georg Lukas
+ * Copyright 2013-2014 Georg Lukas, 2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
 import org.jivesoftware.smackx.delay.packet.DelayInformation;
@@ -33,22 +36,24 @@ import org.jivesoftware.smackx.delay.packet.DelayInformation;
  * @author Georg Lukas
  * @see <a href="http://xmpp.org/extensions/xep-0297.html">XEP-0297: Stanza Forwarding</a>
  */
-public class Forwarded implements ExtensionElement {
+public class Forwarded<S extends Stanza> implements ExtensionElement {
     public static final String NAMESPACE = "urn:xmpp:forward:0";
     public static final String ELEMENT = "forwarded";
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
     private final DelayInformation delay;
-    private final Stanza forwardedPacket;
+    private final S forwardedStanza;
 
     /**
      * Creates a new Forwarded stanza extension.
      *
      * @param delay an optional {@link DelayInformation} timestamp of the packet.
-     * @param fwdPacket the stanza that is forwarded (required).
+     * @param forwardedStanza the stanza that is forwarded (required).
+     * @deprecated use {@link #Forwarded(Stanza, DelayInformation)} instead.
      */
-    public Forwarded(DelayInformation delay, Stanza fwdPacket) {
-        this.delay = delay;
-        this.forwardedPacket = fwdPacket;
+    @Deprecated
+    public Forwarded(DelayInformation delay, S forwardedStanza) {
+        this(forwardedStanza, delay);
     }
 
     /**
@@ -56,8 +61,19 @@ public class Forwarded implements ExtensionElement {
      *
      * @param fwdPacket the stanza that is forwarded (required).
      */
-    public Forwarded(Stanza fwdPacket) {
-        this(null, fwdPacket);
+    public Forwarded(S fwdPacket) {
+        this(fwdPacket, null);
+    }
+
+    /**
+     * Creates a new Forwarded stanza extension.
+     *
+     * @param forwardedStanza the stanza that is forwarded (required).
+     * @param delay an optional {@link DelayInformation} timestamp of the packet.
+     */
+    public Forwarded(S forwardedStanza, DelayInformation delay) {
+        this.forwardedStanza = Objects.requireNonNull(forwardedStanza);
+        this.delay = delay;
     }
 
     @Override
@@ -71,24 +87,13 @@ public class Forwarded implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = new XmlStringBuilder(this);
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
+        XmlStringBuilder xml = new XmlStringBuilder(this, enclosingNamespace);
         xml.rightAngleBracket();
         xml.optElement(getDelayInformation());
-        xml.append(forwardedPacket.toXML(NAMESPACE));
+        xml.append(forwardedStanza);
         xml.closeElement(this);
         return xml;
-    }
-
-    /**
-     * get the stanza forwarded by this stanza.
-     *
-     * @return the {@link Stanza} instance (typically a message) that was forwarded.
-     * @deprecated use @{link {@link #getForwardedStanza()}} instead.
-     */
-    @Deprecated
-    public Stanza getForwardedPacket() {
-        return forwardedPacket;
     }
 
     /**
@@ -96,8 +101,8 @@ public class Forwarded implements ExtensionElement {
      *
      * @return the {@link Stanza} (typically a message) that was forwarded.
      */
-    public Stanza getForwardedStanza() {
-        return forwardedPacket;
+    public S getForwardedStanza() {
+        return forwardedStanza;
     }
 
     /**
@@ -110,12 +115,23 @@ public class Forwarded implements ExtensionElement {
     }
 
     /**
+     * Check if this is forwarding a stanza of the provided class.
+     *
+     * @param stanzaClass the class to check for.
+     * @return <code>true</code> if this is forwarding a stanza of the provided class.
+     * @since 4.4
+     */
+    public boolean isForwarded(Class<? extends Stanza> stanzaClass) {
+        return stanzaClass.isAssignableFrom(forwardedStanza.getClass());
+    }
+
+    /**
      * Get the forwarded extension.
-     * @param packet
+     * @param packet TODO javadoc me please
      * @return the Forwarded extension or null
      */
-    public static Forwarded from(Stanza packet) {
-        return packet.getExtension(ELEMENT, NAMESPACE);
+    public static Forwarded<?> from(Stanza packet) {
+        return packet.getExtension(Forwarded.class);
     }
 
     /**
@@ -126,10 +142,10 @@ public class Forwarded implements ExtensionElement {
      * @return a list a the extracted messages.
      * @since 4.3.0
      */
-    public static List<Message> extractMessagesFrom(Collection<Forwarded> forwardedCollection) {
+    public static List<Message> extractMessagesFrom(Collection<Forwarded<Message>> forwardedCollection) {
         List<Message> res = new ArrayList<>(forwardedCollection.size());
-        for (Forwarded forwarded : forwardedCollection) {
-            Message message =  (Message) forwarded.forwardedPacket;
+        for (Forwarded<Message> forwarded : forwardedCollection) {
+            Message message =  forwarded.getForwardedStanza();
             res.add(message);
         }
         return res;

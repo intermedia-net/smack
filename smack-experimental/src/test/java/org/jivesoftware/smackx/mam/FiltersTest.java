@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2016 Fernando Ramirez, 2018 Florian Schmaus
+ * Copyright 2016 Fernando Ramirez, 2018-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 package org.jivesoftware.smackx.mam;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -26,7 +26,7 @@ import org.jivesoftware.smackx.mam.MamManager.MamQueryArgs;
 import org.jivesoftware.smackx.mam.element.MamElements;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.JidTestUtil;
 import org.jxmpp.util.XmppDateTime;
@@ -34,7 +34,7 @@ import org.jxmpp.util.XmppDateTime;
 public class FiltersTest extends MamTest {
 
     private static String getMamXMemberWith(List<String> fieldsNames, List<? extends CharSequence> fieldsValues) {
-        String xml = "<x xmlns='jabber:x:data' type='submit'>" + "<field var='FORM_TYPE' type='hidden'>" + "<value>"
+        String xml = "<x xmlns='jabber:x:data' type='submit'>" + "<field var='FORM_TYPE'>" + "<value>"
                 + MamElements.NAMESPACE + "</value>" + "</field>";
 
         for (int i = 0; i < fieldsNames.size() && i < fieldsValues.size(); i++) {
@@ -58,7 +58,7 @@ public class FiltersTest extends MamTest {
         List<String> values = new ArrayList<>();
         values.add(XmppDateTime.formatXEP0082Date(date));
 
-        assertEquals(getMamXMemberWith(fields, values), dataForm.toXML(null).toString());
+        assertEquals(getMamXMemberWith(fields, values), dataForm.toXML().toString());
     }
 
     @Test
@@ -73,7 +73,7 @@ public class FiltersTest extends MamTest {
         List<String> values = new ArrayList<>();
         values.add(XmppDateTime.formatXEP0082Date(date));
 
-        assertEquals(getMamXMemberWith(fields, values), dataForm.toXML(null).toString());
+        assertEquals(getMamXMemberWith(fields, values), dataForm.toXML().toString());
     }
 
     @Test
@@ -88,7 +88,7 @@ public class FiltersTest extends MamTest {
         List<CharSequence> values = new ArrayList<>();
         values.add(jid);
 
-        assertEquals(getMamXMemberWith(fields, values), dataForm.toXML(null).toString());
+        assertEquals(getMamXMemberWith(fields, values), dataForm.toXML().toString());
     }
 
 }

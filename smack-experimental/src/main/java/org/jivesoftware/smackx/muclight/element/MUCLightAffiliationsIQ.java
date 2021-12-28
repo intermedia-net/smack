@@ -45,8 +45,8 @@ public class MUCLightAffiliationsIQ extends IQ {
     /**
      * MUC Light affiliations response IQ constructor.
      *
-     * @param version
-     * @param affiliations
+     * @param version TODO javadoc me please
+     * @param affiliations TODO javadoc me please
      */
     public MUCLightAffiliationsIQ(String version, HashMap<Jid, MUCLightAffiliation> affiliations) {
         super(ELEMENT, NAMESPACE);
@@ -62,7 +62,7 @@ public class MUCLightAffiliationsIQ extends IQ {
         Iterator<Map.Entry<Jid, MUCLightAffiliation>> it = affiliations.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<Jid, MUCLightAffiliation> pair = it.next();
-            xml.element(new UserWithAffiliationElement(pair.getKey(), pair.getValue()));
+            xml.append(new UserWithAffiliationElement(pair.getKey(), pair.getValue()));
         }
 
         return xml;

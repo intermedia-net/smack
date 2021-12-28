@@ -16,16 +16,17 @@
  */
 package org.jivesoftware.smackx.jingle.provider;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.jivesoftware.smack.test.util.SmackTestSuite;
+
 import org.jivesoftware.smackx.jingle.transports.jingle_ibb.element.JingleIBBTransport;
 import org.jivesoftware.smackx.jingle.transports.jingle_ibb.provider.JingleIBBTransportProvider;
 import org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements.JingleS5BTransport;
 import org.jivesoftware.smackx.jingle.transports.jingle_s5b.provider.JingleS5BTransportProvider;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for the JingleContentProviderManager.

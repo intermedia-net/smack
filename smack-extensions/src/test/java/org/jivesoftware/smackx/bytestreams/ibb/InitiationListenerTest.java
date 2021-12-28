@@ -16,7 +16,7 @@
  */
 package org.jivesoftware.smackx.bytestreams.ibb;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,25 +24,25 @@ import static org.mockito.Mockito.verify;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.StanzaError;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
+import org.jivesoftware.smack.test.util.Whitebox;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.bytestreams.BytestreamRequest;
 import org.jivesoftware.smackx.bytestreams.ibb.packet.Open;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.EntityFullJid;
 import org.jxmpp.jid.JidTestUtil;
 import org.jxmpp.jid.impl.JidCreate;
 import org.mockito.ArgumentCaptor;
-import org.powermock.reflect.Whitebox;
 
 /**
  * Test for the InitiationListener class.
  *
  * @author Henning Staib
  */
-public class InitiationListenerTest extends InitExtensions {
+public class InitiationListenerTest extends SmackTestSuite {
 
     private static final EntityFullJid initiatorJID = JidTestUtil.DUMMY_AT_EXAMPLE_ORG_SLASH_DUMMYRESOURCE;
     private static final EntityFullJid targetJID = JidTestUtil.FULL_JID_1_RESOURCE_1;
@@ -56,7 +56,7 @@ public class InitiationListenerTest extends InitExtensions {
     /**
      * Initialize fields used in the tests.
      */
-    @Before
+    @BeforeEach
     public void setup() {
 
         // mock connection
@@ -66,7 +66,7 @@ public class InitiationListenerTest extends InitExtensions {
         byteStreamManager = InBandBytestreamManager.getByteStreamManager(connection);
 
         // get the InitiationListener from InBandByteStreamManager
-        initiationListener = Whitebox.getInternalState(byteStreamManager, InitiationListener.class);
+        initiationListener = Whitebox.getInternalState(byteStreamManager, "initiationListener", InitiationListener.class);
 
         // create a In-Band Bytestream open packet
         initBytestream = new Open(sessionID, 4096);
@@ -83,23 +83,14 @@ public class InitiationListenerTest extends InitExtensions {
      */
     @Test
     public void shouldRespondWithError() throws Exception {
-
         // run the listener with the initiation packet
-        initiationListener.handleIQRequest(initBytestream);
-
-        // wait because packet is processed in an extra thread
-        Thread.sleep(200);
-
-        // capture reply to the In-Band Bytestream open request
-        ArgumentCaptor<IQ> argument = ArgumentCaptor.forClass(IQ.class);
-        verify(connection).sendStanza(argument.capture());
+        IQ response = initiationListener.handleIQRequest(initBytestream);
 
         // assert that reply is the correct error packet
-        assertEquals(initiatorJID, argument.getValue().getTo());
-        assertEquals(IQ.Type.error, argument.getValue().getType());
+        assertEquals(initiatorJID, response.getTo());
+        assertEquals(IQ.Type.error, response.getType());
         assertEquals(StanzaError.Condition.not_acceptable,
-                        argument.getValue().getError().getCondition());
-
+                        response.getError().getCondition());
     }
 
     /**
@@ -113,21 +104,13 @@ public class InitiationListenerTest extends InitExtensions {
         byteStreamManager.setMaximumBlockSize(1024);
 
         // run the listener with the initiation packet
-        initiationListener.handleIQRequest(initBytestream);
-
-        // wait because packet is processed in an extra thread
-        Thread.sleep(200);
-
-        // capture reply to the In-Band Bytestream open request
-        ArgumentCaptor<IQ> argument = ArgumentCaptor.forClass(IQ.class);
-        verify(connection).sendStanza(argument.capture());
+        IQ response = initiationListener.handleIQRequest(initBytestream);
 
         // assert that reply is the correct error packet
-        assertEquals(initiatorJID, argument.getValue().getTo());
-        assertEquals(IQ.Type.error, argument.getValue().getType());
+        assertEquals(initiatorJID, response.getTo());
+        assertEquals(IQ.Type.error, response.getType());
         assertEquals(StanzaError.Condition.resource_constraint,
-                        argument.getValue().getError().getCondition());
-
+                        response.getError().getCondition());
     }
 
     /**
@@ -199,24 +182,17 @@ public class InitiationListenerTest extends InitExtensions {
         byteStreamManager.addIncomingBytestreamListener(listener, JidCreate.from("other_" + initiatorJID));
 
         // run the listener with the initiation packet
-        initiationListener.handleIQRequest(initBytestream);
-
-        // wait because packet is processed in an extra thread
-        Thread.sleep(200);
+        IQ response = initiationListener.handleIQRequest(initBytestream);
 
         // assert listener is not called
         ArgumentCaptor<BytestreamRequest> byteStreamRequest = ArgumentCaptor.forClass(BytestreamRequest.class);
         verify(listener, never()).incomingBytestreamRequest(byteStreamRequest.capture());
 
-        // capture reply to the In-Band Bytestream open request
-        ArgumentCaptor<IQ> argument = ArgumentCaptor.forClass(IQ.class);
-        verify(connection).sendStanza(argument.capture());
-
         // assert that reply is the correct error packet
-        assertEquals(initiatorJID, argument.getValue().getTo());
-        assertEquals(IQ.Type.error, argument.getValue().getType());
+        assertEquals(initiatorJID, response.getTo());
+        assertEquals(IQ.Type.error, response.getType());
         assertEquals(StanzaError.Condition.not_acceptable,
-                        argument.getValue().getError().getCondition());
+                        response.getError().getCondition());
     }
 
     /**

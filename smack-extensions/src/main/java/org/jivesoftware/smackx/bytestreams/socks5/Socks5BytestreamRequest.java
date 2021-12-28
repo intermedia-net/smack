@@ -19,6 +19,8 @@ package org.jivesoftware.smackx.bytestreams.socks5;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import org.jivesoftware.smack.SmackException;
@@ -29,6 +31,8 @@ import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.StanzaError;
 
 import org.jivesoftware.smackx.bytestreams.BytestreamRequest;
+import org.jivesoftware.smackx.bytestreams.socks5.Socks5Exception.CouldNotConnectToAnyProvidedSocks5Host;
+import org.jivesoftware.smackx.bytestreams.socks5.Socks5Exception.NoSocks5StreamHostsProvided;
 import org.jivesoftware.smackx.bytestreams.socks5.packet.Bytestream;
 import org.jivesoftware.smackx.bytestreams.socks5.packet.Bytestream.StreamHost;
 
@@ -53,12 +57,14 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
     private static final Cache<String, Integer> ADDRESS_BLACKLIST = new ExpirationCache<String, Integer>(
                     BLACKLIST_MAX_SIZE, BLACKLIST_LIFETIME);
 
+    private static int DEFAULT_CONNECTION_FAILURE_THRESHOLD = 2;
+
     /*
      * The number of connection failures it takes for a particular SOCKS5 proxy to be blacklisted.
      * When a proxy is blacklisted no more connection attempts will be made to it for a period of 2
      * hours.
      */
-    private static int CONNECTION_FAILURE_THRESHOLD = 2;
+    private int connectionFailureThreshold = DEFAULT_CONNECTION_FAILURE_THRESHOLD;
 
     /* the bytestream initialization request */
     private Bytestream bytestreamRequest;
@@ -73,6 +79,28 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
     private int minimumConnectTimeout = 2000;
 
     /**
+     * Returns the default connection failure threshold.
+     *
+     * @return the default connection failure threshold.
+     * @see #setConnectFailureThreshold(int)
+     * @since 4.4.0
+     */
+    public static int getDefaultConnectFailureThreshold() {
+        return DEFAULT_CONNECTION_FAILURE_THRESHOLD;
+    }
+
+    /**
+     * Sets the default connection failure threshold.
+     *
+     * @param defaultConnectFailureThreshold the default connection failure threshold.
+     * @see #setConnectFailureThreshold(int)
+     * @since 4.4.0
+     */
+    public static void setDefaultConnectFailureThreshold(int defaultConnectFailureThreshold) {
+        DEFAULT_CONNECTION_FAILURE_THRESHOLD = defaultConnectFailureThreshold;
+    }
+
+    /**
      * Returns the number of connection failures it takes for a particular SOCKS5 proxy to be
      * blacklisted. When a proxy is blacklisted no more connection attempts will be made to it for a
      * period of 2 hours. Default is 2.
@@ -80,8 +108,8 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
      * @return the number of connection failures it takes for a particular SOCKS5 proxy to be
      *         blacklisted
      */
-    public static int getConnectFailureThreshold() {
-        return CONNECTION_FAILURE_THRESHOLD;
+    public int getConnectFailureThreshold() {
+        return connectionFailureThreshold;
     }
 
     /**
@@ -94,8 +122,8 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
      * @param connectFailureThreshold the number of connection failures it takes for a particular
      *        SOCKS5 proxy to be blacklisted
      */
-    public static void setConnectFailureThreshold(int connectFailureThreshold) {
-        CONNECTION_FAILURE_THRESHOLD = connectFailureThreshold;
+    public void setConnectFailureThreshold(int connectFailureThreshold) {
+        connectionFailureThreshold = connectFailureThreshold;
     }
 
     /**
@@ -196,16 +224,20 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
      *
      * @return the socket to send/receive data
      * @throws InterruptedException if the current thread was interrupted while waiting
-     * @throws XMPPErrorException
-     * @throws SmackException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws CouldNotConnectToAnyProvidedSocks5Host if no connection to any provided stream host could be established
+     * @throws NoSocks5StreamHostsProvided if no stream host was provided.
      */
     @Override
-    public Socks5BytestreamSession accept() throws InterruptedException, XMPPErrorException, SmackException {
+    public Socks5BytestreamSession accept() throws InterruptedException, XMPPErrorException,
+                    CouldNotConnectToAnyProvidedSocks5Host, NotConnectedException, NoSocks5StreamHostsProvided {
         Collection<StreamHost> streamHosts = this.bytestreamRequest.getStreamHosts();
 
+        Map<StreamHost, Exception> streamHostsExceptions = new HashMap<>();
         // throw exceptions if request contains no stream hosts
         if (streamHosts.size() == 0) {
-            cancelRequest();
+            cancelRequest(streamHostsExceptions);
         }
 
         StreamHost selectedHost = null;
@@ -226,7 +258,7 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
 
             // check to see if this address has been blacklisted
             int failures = getConnectionFailures(address);
-            if (CONNECTION_FAILURE_THRESHOLD > 0 && failures >= CONNECTION_FAILURE_THRESHOLD) {
+            if (connectionFailureThreshold > 0 && failures >= connectionFailureThreshold) {
                 continue;
             }
 
@@ -245,6 +277,7 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
 
             }
             catch (TimeoutException | IOException | SmackException | XMPPException e) {
+                streamHostsExceptions.put(streamHost, e);
                 incrementConnectionFailures(address);
             }
 
@@ -252,7 +285,7 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
 
         // throw exception if connecting to all SOCKS5 proxies failed
         if (selectedHost == null || socket == null) {
-            cancelRequest();
+            cancelRequest(streamHostsExceptions);
         }
 
         // send used-host confirmation
@@ -266,8 +299,8 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
 
     /**
      * Rejects the SOCKS5 Bytestream request by sending a reject error to the initiator.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     @Override
     public void reject() throws NotConnectedException, InterruptedException {
@@ -277,16 +310,38 @@ public class Socks5BytestreamRequest implements BytestreamRequest {
     /**
      * Cancels the SOCKS5 Bytestream request by sending an error to the initiator and building a
      * XMPP exception.
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     *
+     * @param streamHosts the stream hosts.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws CouldNotConnectToAnyProvidedSocks5Host as expected result.
+     * @throws NoSocks5StreamHostsProvided if no stream host was provided.
      */
-    private void cancelRequest() throws XMPPErrorException, NotConnectedException, InterruptedException {
-        String errorMessage = "Could not establish socket with any provided host";
-        StanzaError.Builder error = StanzaError.from(StanzaError.Condition.item_not_found, errorMessage);
+    private void cancelRequest(Map<StreamHost, Exception> streamHostsExceptions)
+                    throws NotConnectedException, InterruptedException, CouldNotConnectToAnyProvidedSocks5Host, NoSocks5StreamHostsProvided {
+        final Socks5Exception.NoSocks5StreamHostsProvided noHostsProvidedException;
+        final Socks5Exception.CouldNotConnectToAnyProvidedSocks5Host couldNotConnectException;
+        final String errorMessage;
+
+        if (streamHostsExceptions.isEmpty()) {
+            noHostsProvidedException = new Socks5Exception.NoSocks5StreamHostsProvided();
+            couldNotConnectException = null;
+            errorMessage = noHostsProvidedException.getMessage();
+        } else {
+            noHostsProvidedException = null;
+            couldNotConnectException = Socks5Exception.CouldNotConnectToAnyProvidedSocks5Host.construct(streamHostsExceptions);
+            errorMessage = couldNotConnectException.getMessage();
+        }
+
+        StanzaError error = StanzaError.from(StanzaError.Condition.item_not_found, errorMessage).build();
         IQ errorIQ = IQ.createErrorResponse(this.bytestreamRequest, error);
         this.manager.getConnection().sendStanza(errorIQ);
-        throw new XMPPErrorException(errorIQ, error.build());
+
+        if (noHostsProvidedException != null) {
+            throw noHostsProvidedException;
+        } else {
+            throw couldNotConnectException;
+        }
     }
 
     /**

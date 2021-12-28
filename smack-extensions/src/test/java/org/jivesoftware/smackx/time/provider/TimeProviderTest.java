@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2014 Florian Schmaus
+ * Copyright 2014-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
  */
 package org.jivesoftware.smackx.time.provider;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.util.PacketParserUtils;
 
 import org.jivesoftware.smackx.time.packet.Time;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class TimeProviderTest {
 
@@ -32,9 +32,9 @@ public class TimeProviderTest {
     public void parseTimeWithIntrospectionTest() throws Exception {
         // @formatter:off
         final String request =
-        "<iq type='get'"
-          + "from='romeo@montague.net/orchard'"
-          + "to='juliet@capulet.com/balcony'"
+        "<iq type='get' "
+          + "from='romeo@montague.net/orchard' "
+          + "to='juliet@capulet.com/balcony' "
           + "id='time_1'>"
           + "<time xmlns='urn:xmpp:time'/>"
           + "</iq>";
@@ -44,9 +44,9 @@ public class TimeProviderTest {
 
         // @formatter:off
         final String response =
-        "<iq type='result'"
-          + "from='juliet@capulet.com/balcony'"
-          + "to='romeo@montague.net/orchard'"
+        "<iq type='result' "
+          + "from='juliet@capulet.com/balcony' "
+          + "to='romeo@montague.net/orchard' "
           + "id='time_1'>"
           + "<time xmlns='urn:xmpp:time'>"
           + "<tzo>-06:00</tzo>"

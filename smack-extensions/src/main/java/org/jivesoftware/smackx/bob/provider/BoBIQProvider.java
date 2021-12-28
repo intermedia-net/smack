@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,17 @@
  */
 package org.jivesoftware.smackx.bob.provider;
 
+import java.io.IOException;
+
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
-import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.util.Pair;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.bob.BoBData;
-import org.jivesoftware.smackx.bob.BoBHash;
+import org.jivesoftware.smackx.bob.ContentId;
 import org.jivesoftware.smackx.bob.element.BoBIQ;
-
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * Bits of Binary IQ provider class.
@@ -35,23 +38,11 @@ import org.xmlpull.v1.XmlPullParser;
 public class BoBIQProvider extends IQProvider<BoBIQ> {
 
     @Override
-    public BoBIQ parse(XmlPullParser parser, int initialDepth) throws Exception {
-        String cid = parser.getAttributeValue("", "cid");
-        BoBHash bobHash = BoBHash.fromCid(cid);
+    public BoBIQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
+        Pair<ContentId, BoBData> parserResult = BoBProviderUtil.parseContentIdAndBobData(parser, initialDepth,
+                        xmlEnvironment);
 
-        String dataType = parser.getAttributeValue("", "type");
-        int maxAge = ParserUtils.getIntegerAttribute(parser, "max-age", -1);
-
-        String base64EncodedData = parser.nextText();
-
-        BoBData bobData;
-        if (dataType != null) {
-            bobData = new BoBData(dataType, base64EncodedData, maxAge);
-        } else {
-            bobData = null;
-        }
-
-        return new BoBIQ(bobHash, bobData);
+        return new BoBIQ(parserResult.getFirst(), parserResult.getSecond());
     }
 
 }

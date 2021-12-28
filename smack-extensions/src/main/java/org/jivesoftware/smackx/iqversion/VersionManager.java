@@ -22,7 +22,7 @@ import java.util.WeakHashMap;
 
 import org.jivesoftware.smack.ConnectionCreationListener;
 import org.jivesoftware.smack.Manager;
-import org.jivesoftware.smack.SmackConfiguration;
+import org.jivesoftware.smack.Smack;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
@@ -135,12 +135,12 @@ public final class VersionManager extends Manager {
     /**
      * Request version information from a given JID.
      *
-     * @param jid
+     * @param jid TODO javadoc me please
      * @return the version information or {@code null} if not supported by JID
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public Version getVersion(Jid jid) throws NoResponseException, XMPPErrorException,
                     NotConnectedException, InterruptedException {
@@ -152,7 +152,7 @@ public final class VersionManager extends Manager {
 
     private static Version generateVersionFrom(String name, String version, String os) {
         if (autoAppendSmackVersion) {
-            name += " (Smack " + SmackConfiguration.getVersion() + ')';
+            name += " (Smack " + Smack.getVersion() + ')';
         }
         return new Version(name, version, os);
     }

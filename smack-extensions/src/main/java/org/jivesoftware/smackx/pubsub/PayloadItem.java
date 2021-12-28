@@ -20,11 +20,12 @@ import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
+import org.jivesoftware.smackx.pubsub.form.ConfigureForm;
 import org.jivesoftware.smackx.pubsub.provider.ItemProvider;
 
 /**
  * This class represents an item that has been, or will be published to a
- * pubsub node.  An <tt>Item</tt> has several properties that are dependent
+ * pubsub node.  An <code>Item</code> has several properties that are dependent
  * on the configuration of the node to which it has been or will be published.
  *
  * <h3>An Item received from a node (via {@link LeafNode#getItems()} or {@link LeafNode#addItemEventListener(org.jivesoftware.smackx.pubsub.listener.ItemEventListener)}</h3>
@@ -53,7 +54,7 @@ public class PayloadItem<E extends ExtensionElement> extends Item {
     private final E payload;
 
     /**
-     * Create an <tt>Item</tt> with no id and a payload  The id will be set by the server.
+     * Create an <code>Item</code> with no id and a payload  The id will be set by the server.
      *
      * @param payloadExt A {@link ExtensionElement} which represents the payload data.
      */
@@ -66,7 +67,7 @@ public class PayloadItem<E extends ExtensionElement> extends Item {
     }
 
     /**
-     * Create an <tt>Item</tt> with an id and payload.
+     * Create an <code>Item</code> with an id and payload.
      *
      * @param itemId The id of this item.  It can be null if we want the server to set the id.
      * @param payloadExt A {@link ExtensionElement} which represents the payload data.
@@ -80,7 +81,7 @@ public class PayloadItem<E extends ExtensionElement> extends Item {
     }
 
     /**
-     * Create an <tt>Item</tt> with an id, node id and payload.
+     * Create an <code>Item</code> with an id, node id and payload.
      *
      * <p>
      * <b>Note:</b> This is not valid for publishing an item to a node, only receiving from
@@ -98,7 +99,7 @@ public class PayloadItem<E extends ExtensionElement> extends Item {
     }
 
     /**
-     * Create an <tt>Item</tt> with an id, node id and payload.
+     * Create an <code>Item</code> with an id, node id and payload.
      *
      * <p>
      * <b>Note:</b> This is not valid for publishing an item to a node, only receiving from
@@ -107,6 +108,7 @@ public class PayloadItem<E extends ExtensionElement> extends Item {
      * error for an invalid packet.
      * </p>
      *
+     * @param itemNamespace the namespace of the item.
      * @param itemId The id of this item.
      * @param nodeId The id of the node the item was published to.
      * @param payloadExt A {@link ExtensionElement} which represents the payload data.
@@ -120,7 +122,7 @@ public class PayloadItem<E extends ExtensionElement> extends Item {
     }
 
     /**
-     * Get the payload associated with this <tt>Item</tt>.  Customising the payload
+     * Get the payload associated with this <code>Item</code>.  Customising the payload
      * parsing from the server can be accomplished as described in {@link ItemProvider}.
      *
      * @return The payload as a {@link ExtensionElement}.
@@ -130,18 +132,15 @@ public class PayloadItem<E extends ExtensionElement> extends Item {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = getCommonXml();
-
+    protected void addXml(XmlStringBuilder xml) {
+        xml.optAttribute("id", getId());
         xml.rightAngleBracket();
-        xml.append(payload.toXML(null));
+        xml.append(payload);
         xml.closeElement(this);
-
-        return xml;
     }
 
     @Override
     public String toString() {
-        return getClass().getName() + " | Content [" + toXML(null) + "]";
+        return getClass().getName() + " | Content [" + toXML() + "]";
     }
 }

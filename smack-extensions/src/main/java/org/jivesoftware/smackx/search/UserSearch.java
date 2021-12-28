@@ -16,21 +16,24 @@
  */
 package org.jivesoftware.smackx.search;
 
+import java.io.IOException;
+
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.SimpleIQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
-import org.jivesoftware.smackx.xdata.Form;
-import org.jivesoftware.smackx.xdata.FormField;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 import org.jxmpp.jid.DomainBareJid;
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * Implements the protocol currently used to search information repositories on the Jabber network. To date, the jabber:iq:search protocol
@@ -60,18 +63,18 @@ public class UserSearch extends SimpleIQ {
      * @param con           the current XMPPConnection.
      * @param searchService the search service to use. (ex. search.jivesoftware.com)
      * @return the search form received by the server.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public Form getSearchForm(XMPPConnection con, DomainBareJid searchService) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
+    public DataForm getSearchForm(XMPPConnection con, DomainBareJid searchService) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         UserSearch search = new UserSearch();
         search.setType(IQ.Type.get);
         search.setTo(searchService);
 
         IQ response = con.createStanzaCollectorAndSend(search).nextResultOrThrow();
-        return Form.getFormFrom(response);
+        return DataForm.from(response, NAMESPACE);
     }
 
     /**
@@ -81,16 +84,16 @@ public class UserSearch extends SimpleIQ {
      * @param searchForm    the <code>Form</code> to send for querying.
      * @param searchService the search service to use. (ex. search.jivesoftware.com)
      * @return ReportedData the data found from the query.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public ReportedData sendSearchForm(XMPPConnection con, Form searchForm, DomainBareJid searchService) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
+    public ReportedData sendSearchForm(XMPPConnection con, DataForm searchForm, DomainBareJid searchService) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         UserSearch search = new UserSearch();
         search.setType(IQ.Type.set);
         search.setTo(searchService);
-        search.addExtension(searchForm.getDataFormToSend());
+        search.addExtension(searchForm);
 
         IQ response = con.createStanzaCollectorAndSend(search).nextResultOrThrow();
         return ReportedData.getReportedDataFrom(response);
@@ -103,12 +106,12 @@ public class UserSearch extends SimpleIQ {
      * @param searchForm    the <code>Form</code> to send for querying.
      * @param searchService the search service to use. (ex. search.jivesoftware.com)
      * @return ReportedData the data found from the query.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public ReportedData sendSimpleSearchForm(XMPPConnection con, Form searchForm, DomainBareJid searchService) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
+    public ReportedData sendSimpleSearchForm(XMPPConnection con, DataForm searchForm, DomainBareJid searchService) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         SimpleUserSearch search = new SimpleUserSearch();
         search.setForm(searchForm);
         search.setType(IQ.Type.set);
@@ -125,27 +128,23 @@ public class UserSearch extends SimpleIQ {
 
         // FIXME this provider does return two different types of IQs
         @Override
-        public IQ parse(XmlPullParser parser, int initialDepth) throws Exception {
+        public IQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
             UserSearch search = null;
             SimpleUserSearch simpleUserSearch = new SimpleUserSearch();
 
             boolean done = false;
             while (!done) {
-                int eventType = parser.next();
-                if (eventType == XmlPullParser.START_TAG && parser.getName().equals("instructions")) {
-                    buildDataForm(simpleUserSearch, parser.nextText(), parser);
-                    return simpleUserSearch;
-                }
-                else if (eventType == XmlPullParser.START_TAG && parser.getName().equals("item")) {
+                XmlPullParser.Event eventType = parser.next();
+                if (eventType == XmlPullParser.Event.START_ELEMENT && parser.getName().equals("item")) {
                     simpleUserSearch.parseItems(parser);
                     return simpleUserSearch;
                 }
-                else if (eventType == XmlPullParser.START_TAG && parser.getNamespace().equals("jabber:x:data")) {
+                else if (eventType == XmlPullParser.Event.START_ELEMENT && parser.getNamespace().equals("jabber:x:data")) {
                     // Otherwise, it must be a packet extension.
                     search = new UserSearch();
-                    PacketParserUtils.addExtensionElement(search, parser);
+                    PacketParserUtils.addExtensionElement(search, parser, xmlEnvironment);
                 }
-                else if (eventType == XmlPullParser.END_TAG) {
+                else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                     if (parser.getName().equals("query")) {
                         done = true;
                     }
@@ -158,52 +157,5 @@ public class UserSearch extends SimpleIQ {
             return simpleUserSearch;
         }
     }
-
-    private static void buildDataForm(SimpleUserSearch search,
-                    String instructions, XmlPullParser parser)
-                    throws Exception {
-        DataForm dataForm = new DataForm(DataForm.Type.form);
-        boolean done = false;
-        dataForm.setTitle("User Search");
-        dataForm.addInstruction(instructions);
-        while (!done) {
-            int eventType = parser.next();
-
-            if (eventType == XmlPullParser.START_TAG && !parser.getNamespace().equals("jabber:x:data")) {
-                String name = parser.getName();
-                FormField field = new FormField(name);
-
-                // Handle hard coded values.
-                if (name.equals("first")) {
-                    field.setLabel("First Name");
-                }
-                else if (name.equals("last")) {
-                    field.setLabel("Last Name");
-                }
-                else if (name.equals("email")) {
-                    field.setLabel("Email Address");
-                }
-                else if (name.equals("nick")) {
-                    field.setLabel("Nickname");
-                }
-
-                field.setType(FormField.Type.text_single);
-                dataForm.addField(field);
-            }
-            else if (eventType == XmlPullParser.END_TAG) {
-                if (parser.getName().equals("query")) {
-                    done = true;
-                }
-            }
-            else if (eventType == XmlPullParser.START_TAG && parser.getNamespace().equals("jabber:x:data")) {
-                PacketParserUtils.addExtensionElement(search, parser);
-                done = true;
-            }
-        }
-        if (search.getExtension("x", "jabber:x:data") == null) {
-            search.addExtension(dataForm);
-        }
-    }
-
 
 }

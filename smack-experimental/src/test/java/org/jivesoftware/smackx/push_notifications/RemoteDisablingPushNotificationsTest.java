@@ -16,13 +16,18 @@
  */
 package org.jivesoftware.smackx.push_notifications;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.io.IOException;
+
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.util.PacketParserUtils;
 
 import org.jivesoftware.smackx.push_notifications.element.PushNotificationsElements.RemoteDisablingExtension;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.impl.JidCreate;
 
 public class RemoteDisablingPushNotificationsTest {
@@ -47,23 +52,18 @@ public class RemoteDisablingPushNotificationsTest {
         Message message = PacketParserUtils.parseStanza(remoteDisablingExample);
         RemoteDisablingExtension remoteDisablingExtension = RemoteDisablingExtension.from(message);
 
-        Assert.assertEquals("yxs32uqsflafdk3iuqo", remoteDisablingExtension.getNode());
-        Assert.assertEquals(JidCreate.from("user@example.com"), remoteDisablingExtension.getUserJid());
+        assertEquals("yxs32uqsflafdk3iuqo", remoteDisablingExtension.getNode());
+        assertEquals(JidCreate.from("user@example.com"), remoteDisablingExtension.getUserJid());
     }
 
     @Test
     public void checkWrongRemoteDisablighPushNotifications() throws Exception {
-        Message message1 = PacketParserUtils.parseStanza(wrongRemoteDisabling1);
-        RemoteDisablingExtension remoteDisablingExtension1 = RemoteDisablingExtension.from(message1);
-        Assert.assertNull(remoteDisablingExtension1);
+        assertThrows(IOException.class, () -> PacketParserUtils.parseStanza(wrongRemoteDisabling1));
 
-        Message message2 = PacketParserUtils.parseStanza(wrongRemoteDisabling1);
-        RemoteDisablingExtension remoteDisablingExtension2 = RemoteDisablingExtension.from(message2);
-        Assert.assertNull(remoteDisablingExtension2);
+        assertThrows(IOException.class, () -> PacketParserUtils.parseStanza(wrongRemoteDisabling2));
 
-        Message message3 = PacketParserUtils.parseStanza(wrongRemoteDisabling1);
-        RemoteDisablingExtension remoteDisablingExtension3 = RemoteDisablingExtension.from(message3);
-        Assert.assertNull(remoteDisablingExtension3);
+        Message message3 = PacketParserUtils.parseStanza(wrongRemoteDisabling3);
+        assertNotNull(message3);
     }
 
 }

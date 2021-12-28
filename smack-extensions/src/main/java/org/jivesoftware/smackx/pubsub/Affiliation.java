@@ -86,7 +86,7 @@ public class Affiliation implements ExtensionElement {
      * @param namespace the affiliation's namespace.
      */
     public Affiliation(String node, Type affiliation, AffiliationNamespace namespace) {
-        this.node = StringUtils.requireNotNullOrEmpty(node, "node must not be null or empty");
+        this.node = StringUtils.requireNotNullNorEmpty(node, "node must not be null nor empty");
         this.affiliation = affiliation;
         this.jid = null;
         this.namespace = Objects.requireNonNull(namespace);
@@ -95,8 +95,8 @@ public class Affiliation implements ExtensionElement {
     /**
      * Construct a affiliation modification request.
      *
-     * @param jid
-     * @param affiliation
+     * @param jid TODO javadoc me please
+     * @param affiliation TODO javadoc me please
      */
     public Affiliation(BareJid jid, Type affiliation) {
         this(jid, affiliation, AffiliationNamespace.owner);
@@ -167,14 +167,14 @@ public class Affiliation implements ExtensionElement {
      */
     public boolean isAffiliationModification() {
         if (jid != null && affiliation != null) {
-            assert (node == null && namespace == AffiliationNamespace.owner);
+            assert node == null && namespace == AffiliationNamespace.owner;
             return true;
         }
         return false;
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
         xml.optAttribute("node", node);
         xml.optAttribute("jid", jid);

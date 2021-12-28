@@ -17,12 +17,16 @@
 
 package org.jivesoftware.smackx.muc.provider;
 
+import java.io.IOException;
+
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.muc.packet.MUCOwner;
-
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * The MUCOwnerProvider parses MUCOwner packets. (@see MUCOwner)
@@ -32,13 +36,12 @@ import org.xmlpull.v1.XmlPullParser;
 public class MUCOwnerProvider extends IQProvider<MUCOwner> {
 
     @Override
-    public MUCOwner parse(XmlPullParser parser, int initialDepth)
-                    throws Exception {
+    public MUCOwner parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         MUCOwner mucOwner = new MUCOwner();
         boolean done = false;
         while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (parser.getName().equals("item")) {
                     mucOwner.addItem(MUCParserUtils.parseItem(parser));
                 }
@@ -47,10 +50,10 @@ public class MUCOwnerProvider extends IQProvider<MUCOwner> {
                 }
                 // Otherwise, it must be a packet extension.
                 else {
-                    PacketParserUtils.addExtensionElement(mucOwner, parser);
+                    PacketParserUtils.addExtensionElement(mucOwner, parser, xmlEnvironment);
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("query")) {
                     done = true;
                 }

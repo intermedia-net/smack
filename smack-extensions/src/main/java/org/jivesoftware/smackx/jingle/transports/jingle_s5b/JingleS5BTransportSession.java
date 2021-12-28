@@ -17,6 +17,7 @@
 package org.jivesoftware.smackx.jingle.transports.jingle_s5b;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Collections;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.logging.Logger;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.IQ;
+
 import org.jivesoftware.smackx.bytestreams.socks5.Socks5BytestreamSession;
 import org.jivesoftware.smackx.bytestreams.socks5.Socks5Client;
 import org.jivesoftware.smackx.bytestreams.socks5.Socks5ClientForInitiator;
@@ -161,7 +163,7 @@ public class JingleS5BTransportSession extends JingleTransportSession<JingleS5BT
     private UsedCandidate connectToTheirCandidate(JingleS5BTransportCandidate candidate)
             throws InterruptedException, TimeoutException, SmackException, XMPPException, IOException {
         Bytestream.StreamHost streamHost = candidate.getStreamHost();
-        String address = streamHost.getAddress();
+        InetAddress address = streamHost.getAddress().asInetAddress();
         Socks5Client socks5Client = new Socks5Client(streamHost, theirProposal.getDestinationAddress());
         Socket socket = socks5Client.getSocket(10 * 1000);
         LOGGER.log(Level.INFO, "Connected to their StreamHost " + address + " using dstAddr "
@@ -172,7 +174,7 @@ public class JingleS5BTransportSession extends JingleTransportSession<JingleS5BT
     private UsedCandidate connectToOurCandidate(JingleS5BTransportCandidate candidate)
             throws InterruptedException, TimeoutException, SmackException, XMPPException, IOException {
         Bytestream.StreamHost streamHost = candidate.getStreamHost();
-        String address = streamHost.getAddress();
+        InetAddress address = streamHost.getAddress().asInetAddress();
         Socks5ClientForInitiator socks5Client = new Socks5ClientForInitiator(
                 streamHost, ourProposal.getDestinationAddress(), jingleSession.getConnection(),
                 ourProposal.getStreamId(), jingleSession.getRemote());

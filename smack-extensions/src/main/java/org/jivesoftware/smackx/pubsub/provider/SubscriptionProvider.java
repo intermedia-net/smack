@@ -18,14 +18,15 @@ package org.jivesoftware.smackx.pubsub.provider;
 
 import java.io.IOException;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.pubsub.Subscription;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Parses the <b>subscription</b> element out of the PubSub IQ message from
@@ -35,7 +36,7 @@ import org.xmlpull.v1.XmlPullParserException;
  */
 public class SubscriptionProvider extends ExtensionElementProvider<Subscription> {
     @Override
-    public Subscription parse(XmlPullParser parser, int initialDepth)
+    public Subscription parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
                     throws XmlPullParserException, IOException {
         Jid jid = ParserUtils.getJidAttribute(parser);
         String nodeId = parser.getAttributeValue(null, "node");
@@ -43,18 +44,18 @@ public class SubscriptionProvider extends ExtensionElementProvider<Subscription>
         String state = parser.getAttributeValue(null, "subscription");
         boolean isRequired = false;
 
-        int tag = parser.next();
+        XmlPullParser.Event tag = parser.next();
 
-        if ((tag == XmlPullParser.START_TAG) && parser.getName().equals("subscribe-options")) {
+        if ((tag == XmlPullParser.Event.START_ELEMENT) && parser.getName().equals("subscribe-options")) {
             tag = parser.next();
 
-            if ((tag == XmlPullParser.START_TAG) && parser.getName().equals("required"))
+            if ((tag == XmlPullParser.Event.START_ELEMENT) && parser.getName().equals("required"))
                 isRequired = true;
 
-            while (tag != XmlPullParser.END_TAG && !parser.getName().equals("subscribe-options")) tag = parser.next();
+            while (tag != XmlPullParser.Event.END_ELEMENT && !parser.getName().equals("subscribe-options")) tag = parser.next();
         }
-        while (parser.getEventType() != XmlPullParser.END_TAG) parser.next();
-        return new Subscription(jid, nodeId, subId, (state == null ? null : Subscription.State.valueOf(state)), isRequired);
+        while (parser.getEventType() != XmlPullParser.Event.END_ELEMENT) parser.next();
+        return new Subscription(jid, nodeId, subId, state == null ? null : Subscription.State.valueOf(state), isRequired);
     }
 
 }

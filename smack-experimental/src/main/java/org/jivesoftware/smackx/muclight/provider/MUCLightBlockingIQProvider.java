@@ -20,15 +20,16 @@ import java.io.IOException;
 import java.util.HashMap;
 
 import org.jivesoftware.smack.packet.IQ.Type;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.muclight.element.MUCLightBlockingIQ;
 
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.impl.JidCreate;
 import org.jxmpp.stringprep.XmppStringprepException;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * MUC Light blocking IQ provider class.
@@ -39,14 +40,14 @@ import org.xmlpull.v1.XmlPullParserException;
 public class MUCLightBlockingIQProvider extends IQProvider<MUCLightBlockingIQ> {
 
     @Override
-    public MUCLightBlockingIQ parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public MUCLightBlockingIQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         HashMap<Jid, Boolean> rooms = null;
         HashMap<Jid, Boolean> users = null;
 
         outerloop: while (true) {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
 
-            if (eventType == XmlPullParser.START_TAG) {
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
 
                 if (parser.getName().equals("room")) {
                     rooms = parseBlocking(parser, rooms);
@@ -56,7 +57,7 @@ public class MUCLightBlockingIQProvider extends IQProvider<MUCLightBlockingIQ> {
                     users = parseBlocking(parser, users);
                 }
 
-            } else if (eventType == XmlPullParser.END_TAG) {
+            } else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }

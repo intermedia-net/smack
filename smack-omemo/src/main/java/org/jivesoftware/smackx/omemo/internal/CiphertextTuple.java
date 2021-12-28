@@ -41,7 +41,7 @@ public class CiphertextTuple {
     /**
      * Return the ciphertext.
      *
-     * @return ciphertext
+     * @return ciphertext part of the tuple
      */
     public byte[] getCiphertext() {
         return ciphertext;
@@ -50,7 +50,7 @@ public class CiphertextTuple {
     /**
      * Return the messageType.
      *
-     * @return messageType
+     * @return type of the message
      */
     public int getMessageType() {
         return this.messageType;

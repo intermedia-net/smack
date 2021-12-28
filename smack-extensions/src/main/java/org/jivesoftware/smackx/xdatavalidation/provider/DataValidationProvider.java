@@ -19,8 +19,15 @@ package org.jivesoftware.smackx.xdatavalidation.provider;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import org.jivesoftware.smack.util.ParserUtils;
+import javax.xml.namespace.QName;
 
+import org.jivesoftware.smack.datatypes.UInt32;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
+
+import org.jivesoftware.smackx.xdata.provider.FormFieldChildElementProvider;
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement;
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.BasicValidateElement;
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.ListRange;
@@ -28,28 +35,26 @@ import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.OpenValida
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.RangeValidateElement;
 import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement.RegexValidateElement;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-
 /**
  * Extension Provider for Data validation of forms.
  *
  * @author Anno van Vliet
  *
  */
-public class DataValidationProvider {
+public class DataValidationProvider extends FormFieldChildElementProvider<ValidateElement> {
     private static final Logger LOGGER = Logger.getLogger(DataValidationProvider.class.getName());
 
-    public static ValidateElement parse(XmlPullParser parser) throws XmlPullParserException, IOException {
-        final int initialDepth = parser.getDepth();
+    @Override
+    public ValidateElement parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
+                    throws XmlPullParserException, IOException {
         final String dataType = parser.getAttributeValue("", "datatype");
         ValidateElement dataValidation = null;
         ListRange listRange = null;
 
         outerloop: while (true) {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 String name = parser.getName();
                 switch (name) {
                 case OpenValidateElement.METHOD:
@@ -65,11 +70,11 @@ public class DataValidationProvider {
                                     );
                     break;
                 case RegexValidateElement.METHOD:
-                    dataValidation = new RegexValidateElement(dataType,parser.nextText());
+                    dataValidation = new RegexValidateElement(dataType, parser.nextText());
                     break;
                 case ListRange.ELEMENT:
-                    Long min = ParserUtils.getLongAttribute(parser, "min");
-                    Long max = ParserUtils.getLongAttribute(parser, "max");
+                    UInt32 min = ParserUtils.getUInt32Attribute(parser, "min");
+                    UInt32 max = ParserUtils.getUInt32Attribute(parser, "max");
                     if (min != null || max != null) {
                         listRange = new ListRange(min, max);
                     } else {
@@ -80,7 +85,7 @@ public class DataValidationProvider {
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     if (dataValidation == null) {
                         // XEP-122 § 3.2 states that "If no validation method is specified,
@@ -91,9 +96,17 @@ public class DataValidationProvider {
                     break outerloop;
                 }
                 break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
+                break;
             }
         }
         return dataValidation;
+    }
+
+    @Override
+    public QName getQName() {
+        return ValidateElement.QNAME;
     }
 
 }

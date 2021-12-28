@@ -21,6 +21,8 @@ import java.util.Collections;
 import java.util.Map;
 
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.StanzaBuilder;
+import org.jivesoftware.smack.packet.StanzaView;
 
 import org.jivesoftware.smackx.jiveproperties.packet.JivePropertiesExtension;
 
@@ -54,7 +56,10 @@ public class JivePropertiesManager {
      * @param packet the stanza to add the property to.
      * @param name the name of the property to add.
      * @param value the value of the property to add.
+     * @deprecated use {@link #addProperty(StanzaBuilder, String, Object)} instead.
      */
+    @Deprecated
+    // TODO: Remove in Smack 4.5.
     public static void addProperty(Stanza packet, String name, Object value) {
         JivePropertiesExtension jpe = (JivePropertiesExtension) packet.getExtension(JivePropertiesExtension.NAMESPACE);
         if (jpe == null) {
@@ -65,16 +70,32 @@ public class JivePropertiesManager {
     }
 
     /**
+     * Convenience method to add a property to a stanza.
+     *
+     * @param stanzaBuilder the stanza to add the property to.
+     * @param name the name of the property to add.
+     * @param value the value of the property to add.
+     */
+    public static void addProperty(StanzaBuilder<?> stanzaBuilder, String name, Object value) {
+        JivePropertiesExtension jpe = (JivePropertiesExtension) stanzaBuilder.getExtension(JivePropertiesExtension.QNAME);
+        if (jpe == null) {
+            jpe = new JivePropertiesExtension();
+            stanzaBuilder.addExtension(jpe);
+        }
+        jpe.setProperty(name, value);
+    }
+
+    /**
      * Convenience method to get a property from a packet. Will return null if the stanza contains
      * not property with the given name.
      *
-     * @param packet
-     * @param name
-     * @return the property or <tt>null</tt> if none found.
+     * @param packet TODO javadoc me please
+     * @param name TODO javadoc me please
+     * @return the property or <code>null</code> if none found.
      */
-    public static Object getProperty(Stanza packet, String name) {
+    public static Object getProperty(StanzaView packet, String name) {
         Object res = null;
-        JivePropertiesExtension jpe = (JivePropertiesExtension) packet.getExtension(JivePropertiesExtension.NAMESPACE);
+        JivePropertiesExtension jpe = packet.getExtension(JivePropertiesExtension.class);
         if (jpe != null) {
             res = jpe.getProperty(name);
         }
@@ -85,7 +106,7 @@ public class JivePropertiesManager {
      * Return a collection of the names of all properties of the given packet. If the packet
      * contains no properties extension, then an empty collection will be returned.
      *
-     * @param packet
+     * @param packet TODO javadoc me please
      * @return a collection of the names of all properties.
      */
     public static Collection<String> getPropertiesNames(Stanza packet) {
@@ -100,7 +121,7 @@ public class JivePropertiesManager {
      * Return a map of all properties of the given packet. If the stanza contains no properties
      * extension, an empty map will be returned.
      *
-     * @param packet
+     * @param packet TODO javadoc me please
      * @return a map of all properties of the given packet.
      */
     public static Map<String, Object> getProperties(Stanza packet) {

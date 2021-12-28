@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2013-2014 Georg Lukas
+ * Copyright 2013-2014 Georg Lukas, 2020 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,19 @@
  */
 package org.jivesoftware.smackx.carbons.provider;
 
-import org.jivesoftware.smack.SmackException;
+import java.io.IOException;
+
+import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.carbons.packet.CarbonExtension;
 import org.jivesoftware.smackx.carbons.packet.CarbonExtension.Direction;
 import org.jivesoftware.smackx.forward.packet.Forwarded;
 import org.jivesoftware.smackx.forward.provider.ForwardedProvider;
-
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * This class implements the {@link ExtensionElementProvider} to parse
@@ -35,25 +39,23 @@ import org.xmlpull.v1.XmlPullParser;
  */
 public class CarbonManagerProvider extends ExtensionElementProvider<CarbonExtension> {
 
-    private static final ForwardedProvider FORWARDED_PROVIDER = new ForwardedProvider();
-
     @Override
-    public CarbonExtension parse(XmlPullParser parser, int initialDepth)
-                    throws Exception {
+    public CarbonExtension parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         Direction dir = Direction.valueOf(parser.getName());
-        Forwarded fwd = null;
+        Forwarded<Message> fwd = null;
 
         boolean done = false;
         while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG && parser.getName().equals("forwarded")) {
-                fwd = FORWARDED_PROVIDER.parse(parser);
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT && parser.getName().equals("forwarded")) {
+                fwd = ForwardedProvider.parseForwardedMessage(parser, xmlEnvironment);
             }
-            else if (eventType == XmlPullParser.END_TAG && dir == Direction.valueOf(parser.getName()))
+            else if (eventType == XmlPullParser.Event.END_ELEMENT && dir == Direction.valueOf(parser.getName()))
                 done = true;
         }
-        if (fwd == null)
-            throw new SmackException("sent/received must contain exactly one <forwarded> tag");
+        if (fwd == null) {
+            throw new SmackParsingException("sent/received must contain exactly one <forwarded/> element");
+        }
         return new CarbonExtension(dir, fwd);
     }
 }

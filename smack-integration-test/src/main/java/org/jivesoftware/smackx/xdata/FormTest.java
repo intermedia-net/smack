@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2004 Jive Software, 2017 Florian Schmaus.
+ * Copyright 2004 Jive Software, 2017-2020 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.jivesoftware.smackx.xdata;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.StanzaCollector;
 import org.jivesoftware.smack.filter.ThreadFilter;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 
+import org.jivesoftware.smackx.xdata.form.FillableForm;
+import org.jivesoftware.smackx.xdata.form.Form;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 import org.igniterealtime.smack.inttest.AbstractSmackIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 
 /**
  * Tests the DataForms extensions.
@@ -48,44 +50,46 @@ public class FormTest extends AbstractSmackIntegrationTest {
      * 2. Retrieve the form to fill out, complete it and return it to the requestor
      * 3. Retrieve the completed form and check that everything is OK
      *
-     * @throws InterruptedException
-     * @throws NotConnectedException
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws NotConnectedException if the XMPP connection is not connected.
      */
     @SuppressWarnings("deprecation")
     @SmackIntegrationTest
     public void testFilloutForm() throws NotConnectedException, InterruptedException {
-        Form formToSend = new Form(DataForm.Type.form);
+        DataForm.Builder formToSend = DataForm.builder(DataForm.Type.form);
         formToSend.setInstructions(
             "Fill out this form to report your case.\nThe case will be created automatically.");
         formToSend.setTitle("Case configurations");
+        formToSend.setFormType("https://igniterealtime.org/projects/smack/sinttest/form-test/1");
         // Add a hidden variable
-        FormField field = new FormField("hidden_var");
-        field.setType(FormField.Type.hidden);
-        field.addValue("Some value for the hidden variable");
+        FormField field = FormField.hiddenBuilder("hidden_var")
+                        .setValue("Some value for the hidden variable")
+                        .build();
         formToSend.addField(field);
         // Add a fixed variable
-        field = new FormField();
-        field.addValue("Section 1: Case description");
+        field = FormField.fixedBuilder()
+                        .setValue("Section 1: Case description")
+                        .build();
         formToSend.addField(field);
         // Add a text-single variable
-        field = new FormField("name");
-        field.setLabel("Enter a name for the case");
-        field.setType(FormField.Type.text_single);
+        field = FormField.textSingleBuilder("name")
+                        .setLabel("Enter a name for the case")
+                        .build();
         formToSend.addField(field);
         // Add a text-multi variable
-        field = new FormField("description");
-        field.setLabel("Enter a description");
-        field.setType(FormField.Type.text_multi);
+        field = FormField.textMultiBuilder("description")
+                        .setLabel("Enter a description")
+                        .build();
         formToSend.addField(field);
         // Add a boolean variable
-        field = new FormField("time");
-        field.setLabel("Is this your first case?");
-        field.setType(FormField.Type.bool);
+        field = FormField.booleanBuilder("time")
+                        .setLabel("Is this your first case?")
+                        .build();
         formToSend.addField(field);
         // Add a text variable where an int value is expected
-        field = new FormField("age");
-        field.setLabel("How old are you?");
-        field.setType(FormField.Type.text_single);
+        field = FormField.textSingleBuilder("age")
+                        .setLabel("How old are you?")
+                        .build();
         formToSend.addField(field);
 
         // Create the chats between the two participants
@@ -95,9 +99,10 @@ public class FormTest extends AbstractSmackIntegrationTest {
         StanzaCollector collector2 = conTwo.createStanzaCollector(
                 new ThreadFilter(chat.getThreadID()));
 
-        Message msg = new Message();
-        msg.setBody("To enter a case please fill out this form and send it back to me");
-        msg.addExtension(formToSend.getDataFormToSend());
+        Message msg = StanzaBuilder.buildMessage()
+                .setBody("To enter a case please fill out this form and send it back to me")
+                .addExtension(formToSend.build())
+                .build();
 
         try {
             // Send the message with the form to fill out
@@ -105,23 +110,17 @@ public class FormTest extends AbstractSmackIntegrationTest {
 
             // Get the message with the form to fill out
             Message msg2 = collector2.nextResult();
-            assertNotNull("Message not found", msg2);
+            assertNotNull(msg2, "Message not found");
             // Retrieve the form to fill out
-            Form formToRespond = Form.getFormFrom(msg2);
+            Form formToRespond = Form.from(msg2);
             assertNotNull(formToRespond);
             assertNotNull(formToRespond.getField("name"));
             assertNotNull(formToRespond.getField("description"));
             // Obtain the form to send with the replies
-            Form completedForm = formToRespond.createAnswerForm();
+            final FillableForm completedForm = formToRespond.getFillableForm();
             assertNotNull(completedForm.getField("hidden_var"));
             // Check that a field of type String does not accept booleans
-            try {
-                completedForm.setAnswer("name", true);
-                fail("A boolean value was set to a field of type String");
-            }
-            catch (IllegalArgumentException e) {
-                // This exception is expected.
-            }
+            assertThrows(IllegalArgumentException.class, () -> completedForm.setAnswer("name", true));
             completedForm.setAnswer("name", "Credit card number invalid");
             completedForm.setAnswer(
                 "description",
@@ -129,30 +128,31 @@ public class FormTest extends AbstractSmackIntegrationTest {
             completedForm.setAnswer("time", true);
             completedForm.setAnswer("age", 20);
             // Create a new message to send with the completed form
-            msg2 = new Message();
-            msg2.setTo(conOne.getUser().asBareJid());
-            msg2.setThread(msg.getThread());
-            msg2.setType(Message.Type.chat);
-            msg2.setBody("To enter a case please fill out this form and send it back to me");
-            // Add the completed form to the message
-            msg2.addExtension(completedForm.getDataFormToSend());
+            msg2 = StanzaBuilder.buildMessage()
+                    .to(conOne.getUser().asBareJid())
+                    .setThread(msg.getThread())
+                    .ofType(Message.Type.chat)
+                    .setBody("To enter a case please fill out this form and send it back to me")
+                    // Add the completed form to the message
+                    .addExtension(completedForm.getDataFormToSubmit())
+                    .build();
             // Send the message with the completed form
             conTwo.sendStanza(msg2);
 
             // Get the message with the completed form
             Message msg3 = collector.nextResult();
-            assertNotNull("Message not found", msg3);
+            assertNotNull(msg3, "Message not found");
             // Retrieve the completed form
-            completedForm = Form.getFormFrom(msg3);
-            assertNotNull(completedForm);
-            assertNotNull(completedForm.getField("name"));
-            assertNotNull(completedForm.getField("description"));
+            final DataForm completedForm2 = DataForm.from(msg3);
+            assertNotNull(completedForm2);
+            assertNotNull(completedForm2.getField("name"));
+            assertNotNull(completedForm2.getField("description"));
             assertEquals(
-                completedForm.getField("name").getValues().get(0),
+                 completedForm2.getField("name").getValues().get(0).toString(),
                 "Credit card number invalid");
-            assertNotNull(completedForm.getField("time"));
-            assertNotNull(completedForm.getField("age"));
-            assertEquals("The age is bad", "20", completedForm.getField("age").getValues().get(0));
+            assertNotNull(completedForm2.getField("time"));
+            assertNotNull(completedForm2.getField("age"));
+            assertEquals("20", completedForm2.getField("age").getValues().get(0).toString(), "The age is bad");
 
         }
         finally {

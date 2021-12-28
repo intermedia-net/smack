@@ -17,10 +17,15 @@
 
 package org.jivesoftware.smackx.jingleold.provider;
 
-import org.jivesoftware.smack.SmackException;
+import java.io.IOException;
+
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.jingleold.JingleActionEnum;
 import org.jivesoftware.smackx.jingleold.packet.Jingle;
@@ -30,7 +35,6 @@ import org.jivesoftware.smackx.jingleold.packet.JingleDescription;
 import org.jivesoftware.smackx.jingleold.packet.JingleTransport;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * The JingleProvider parses Jingle packets.
@@ -41,14 +45,15 @@ public class JingleProvider extends IQProvider<Jingle> {
 
     /**
      * Parse a iq/jingle element.
-     * @throws Exception
+     * @throws XmlPullParserException if an error in the XML parser occurred.
+     * @throws IOException if an I/O error occurred.
+     * @throws SmackParsingException if the Smack parser (provider) encountered invalid input.
      */
     @Override
-    public Jingle parse(XmlPullParser parser, int intialDepth)
-                    throws Exception {
+    public Jingle parse(XmlPullParser parser, int intialDepth, XmlEnvironment xmlEnvironment) throws IOException, XmlPullParserException, SmackParsingException {
 
         Jingle jingle = new Jingle();
-        String sid = "";
+        String sid;
         JingleActionEnum action;
         Jid initiator, responder;
         boolean done = false;
@@ -61,7 +66,7 @@ public class JingleProvider extends IQProvider<Jingle> {
         JingleTransportProvider jtpIce = new JingleTransportProvider.Ice();
         ExtensionElementProvider<?> jmipAudio = new JingleContentInfoProvider.Audio();
 
-        int eventType;
+        XmlPullParser.Event eventType;
         String elementName;
         String namespace;
 
@@ -79,10 +84,10 @@ public class JingleProvider extends IQProvider<Jingle> {
         // Start processing sub-elements
         while (!done) {
             eventType = parser.next();
-            elementName = parser.getName();
-            namespace = parser.getNamespace();
 
-            if (eventType == XmlPullParser.START_TAG) {
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
+                elementName = parser.getName();
+                namespace = parser.getNamespace();
 
                 // Parse some well know subelements, depending on the namespaces
                 // and element names...
@@ -103,17 +108,19 @@ public class JingleProvider extends IQProvider<Jingle> {
                     } else if (namespace.equals(JingleTransport.Ice.NAMESPACE)) {
                         currentContent.addJingleTransport(jtpIce.parse(parser));
                     } else {
-                        throw new SmackException("Unknown transport namespace \"" + namespace + "\" in Jingle packet.");
+                        // TODO: Should be SmackParseException.
+                        throw new IOException("Unknown transport namespace \"" + namespace + "\" in Jingle packet.");
                     }
                 } else if (namespace.equals(JingleContentInfo.Audio.NAMESPACE)) {
                     jingle.setContentInfo((JingleContentInfo) jmipAudio.parse(parser));
                 } else {
-                    throw new SmackException("Unknown combination of namespace \"" + namespace + "\" and element name \""
+                    // TODO: Should be SmackParseException.
+                    throw new IOException("Unknown combination of namespace \"" + namespace + "\" and element name \""
                             + elementName + "\" in Jingle packet.");
                 }
 
-            } else if (eventType == XmlPullParser.END_TAG) {
-                if (parser.getName().equals(Jingle.getElementName())) {
+            } else if (eventType == XmlPullParser.Event.END_ELEMENT) {
+                if (parser.getName().equals(Jingle.NODENAME)) {
                     done = true;
                 }
             }

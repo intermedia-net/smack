@@ -38,7 +38,7 @@ public class IQResponseTest {
 
     /**
      * Test creating a simple and empty IQ response.
-     * @throws XmppStringprepException
+     * @throws XmppStringprepException if the provided string is invalid.
      */
     @Test
     public void testGeneratingSimpleResponse() throws XmppStringprepException {
@@ -58,11 +58,11 @@ public class IQResponseTest {
 
     /**
      * Test creating a error response based on an IQ request.
-     * @throws XmppStringprepException
+     * @throws XmppStringprepException if the provided string is invalid.
      */
     @Test
     public void testGeneratingValidErrorResponse() throws XmppStringprepException {
-        final StanzaError.Builder error = StanzaError.getBuilder(StanzaError.Condition.bad_request);
+        final StanzaError error = StanzaError.getBuilder(StanzaError.Condition.bad_request).build();
         final IQ request = new TestIQ(ELEMENT, NAMESPACE);
 
         request.setType(IQ.Type.set);
@@ -75,7 +75,7 @@ public class IQResponseTest {
         assertNotNull(result.getStanzaId());
         assertEquals(request.getStanzaId(), result.getStanzaId());
         assertEquals(request.getFrom(), result.getTo());
-        assertEquals(error.build().toXML(), result.getError().toXML());
+        assertEquals(error.toXML().toString(), result.getError().toXML().toString());
         // TODO this test was never valid
         // assertEquals(CHILD_ELEMENT, result.getChildElementXML());
     }
@@ -83,7 +83,7 @@ public class IQResponseTest {
     /**
      * According to <a href="http://xmpp.org/rfcs/rfc3920.html#stanzas-semantics-iq"
      * >RFC3920: IQ Semantics</a> we shouldn't respond to an IQ of type result.
-     * @throws XmppStringprepException
+     * @throws XmppStringprepException if the provided string is invalid.
      */
     @Test
     public void testGeneratingResponseBasedOnResult() throws XmppStringprepException {
@@ -106,11 +106,11 @@ public class IQResponseTest {
     /**
      * According to <a href="http://xmpp.org/rfcs/rfc3920.html#stanzas-semantics-iq"
      * >RFC3920: IQ Semantics</a> we shouldn't respond to an IQ of type error.
-     * @throws XmppStringprepException
+     * @throws XmppStringprepException if the provided string is invalid.
      */
     @Test
     public void testGeneratingErrorBasedOnError() throws XmppStringprepException {
-        final StanzaError.Builder error = StanzaError.getBuilder(StanzaError.Condition.bad_request);
+        final StanzaError error = StanzaError.getBuilder(StanzaError.Condition.bad_request).build();
         final IQ request = new TestIQ(ELEMENT, NAMESPACE);
 
         request.setType(IQ.Type.error);

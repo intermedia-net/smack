@@ -125,10 +125,14 @@ public final class IoTDataManager extends IoTManager {
                     @Override
                     public void momentaryReadOut(List<? extends IoTDataField> results) {
                         IoTFieldsExtension iotFieldsExtension = IoTFieldsExtension.buildFor(dataRequest.getSequenceNr(), true, thing.getNodeInfo(), results);
-                        Message message = new Message(dataRequest.getFrom());
-                        message.addExtension(iotFieldsExtension);
+
+                        XMPPConnection connection = connection();
+                        Message message = connection.getStanzaFactory().buildMessageStanza()
+                                .to(dataRequest.getFrom())
+                                .addExtension(iotFieldsExtension)
+                                .build();
                         try {
-                            connection().sendStanza(message);
+                            connection.sendStanza(message);
                         }
                         catch (NotConnectedException | InterruptedException e) {
                             LOGGER.log(Level.SEVERE, "Could not send read-out response " + message, e);
@@ -164,10 +168,10 @@ public final class IoTDataManager extends IoTManager {
      *
      * @param jid the full JID of the thing to read data from.
      * @return a list with the read out data.
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public List<IoTFieldsExtension> requestMomentaryValuesReadOut(EntityFullJid jid)
                     throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -192,9 +196,9 @@ public final class IoTDataManager extends IoTManager {
             doneCollector.nextResult();
         }
         finally {
-            // Ensure that the two collectors are canceled in any case.
+            // Canceling dataCollector will also cancel the doneCollector since it is configured as dataCollector's
+            // collector to reset.
             dataCollector.cancel();
-            doneCollector.cancel();
         }
 
         int collectedCount = dataCollector.getCollectedCount();

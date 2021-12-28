@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,17 +23,18 @@ import java.util.List;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
-import org.jivesoftware.smack.util.StringUtils;
 
 import org.jivesoftware.smackx.muc.MultiUserChatException.MucConfigurationNotSupportedException;
-import org.jivesoftware.smackx.xdata.Form;
 import org.jivesoftware.smackx.xdata.FormField;
+import org.jivesoftware.smackx.xdata.form.FillableForm;
+import org.jivesoftware.smackx.xdata.form.FilledForm;
+import org.jivesoftware.smackx.xdata.form.Form;
 
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.util.JidUtil;
 
 /**
- * Multi-User Chat configuration form manager is used to fill out and submit a {@link Form} used to
+ * Multi-User Chat configuration form manager is used to fill out and submit a {@link FilledForm} used to
  * configure rooms.
  * <p>
  * Room configuration needs either be done right after the room is created and still locked. Or at
@@ -43,12 +44,17 @@ import org.jxmpp.jid.util.JidUtil;
  * </p>
  * <p>
  * The manager may not provide all possible configuration options. If you want direct access to the
- * configuraiton form, use {@link MultiUserChat#getConfigurationForm()} and
- * {@link MultiUserChat#sendConfigurationForm(Form)}.
+ * configuration form, use {@link MultiUserChat#getConfigurationForm()} and
+ * {@link MultiUserChat#sendConfigurationForm(FillableForm)}.
  * </p>
  */
 public class MucConfigFormManager {
-    /**
+
+    private static final String HASH_ROOMCONFIG = "#roomconfig";
+
+    public static final String FORM_TYPE = MultiUserChatConstants.NAMESPACE + HASH_ROOMCONFIG;
+
+                    /**
      * The constant String {@value}.
      *
      * @see <a href="http://xmpp.org/extensions/xep-0045.html#owner">XEP-0045 § 10. Owner Use Cases</a>
@@ -73,7 +79,7 @@ public class MucConfigFormManager {
     public static final String MUC_ROOMCONFIG_ROOMSECRET = "muc#roomconfig_roomsecret";
 
     private final MultiUserChat multiUserChat;
-    private final Form answerForm;
+    private final FillableForm answerForm;
     private final List<Jid> owners;
 
     /**
@@ -83,10 +89,10 @@ public class MucConfigFormManager {
      * </p>
      *
      * @param multiUserChat the MUC for this configuration form.
-     * @throws InterruptedException
-     * @throws NotConnectedException
-     * @throws XMPPErrorException
-     * @throws NoResponseException
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
      */
     MucConfigFormManager(MultiUserChat multiUserChat) throws NoResponseException,
                     XMPPErrorException, NotConnectedException, InterruptedException {
@@ -94,20 +100,13 @@ public class MucConfigFormManager {
 
         // Set the answer form
         Form configForm = multiUserChat.getConfigurationForm();
-        this.answerForm = configForm.createAnswerForm();
-        // Add the default answers to the form to submit
-        for (FormField field : configForm.getFields()) {
-            if (field.getType() == FormField.Type.hidden
-                            || StringUtils.isNullOrEmpty(field.getVariable())) {
-                continue;
-            }
-            answerForm.setDefaultAnswer(field.getVariable());
-        }
+        this.answerForm = configForm.getFillableForm();
 
         // Set the local variables according to the fields found in the answer form
-        if (answerForm.hasField(MUC_ROOMCONFIG_ROOMOWNERS)) {
+        FormField roomOwnersFormField = answerForm.getDataForm().getField(MUC_ROOMCONFIG_ROOMOWNERS);
+        if (roomOwnersFormField != null) {
             // Set 'owners' to the currently configured owners
-            List<CharSequence> ownerStrings = answerForm.getField(MUC_ROOMCONFIG_ROOMOWNERS).getValues();
+            List<? extends CharSequence> ownerStrings = roomOwnersFormField.getValues();
             owners = new ArrayList<>(ownerStrings.size());
             JidUtil.jidsFrom(ownerStrings, owners, null);
         }
@@ -156,7 +155,7 @@ public class MucConfigFormManager {
      * Make the room for members only.
      *
      * @return a reference to this object.
-     * @throws MucConfigurationNotSupportedException
+     * @throws MucConfigurationNotSupportedException if the requested MUC configuration is not supported by the MUC service.
      */
     public MucConfigFormManager makeMembersOnly() throws MucConfigurationNotSupportedException {
         return setMembersOnly(true);
@@ -167,7 +166,7 @@ public class MucConfigFormManager {
      *
      * @param isMembersOnly if the room should be members only.
      * @return a reference to this object.
-     * @throws MucConfigurationNotSupportedException
+     * @throws MucConfigurationNotSupportedException if the requested MUC configuration is not supported by the MUC service.
      */
     public MucConfigFormManager setMembersOnly(boolean isMembersOnly) throws MucConfigurationNotSupportedException {
         if (!supportsMembersOnly()) {
@@ -192,7 +191,7 @@ public class MucConfigFormManager {
      *
      * @param password the password to set.
      * @return a reference to this object.
-     * @throws MucConfigurationNotSupportedException
+     * @throws MucConfigurationNotSupportedException if the requested MUC configuration is not supported by the MUC service.
      */
     public MucConfigFormManager setAndEnablePassword(String password)
                     throws MucConfigurationNotSupportedException {
@@ -203,7 +202,7 @@ public class MucConfigFormManager {
      * Make the room password protected.
      *
      * @return a reference to this object.
-     * @throws MucConfigurationNotSupportedException
+     * @throws MucConfigurationNotSupportedException if the requested MUC configuration is not supported by the MUC service.
      */
     public MucConfigFormManager makePasswordProtected() throws MucConfigurationNotSupportedException {
         return setIsPasswordProtected(true);
@@ -212,9 +211,9 @@ public class MucConfigFormManager {
     /**
      * Set if this room is password protected. Rooms are by default not password protected.
      *
-     * @param isPasswordProtected
+     * @param isPasswordProtected TODO javadoc me please
      * @return a reference to this object.
-     * @throws MucConfigurationNotSupportedException
+     * @throws MucConfigurationNotSupportedException if the requested MUC configuration is not supported by the MUC service.
      */
     public MucConfigFormManager setIsPasswordProtected(boolean isPasswordProtected)
                     throws MucConfigurationNotSupportedException {
@@ -232,7 +231,7 @@ public class MucConfigFormManager {
      *
      * @param secret the secret/password.
      * @return a reference to this object.
-     * @throws MucConfigurationNotSupportedException
+     * @throws MucConfigurationNotSupportedException if the requested MUC configuration is not supported by the MUC service.
      */
     public MucConfigFormManager setRoomSecret(String secret)
                     throws MucConfigurationNotSupportedException {
@@ -244,12 +243,12 @@ public class MucConfigFormManager {
     }
 
     /**
-     * Submit the configuration as {@link Form} to the room.
+     * Submit the configuration as {@link FilledForm} to the room.
      *
      * @throws NoResponseException if there was no response from the room.
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void submitConfigurationForm() throws NoResponseException, XMPPErrorException, NotConnectedException,
                     InterruptedException {

@@ -23,7 +23,7 @@ Whenever a packet extension is found in a packet, parsing will be
 passed to the correct provider. Each provider must extend the
 ExtensionElementProvider abstract class. Each extension provider is
 responsible for parsing the raw XML stream, via the
-[XML Pull Parser](http://www.xmlpull.org/), to contruct an object.
+Smack's `XmlPullParser` interface, to construct an object.
 
 You can also create an introspection provider
 (`provider.IntrospectionProvider.PacketExtensionIntrospectionProvider`). Here,
@@ -46,9 +46,9 @@ ProviderManager.addExtensionProvider("element", "namespace", new MyExtProvider()
 
   * Add a loader - You can add a ProviderLoader which will inject a means of loading multiple providers (both types) into the manager. This is the mechanism used by Smack to load from the Smack specific file format (via ProviderFileLoader). Implementers can provide the means to load providers from any source they wish, or simply reuse the ProviderFileLoader to load from their own provider files.
 
-
+```
 	ProviderManager.addLoader(new ProviderFileLoader(FileUtils.getStreamForUrl("classpath:com/myco/provider/myco_custom.providers", null)));
-
+```
 
   * VM Argument - You can add a provider file via the VM argument _smack.provider.file_. This will load the file at the specified URL during startup when Smack initializes. This also assumes the default configuration, since it requires that the **VmArgInitializer** was part of the startup configuration.
 
@@ -161,9 +161,9 @@ public class MyIQProvider extends IQProvider<MyIQ> {
 
     // Start parsing loop
     outerloop: while(true) {
-      int eventType = parser.next();
+      XmlPullParser.Event eventType = parser.next();
       switch(eventType) {
-      case XmlPullParser.START_TAG:
+      case START_ELEMENT:
         String elementName = parser.getName();
         switch (elementName) {
         case "user":
@@ -175,11 +175,14 @@ public class MyIQProvider extends IQProvider<MyIQ> {
           break;
         }
         break;
-      case XmlPullParser.END_TAG:
+      case END_ELEMENT:
         // Abort condition: if the are on a end tag (closing element) of the same depth
         if (parser.getDepth() == initialDepth) {
           break outerloop;
         }
+        break;
+      default:
+        // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
         break;
       }
     }
@@ -225,9 +228,9 @@ _Disco Items IQProvider_
 			String node = "";
 			discoverItems.setNode(parser.getAttributeValue("", "node"));
 			outerloop: while (true) {
-				int eventType = parser.next();
+				XmlPullParser.Event eventType = parser.next();
 				switch (eventType) {
-				case XmlPullParser.START_TAG:
+				case START_ELEMENT:
 					String elementName = parser.getName();
 					switch (elementName) {
 					case "item":
@@ -239,7 +242,7 @@ _Disco Items IQProvider_
 						break;
 					}
 					break;
-				case XmlPullParser.END_TAG:
+				case END_ELEMENT:
 					String elementName = parser.getName();
 					switch (elementName) {
 					case "item":
@@ -295,17 +298,17 @@ _Subscription PacketExtensionProvider Implementation_
 			String state = parser.getAttributeValue(null, "subscription");
 			boolean isRequired = false;
 
-			int tag = parser.next();
+			XmlPullParser.Event tag = parser.next();
 
-			if ((tag == XmlPullParser.START_TAG) && parser.getName().equals("subscribe-options")) {
+			if ((tag == XmlPullParser.START_ELEMENT) && parser.getName().equals("subscribe-options")) {
 				tag = parser.next();
 
-				if ((tag == XmlPullParser.START_TAG) && parser.getName().equals("required"))
+				if ((tag == XmlPullParser.START_ELEMENT) && parser.getName().equals("required"))
 					isRequired = true;
 
-				while (parser.next() != XmlPullParser.END_TAG && parser.getName() != "subscribe-options");
+				while (parser.next() != XmlPullParser.END_ELEMENT && parser.getName() != "subscribe-options");
 			}
-			while (parser.getEventType() != XmlPullParser.END_TAG) parser.next();
+			while (parser.getEventType() != XmlPullParser.END_ELEMENT) parser.next();
 			return new Subscription(jid, nodeId, subId, state == null ? null : Subscription.State.valueOf(state), isRequired);
 		}
 	}

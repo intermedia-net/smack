@@ -26,6 +26,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
@@ -53,18 +54,20 @@ public class BridgedResolver extends TransportResolver {
     /**
      * Constructor.
      * A Bridged Resolver need an XMPPConnection to connect to a RTP Bridge.
+     *
+     * @param connection the XMPP connection.
      */
     public BridgedResolver(XMPPConnection connection) {
         super();
         this.connection = connection;
     }
 
-    /**1
+    /**
      * Resolve Bridged Candidate.
      *
      * The BridgedResolver takes the IP address and ports of a jmf proxy service.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     @Override
     public synchronized void resolve(JingleSession session) throws XMPPException, NotConnectedException, InterruptedException {
@@ -73,7 +76,7 @@ public class BridgedResolver extends TransportResolver {
 
         clearCandidates();
 
-        sid = Math.abs(random.nextLong());
+        sid = random.nextInt(Integer.MAX_VALUE);
 
         RTPBridge rtpBridge = RTPBridge.getRTPBridge(connection, String.valueOf(sid));
 
@@ -105,13 +108,14 @@ public class BridgedResolver extends TransportResolver {
     }
 
     @Override
-    public void initialize() throws SmackException, XMPPErrorException, InterruptedException {
+    public void initialize() throws SmackException.SmackMessageException, XMPPErrorException, InterruptedException,
+                    NoResponseException, NotConnectedException {
 
         clearCandidates();
 
         if (!RTPBridge.serviceAvailable(connection)) {
             setInitialized();
-            throw new SmackException("No RTP Bridge service available");
+            throw new SmackException.SmackMessageException("No RTP Bridge service available");
         }
         setInitialized();
 

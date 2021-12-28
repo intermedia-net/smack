@@ -16,20 +16,20 @@
  */
 package org.jivesoftware.smackx.bytestreams.ibb.packet;
 
-import static org.custommonkey.xmlunit.XMLAssert.assertXMLEqual;
-import static org.junit.Assert.assertEquals;
+import static org.jivesoftware.smack.test.util.XmlAssertUtil.assertXmlSimilar;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
 import java.util.Properties;
 
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.StreamOpen;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.util.stringencoder.Base64;
 
-import org.jivesoftware.smackx.InitExtensions;
-
 import com.jamesmurty.utils.XMLBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.impl.JidCreate;
 
 /**
@@ -37,11 +37,13 @@ import org.jxmpp.jid.impl.JidCreate;
  *
  * @author Henning Staib
  */
-public class DataTest extends InitExtensions {
+public class DataTest extends SmackTestSuite {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void shouldNotInstantiateWithInvalidArgument() {
-        new Data(null);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new Data(null);
+        });
     }
 
     @Test
@@ -78,7 +80,7 @@ public class DataTest extends InitExtensions {
         data.setTo(JidCreate.from("juliet@capulet.lit/balcony"));
         data.setStanzaId("kr91n475");
 
-        assertXMLEqual(control, data.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertXmlSimilar(control, data.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
     }
 
 }

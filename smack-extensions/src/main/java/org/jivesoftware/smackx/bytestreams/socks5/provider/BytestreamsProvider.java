@@ -18,15 +18,16 @@ package org.jivesoftware.smackx.bytestreams.socks5.provider;
 
 import java.io.IOException;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.bytestreams.socks5.packet.Bytestream;
 import org.jivesoftware.smackx.bytestreams.socks5.packet.Bytestream.Mode;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Parses a bytestream packet.
@@ -36,7 +37,7 @@ import org.xmlpull.v1.XmlPullParserException;
 public class BytestreamsProvider extends IQProvider<Bytestream> {
 
     @Override
-    public Bytestream parse(XmlPullParser parser, int initialDepth)
+    public Bytestream parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
                     throws XmlPullParserException, IOException {
         boolean done = false;
 
@@ -50,12 +51,12 @@ public class BytestreamsProvider extends IQProvider<Bytestream> {
         String host = null;
         String port = null;
 
-        int eventType;
+        XmlPullParser.Event eventType;
         String elementName;
         while (!done) {
             eventType = parser.next();
             elementName = parser.getName();
-            if (eventType == XmlPullParser.START_TAG) {
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (elementName.equals(Bytestream.StreamHost.ELEMENTNAME)) {
                     JID = ParserUtils.getJidAttribute(parser);
                     host = parser.getAttributeValue("", "host");
@@ -68,7 +69,7 @@ public class BytestreamsProvider extends IQProvider<Bytestream> {
                     toReturn.setToActivate(ParserUtils.getJidAttribute(parser));
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (elementName.equals("streamhost")) {
                     if (port == null) {
                         toReturn.addStreamHost(JID, host);
@@ -89,7 +90,7 @@ public class BytestreamsProvider extends IQProvider<Bytestream> {
         if (mode == null) {
             toReturn.setMode(Mode.tcp);
         } else {
-            toReturn.setMode((Bytestream.Mode.fromName(mode)));
+            toReturn.setMode(Bytestream.Mode.fromName(mode));
         }
         toReturn.setSessionID(id);
         return toReturn;

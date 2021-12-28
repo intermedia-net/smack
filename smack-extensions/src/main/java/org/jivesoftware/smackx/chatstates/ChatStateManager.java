@@ -37,12 +37,14 @@ import org.jivesoftware.smack.chat2.OutgoingChatMessageListener;
 import org.jivesoftware.smack.filter.AndFilter;
 import org.jivesoftware.smack.filter.FromTypeFilter;
 import org.jivesoftware.smack.filter.MessageTypeFilter;
-import org.jivesoftware.smack.filter.NotFilter;
 import org.jivesoftware.smack.filter.StanzaExtensionFilter;
 import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageBuilder;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.StanzaBuilder;
+
 import org.jivesoftware.smackx.chatstates.packet.ChatStateExtension;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 
@@ -71,7 +73,6 @@ public final class ChatStateManager extends Manager {
 
     private static final Map<XMPPConnection, ChatStateManager> INSTANCES = new WeakHashMap<>();
 
-    private static final StanzaFilter filter = new NotFilter(new StanzaExtensionFilter(NAMESPACE));
     private static final StanzaFilter INCOMING_MESSAGE_FILTER =
             new AndFilter(MessageTypeFilter.NORMAL_OR_CHAT, FromTypeFilter.ENTITY_FULL_JID);
     private static final StanzaFilter INCOMING_CHAT_STATE_FILTER = new AndFilter(INCOMING_MESSAGE_FILTER, new StanzaExtensionFilter(NAMESPACE));
@@ -115,13 +116,13 @@ public final class ChatStateManager extends Manager {
         ChatManager chatManager = ChatManager.getInstanceFor(connection);
         chatManager.addOutgoingListener(new OutgoingChatMessageListener() {
             @Override
-            public void newOutgoingMessage(EntityBareJid to, Message message, Chat chat) {
+            public void newOutgoingMessage(EntityBareJid to, MessageBuilder message, Chat chat) {
                 if (chat == null) {
                     return;
                 }
 
                 // if message already has a chatStateExtension, then do nothing,
-                if (!filter.accept(message)) {
+                if (message.hasExtension(ChatStateExtension.NAMESPACE)) {
                     return;
                 }
 
@@ -207,8 +208,8 @@ public final class ChatStateManager extends Manager {
      *
      * @param newState the new state of the chat
      * @param chat the chat.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void setCurrentState(ChatState newState, Chat chat) throws NotConnectedException, InterruptedException {
         if (chat == null || newState == null) {
@@ -217,7 +218,7 @@ public final class ChatStateManager extends Manager {
         if (!updateChatState(chat, newState)) {
             return;
         }
-        Message message = new Message();
+        Message message = StanzaBuilder.buildMessage().build();
         ChatStateExtension extension = new ChatStateExtension(newState);
         message.addExtension(extension);
 

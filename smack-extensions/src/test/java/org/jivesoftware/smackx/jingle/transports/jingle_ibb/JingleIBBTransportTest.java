@@ -16,10 +16,10 @@
  */
 package org.jivesoftware.smackx.jingle.transports.jingle_ibb;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertNotSame;
-import static junit.framework.TestCase.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.test.util.TestUtils;
@@ -28,7 +28,7 @@ import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smackx.jingle.transports.jingle_ibb.element.JingleIBBTransport;
 import org.jivesoftware.smackx.jingle.transports.jingle_ibb.provider.JingleIBBTransportProvider;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test JingleIBBTransport provider and element.
@@ -43,7 +43,7 @@ public class JingleIBBTransportTest extends SmackTestSuite {
         String xml = "<transport xmlns='urn:xmpp:jingle:transports:ibb:1' block-size='8192' sid='" + sid + "'/>";
 
         JingleIBBTransport transport = new JingleIBBTransport(size, sid);
-        assertEquals(xml, transport.toXML(null).toString());
+        assertEquals(xml, transport.toXML().toString());
         assertEquals(size, transport.getBlockSize());
         assertEquals(sid, transport.getSessionId());
 
@@ -51,7 +51,7 @@ public class JingleIBBTransportTest extends SmackTestSuite {
                 .parse(TestUtils.getParser(xml));
         assertEquals(transport, parsed);
         assertTrue(transport.equals(parsed));
-        assertEquals(xml, parsed.toXML(null).toString());
+        assertEquals(xml, parsed.toXML().toString());
 
         JingleIBBTransport transport1 = new JingleIBBTransport((short) 1024);
         assertEquals((short) 1024, transport1.getBlockSize());

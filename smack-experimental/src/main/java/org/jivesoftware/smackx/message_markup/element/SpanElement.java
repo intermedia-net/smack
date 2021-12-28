@@ -21,11 +21,10 @@ import java.util.Set;
 
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
-public class SpanElement implements MarkupElement.MarkupChildElement {
+public class SpanElement extends MarkupElement.NonEmptyChildElement {
 
     public static final String ELEMENT = "span";
 
-    private final int start, end;
     private final Set<SpanStyle> styles;
 
     /**
@@ -36,25 +35,14 @@ public class SpanElement implements MarkupElement.MarkupChildElement {
      * @param styles list of styles that apply to this span
      */
     public SpanElement(int start, int end, Set<SpanStyle> styles) {
-        this.start = start;
-        this.end = end;
+        super(start, end);
         this.styles = Collections.unmodifiableSet(styles);
-    }
-
-    @Override
-    public int getStart() {
-        return start;
-    }
-
-    @Override
-    public int getEnd() {
-        return end;
     }
 
     /**
      * Return all styles of this span.
      *
-     * @return styles
+     * @return styles TODO javadoc me please
      */
     public Set<SpanStyle> getStyles() {
         return styles;
@@ -76,18 +64,9 @@ public class SpanElement implements MarkupElement.MarkupChildElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = new XmlStringBuilder();
-        xml.halfOpenElement(this);
-        xml.attribute(ATTR_START, getStart());
-        xml.attribute(ATTR_END, getEnd());
-        xml.rightAngleBracket();
-
+    protected void appendInnerXml(XmlStringBuilder xml) {
         for (SpanStyle style : getStyles()) {
-            xml.halfOpenElement(style.toString()).closeEmptyElement();
+            xml.emptyElement(style);
         }
-
-        xml.closeElement(this);
-        return xml;
     }
 }

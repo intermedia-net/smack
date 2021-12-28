@@ -16,7 +16,7 @@
  */
 package org.jivesoftware.smackx.pubsub;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -30,6 +30,7 @@ import org.jivesoftware.smack.packet.IQ.Type;
 import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.test.util.TestUtils;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.pubsub.Affiliation.AffiliationNamespace;
 import org.jivesoftware.smackx.pubsub.packet.PubSub;
@@ -37,10 +38,9 @@ import org.jivesoftware.smackx.pubsub.packet.PubSubNamespace;
 
 import org.jivesoftware.util.ConnectionUtils;
 import org.jivesoftware.util.Protocol;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.JidTestUtil;
 import org.jxmpp.jid.impl.JidCreate;
-import org.xmlpull.v1.XmlPullParser;
 
 public class PubSubNodeTest extends SmackTestSuite {
 
@@ -61,7 +61,7 @@ public class PubSubNodeTest extends SmackTestSuite {
         assertEquals("http://jabber.org/protocol/pubsub#owner", request.getChildElementNamespace());
         assertEquals("pubsub", request.getChildElementName());
 
-        XmlPullParser parser = TestUtils.getIQParser(request.toXML(null).toString());
+        XmlPullParser parser = TestUtils.getIQParser(request.toXML().toString());
         PubSub pubsubResult = (PubSub) PacketParserUtils.parseIQ(parser);
         SubscriptionsExtension subElem = pubsubResult.getExtension(PubSubElementType.SUBSCRIPTIONS_OWNER);
         List<Subscription> subscriptions = subElem.getSubscriptions();

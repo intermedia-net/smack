@@ -50,13 +50,10 @@ public class OptionsExtension extends NodeExtension {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = new XmlStringBuilder();
-        xml.halfOpenElement(getElementName());
+    protected void addXml(XmlStringBuilder xml) {
         xml.attribute("jid", jid);
-        xml.optAttribute("node", getNode());
         xml.optAttribute("subid", id);
+
         xml.closeEmptyElement();
-        return xml;
     }
 }

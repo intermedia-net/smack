@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2016 Fernando Ramirez, 2018 Florian Schmaus
+ * Copyright 2016 Fernando Ramirez, 2018-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
  */
 package org.jivesoftware.smackx.mam;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,14 +32,15 @@ import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.filter.MessageWithBodiesFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 
 import org.jivesoftware.smackx.mam.MamManager.MamQuery;
 import org.jivesoftware.smackx.mam.MamManager.MamQueryArgs;
 
 import org.igniterealtime.smack.inttest.AbstractSmackIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
 import org.igniterealtime.smack.inttest.TestNotPossibleException;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.util.SimpleResultSyncPoint;
 import org.jxmpp.jid.EntityBareJid;
 
@@ -66,10 +67,12 @@ public class MamIntegrationTest extends AbstractSmackIntegrationTest {
         EntityBareJid userOne = conOne.getUser().asEntityBareJid();
         EntityBareJid userTwo = conTwo.getUser().asEntityBareJid();
 
-        Message message = new Message(userTwo);
-        String messageId = message.setStanzaId();
         final String messageBody = "Test MAM message (" + testRunId + ')';
-        message.setBody(messageBody);
+        Message message = conTwo.getStanzaFactory().buildMessageStanza()
+                        .to(userTwo)
+                        .setBody(messageBody)
+                        .build();
+        final String messageId = message.getStanzaId();
 
         final SimpleResultSyncPoint messageReceived = new SimpleResultSyncPoint();
 
@@ -122,7 +125,10 @@ public class MamIntegrationTest extends AbstractSmackIntegrationTest {
 
         for (int i = 0; i < totalMessages; i++) {
             String messageBody = "MAM Page Test " + testRunId + ' ' + (i + 1);
-            Message message = new Message(userTwo, messageBody);
+            Message message = StanzaBuilder.buildMessage()
+                    .to(userTwo)
+                    .setBody(messageBody)
+                    .build();
             outgoingMessages.add(message);
         }
 

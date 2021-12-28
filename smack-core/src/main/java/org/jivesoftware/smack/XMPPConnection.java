@@ -16,6 +16,10 @@
  */
 package org.jivesoftware.smack;
 
+import java.util.concurrent.TimeUnit;
+
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
@@ -23,9 +27,18 @@ import org.jivesoftware.smack.filter.IQReplyFilter;
 import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.iqrequest.IQRequestHandler;
 import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.packet.FullyQualifiedElement;
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageBuilder;
 import org.jivesoftware.smack.packet.Nonza;
+import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smack.packet.PresenceBuilder;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.StanzaFactory;
+import org.jivesoftware.smack.util.Consumer;
+import org.jivesoftware.smack.util.Predicate;
+import org.jivesoftware.smack.util.XmppElementUtil;
 
 import org.jxmpp.jid.DomainBareJid;
 import org.jxmpp.jid.EntityFullJid;
@@ -67,6 +80,27 @@ import org.jxmpp.jid.EntityFullJid;
  * disconnected and then connected again. Listeners of the XMPPConnection will be retained across
  * connections.
  * </p>
+ * <h2>Incoming Stanza Listeners</h2>
+ * Most callbacks (listeners, handlers, …) than you can add to a connection come in three different variants:
+ * <ul>
+ * <li>standard</li>
+ * <li>async (asynchronous)</li>
+ * <li>sync (synchronous)</li>
+ * </ul>
+ * <p>
+ * Standard callbacks are invoked concurrently, but it is ensured that the same callback is never run concurrently.
+ * The callback's identity is used as key for that. The events delivered to the callback preserve the order of the
+ * causing events of the connection.
+ * </p>
+ * <p>
+ * Asynchronous callbacks are run decoupled from the connections main event loop. Hence a callback triggered by
+ * stanza B may (appear to) invoked before a callback triggered by stanza A, even though stanza A arrived before B.
+ * </p>
+ * <p>
+ * Synchronous callbacks are run synchronous to the main event loop of a connection. Hence they are invoked in the
+ * exact order of how events happen there, most importantly the arrival order of incoming stanzas. You should only
+ * use synchronous callbacks in rare situations.
+ * </p>
  *
  * @author Matt Tucker
  * @author Guenther Niess
@@ -99,7 +133,7 @@ public interface XMPPConnection {
 
     /**
      * Returns the full XMPP address of the user that is logged in to the connection or
-     * <tt>null</tt> if not logged in yet. An XMPP address is in the form
+     * <code>null</code> if not logged in yet. An XMPP address is in the form
      * username@server/resource.
      *
      * @return the full XMPP address of the user logged in.
@@ -108,9 +142,9 @@ public interface XMPPConnection {
 
     /**
      * Returns the stream ID for this connection, which is the value set by the server
-     * when opening an XMPP stream. This value will be <tt>null</tt> if not connected to the server.
+     * when opening an XMPP stream. This value will be <code>null</code> if not connected to the server.
      *
-     * @return the ID of this connection returned from the XMPP server or <tt>null</tt> if
+     * @return the ID of this connection returned from the XMPP server or <code>null</code> if
      *      not connected to the server.
      * @see <a href="http://xmpp.org/rfcs/rfc6120.html#streams-attr-id">RFC 6120 § 4.7.3. id</a>
      */
@@ -154,14 +188,54 @@ public interface XMPPConnection {
      */
     boolean isUsingCompression();
 
+    StanzaFactory getStanzaFactory();
+
     /**
      * Sends the specified stanza to the server.
      *
      * @param stanza the stanza to send.
      * @throws NotConnectedException if the connection is not connected.
-     * @throws InterruptedException
+     * @throws InterruptedException if the calling thread was interrupted.
      * */
     void sendStanza(Stanza stanza) throws NotConnectedException, InterruptedException;
+
+    /**
+     * Try to send the given stanza. Returns {@code true} if the stanza was successfully put into the outgoing stanza
+     * queue, otherwise, if {@code false} is returned, the stanza could not be scheduled for sending (for example
+     * because the outgoing element queue is full). Note that this means that the stanza possibly was not put onto the
+     * wire, even if {@code true} is returned, it just has been successfully scheduled for sending.
+     * <p>
+     * <b>Note:</b> Implementations are not required to provide that functionality. In that case this method is mapped
+     * to {@link #sendStanza(Stanza)} and will possibly block until the stanza could be scheduled for sending.
+     * </p>
+     *
+     * @param stanza the stanza to send.
+     * @return {@code true} if the stanza was successfully scheduled to be send, {@code false} otherwise.
+     * @throws NotConnectedException if the connection is not connected.
+     * @since 4.4.0
+     */
+    boolean trySendStanza(Stanza stanza) throws NotConnectedException;
+
+    /**
+     * Try to send the given stanza. Returns {@code true} if the stanza was successfully put into the outgoing stanza
+     * queue within the given timeout period, otherwise, if {@code false} is returned, the stanza could not be scheduled
+     * for sending (for example because the outgoing element queue is full). Note that this means that the stanza
+     * possibly was not put onto the wire, even if {@code true} is returned, it just has been successfully scheduled for
+     * sending.
+     * <p>
+     * <b>Note:</b> Implementations are not required to provide that functionality. In that case this method is mapped
+     * to {@link #sendStanza(Stanza)} and will possibly block until the stanza could be scheduled for sending.
+     * </p>
+     *
+     * @param stanza the stanza to send.
+     * @param timeout how long to wait before giving up, in units of {@code unit}.
+     * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter.
+     * @return {@code true} if the stanza was successfully scheduled to be send, {@code false} otherwise.
+     * @throws NotConnectedException if the connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @since 4.4.0
+     */
+    boolean trySendStanza(Stanza stanza, long timeout, TimeUnit unit)  throws NotConnectedException, InterruptedException;
 
     /**
      * Send a Nonza.
@@ -172,8 +246,8 @@ public interface XMPPConnection {
      * </p>
      *
      * @param nonza the Nonza to send.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     void sendNonza(Nonza nonza) throws NotConnectedException, InterruptedException;
 
@@ -196,11 +270,12 @@ public interface XMPPConnection {
      * Send an IQ request and wait for the response.
      *
      * @param request the IQ request
+     * @param <I> the type of the expected result IQ.
      * @return an IQ with type 'result'
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @since 4.3
      */
     <I extends IQ> I sendIqRequestAndWaitForResponse(IQ request)
@@ -214,8 +289,8 @@ public interface XMPPConnection {
      *
      * @param request the IQ request to filter responses from
      * @return a new stanza collector.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     StanzaCollector createStanzaCollectorAndSend(IQ request) throws NotConnectedException, InterruptedException;
 
@@ -228,8 +303,8 @@ public interface XMPPConnection {
      * @param stanzaFilter the stanza filter to use.
      * @param stanza the stanza to send right after the collector got created
      * @return a new stanza collector.
-     * @throws InterruptedException
-     * @throws NotConnectedException
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws NotConnectedException if the XMPP connection is not connected.
      */
     StanzaCollector createStanzaCollectorAndSend(StanzaFilter stanzaFilter, Stanza stanza)
                     throws NotConnectedException, InterruptedException;
@@ -281,7 +356,29 @@ public interface XMPPConnection {
     void removeStanzaCollector(StanzaCollector collector);
 
     /**
-     * Registers a <b>synchronous</b> stanza listener with this connection. A stanza listener will be invoked only when
+     * Registers a stanza listener with this connection. The listener will be invoked when a (matching) incoming stanza
+     * is received. The stanza filter determines which stanzas will be delivered to the listener. It is guaranteed that
+     * the same listener will not be invoked concurrently and the the order of invocation will reflect the order in
+     * which the stanzas have been received. If the same stanza listener is added again with a different filter, only
+     * the new filter will be used.
+     *
+     * @param stanzaListener the stanza listener to notify of new received stanzas.
+     * @param stanzaFilter the stanza filter to use.
+     * @since 4.4.0
+     */
+    void addStanzaListener(StanzaListener stanzaListener, StanzaFilter stanzaFilter);
+
+    /**
+     * Removes a stanza listener for received stanzas from this connection.
+     *
+     * @param stanzaListener the stanza listener to remove.
+     * @return true if the stanza listener was removed.
+     * @since 4.4.0
+     */
+    boolean removeStanzaListener(StanzaListener stanzaListener);
+
+    /**
+     *  Registers a <b>synchronous</b> stanza listener with this connection. A stanza listener will be invoked only when
      * an incoming stanza is received. A stanza filter determines which stanzas will be delivered to the listener. If
      * the same stanza listener is added again with a different filter, only the new filter will be used.
      * <p>
@@ -344,34 +441,8 @@ public interface XMPPConnection {
      *
      * @param stanzaListener the stanza listener to notify of sent stanzas.
      * @param stanzaFilter   the stanza filter to use.
-     * @deprecated use {@link #addStanzaSendingListener} instead
-     */
-    // TODO Remove in Smack 4.4
-    @Deprecated
-    void addPacketSendingListener(StanzaListener stanzaListener, StanzaFilter stanzaFilter);
-
-    /**
-     * Registers a stanza listener with this connection. The listener will be
-     * notified of every stanza that this connection sends. A stanza filter determines
-     * which stanzas will be delivered to the listener. Note that the thread
-     * that writes stanzas will be used to invoke the listeners. Therefore, each
-     * stanza listener should complete all operations quickly or use a different
-     * thread for processing.
-     *
-     * @param stanzaListener the stanza listener to notify of sent stanzas.
-     * @param stanzaFilter   the stanza filter to use.
      */
     void addStanzaSendingListener(StanzaListener stanzaListener, StanzaFilter stanzaFilter);
-
-    /**
-     * Removes a stanza listener for sending stanzas from this connection.
-     *
-     * @param stanzaListener the stanza listener to remove.
-     * @deprecated use {@link #removeStanzaSendingListener} instead
-     */
-    // TODO Remove in Smack 4.4
-    @Deprecated
-    void removePacketSendingListener(StanzaListener stanzaListener);
 
     /**
      * Removes a stanza listener for sending stanzas from this connection.
@@ -392,11 +463,21 @@ public interface XMPPConnection {
      *
      * @param stanzaInterceptor the stanza interceptor to notify of stanzas about to be sent.
      * @param stanzaFilter      the stanza filter to use.
-     * @deprecated use {@link #addStanzaInterceptor} instead
+     * @deprecated use {@link #addMessageInterceptor(Consumer, Predicate)} or {@link #addPresenceInterceptor(Consumer, Predicate)} instead.
      */
-    // TODO Remove in Smack 4.4
     @Deprecated
-    void addPacketInterceptor(StanzaListener stanzaInterceptor, StanzaFilter stanzaFilter);
+    // TODO: Remove in Smack 4.5.
+    void addStanzaInterceptor(StanzaListener stanzaInterceptor, StanzaFilter stanzaFilter);
+
+    /**
+     * Removes a stanza interceptor.
+     *
+     * @param stanzaInterceptor the stanza interceptor to remove.
+     * @deprecated use {@link #removeMessageInterceptor(Consumer)} or {@link #removePresenceInterceptor(Consumer)} instead.
+     */
+    @Deprecated
+    // TODO: Remove in Smack 4.5.
+    void removeStanzaInterceptor(StanzaListener stanzaInterceptor);
 
     /**
      * Registers a stanza interceptor with this connection. The interceptor will be
@@ -408,27 +489,39 @@ public interface XMPPConnection {
      * NOTE: For a similar functionality on incoming stanzas, see {@link #addAsyncStanzaListener(StanzaListener, StanzaFilter)}.
      * </p>
      *
-     * @param stanzaInterceptor the stanza interceptor to notify of stanzas about to be sent.
-     * @param stanzaFilter      the stanza filter to use.
+     * @param messageInterceptor the stanza interceptor to notify of stanzas about to be sent.
+     * @param messageFilter      the stanza filter to use.
      */
-    void addStanzaInterceptor(StanzaListener stanzaInterceptor, StanzaFilter stanzaFilter);
+    void addMessageInterceptor(Consumer<MessageBuilder> messageInterceptor, Predicate<Message> messageFilter);
 
     /**
-     * Removes a stanza interceptor.
+     * Removes a message interceptor.
      *
-     * @param stanzaInterceptor the stanza interceptor to remove.
-     * @deprecated user {@link #removeStanzaInterceptor} instead
+     * @param messageInterceptor the message interceptor to remove.
      */
-    // TODO Remove in Smack 4.4
-    @Deprecated
-    void removePacketInterceptor(StanzaListener stanzaInterceptor);
+    void removeMessageInterceptor(Consumer<MessageBuilder> messageInterceptor);
 
     /**
-     * Removes a stanza interceptor.
+     * Registers a stanza interceptor with this connection. The interceptor will be
+     * invoked every time a stanza is about to be sent by this connection. Interceptors
+     * may modify the stanza to be sent. A stanza filter determines which stanzas
+     * will be delivered to the interceptor.
      *
-     * @param stanzaInterceptor the stanza interceptor to remove.
+     * <p>
+     * NOTE: For a similar functionality on incoming stanzas, see {@link #addAsyncStanzaListener(StanzaListener, StanzaFilter)}.
+     * </p>
+     *
+     * @param presenceInterceptor the stanza interceptor to notify of stanzas about to be sent.
+     * @param presenceFilter      the stanza filter to use.
      */
-    void removeStanzaInterceptor(StanzaListener stanzaInterceptor);
+    void addPresenceInterceptor(Consumer<PresenceBuilder> presenceInterceptor, Predicate<Presence> presenceFilter);
+
+    /**
+     * Removes a presence interceptor.
+     *
+     * @param presenceInterceptor the stanza interceptor to remove.
+     */
+    void removePresenceInterceptor(Consumer<PresenceBuilder> presenceInterceptor);
 
     /**
      * Returns the current value of the reply timeout in milliseconds for Message archive
@@ -457,7 +550,7 @@ public interface XMPPConnection {
     /**
      * Get the connection counter of this XMPPConnection instance. Those can be used as ID to
      * identify the connection, but beware that the ID may not be unique if you create more then
-     * <tt>2*Integer.MAX_VALUE</tt> instances as the counter could wrap.
+     * <code>2*Integer.MAX_VALUE</code> instances as the counter could wrap.
      *
      * @return the connection counter of this XMPPConnection
      */
@@ -484,7 +577,7 @@ public interface XMPPConnection {
      * Set the FromMode for this connection instance. Defines how the 'from' attribute of outgoing
      * stanzas should be populated by Smack.
      *
-     * @param fromMode
+     * @param fromMode TODO javadoc me please
      */
     void setFromMode(FromMode fromMode);
 
@@ -500,20 +593,62 @@ public interface XMPPConnection {
      * server, or <code>null</code> if the server doesn't support that feature.
      *
      * @param <F> {@link ExtensionElement} type of the feature.
-     * @param element
-     * @param namespace
+     * @param element TODO javadoc me please
+     * @param namespace TODO javadoc me please
      * @return a stanza extensions of the feature or <code>null</code>
+     * @deprecated use {@link #getFeature(Class)} instead.
      */
-    <F extends ExtensionElement> F getFeature(String element, String namespace);
+    // TODO: Remove in Smack 4.5.
+    @Deprecated
+    default <F extends FullyQualifiedElement> F getFeature(String element, String namespace) {
+        QName qname = new QName(namespace, element);
+        return getFeature(qname);
+    }
+
+    /**
+     * Get the feature stanza extensions for a given stream feature of the
+     * server, or <code>null</code> if the server doesn't support that feature.
+     *
+     * @param <F> {@link ExtensionElement} type of the feature.
+     * @param qname the qualified name of the XML element of feature.
+     * @return a stanza extensions of the feature or <code>null</code>
+     * @since 4.4
+     */
+    <F extends FullyQualifiedElement> F getFeature(QName qname);
+
+    /**
+     * Get the feature stanza extensions for a given stream feature of the
+     * server, or <code>null</code> if the server doesn't support that feature.
+     *
+     * @param <F> {@link ExtensionElement} type of the feature.
+     * @param featureClass the class of the feature.
+     * @return a stanza extensions of the feature or <code>null</code>
+     * @since 4.4
+     */
+    default <F extends FullyQualifiedElement> F getFeature(Class<F> featureClass) {
+        QName qname = XmppElementUtil.getQNameFor(featureClass);
+        return getFeature(qname);
+    }
 
     /**
      * Return true if the server supports the given stream feature.
      *
-     * @param element
-     * @param namespace
+     * @param element TODO javadoc me please
+     * @param namespace TODO javadoc me please
      * @return true if the server supports the stream feature.
      */
-    boolean hasFeature(String element, String namespace);
+    default boolean hasFeature(String element, String namespace) {
+        QName qname = new QName(namespace, element);
+        return hasFeature(qname);
+    }
+
+    /**
+     * Return true if the server supports the given stream feature.
+     *
+     * @param qname the qualified name of the XML element of feature.
+     * @return true if the server supports the stream feature.
+     */
+    boolean hasFeature(QName qname);
 
     /**
      * Send an IQ request asynchronously. The connection's default reply timeout will be used.
@@ -538,6 +673,7 @@ public interface XMPPConnection {
      *
      * @param stanza the stanza to send.
      * @param replyFilter the filter used for the response stanza.
+     * @param <S> the type of the stanza to send.
      * @return a SmackFuture for the response.
      */
     <S extends Stanza> SmackFuture<S, Exception> sendAsync(S stanza, StanzaFilter replyFilter);
@@ -548,130 +684,10 @@ public interface XMPPConnection {
      * @param stanza the stanza to send.
      * @param replyFilter the filter used for the response stanza.
      * @param timeout the reply timeout in milliseconds.
+     * @param <S> the type of the stanza to send.
      * @return a SmackFuture for the response.
      */
     <S extends Stanza> SmackFuture<S, Exception> sendAsync(S stanza, StanzaFilter replyFilter, long timeout);
-
-    /**
-     * Send a stanza and wait asynchronously for a response by using <code>replyFilter</code>.
-     * <p>
-     * If there is a response, then <code>callback</code> will be invoked. The callback will be
-     * invoked at most once and it will be not invoked after the connections default reply timeout
-     * has been elapsed.
-     * </p>
-     *
-     * @param stanza the stanza to send (required)
-     * @param replyFilter the filter used to determine response stanza (required)
-     * @param callback the callback invoked if there is a response (required)
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @deprecated use {@link #sendAsync(Stanza, StanzaFilter)} instead.
-     */
-    @Deprecated
-    // TODO: Remove in Smack 4.4.
-    void sendStanzaWithResponseCallback(Stanza stanza, StanzaFilter replyFilter,
-                    StanzaListener callback) throws NotConnectedException, InterruptedException;
-
-    /**
-     * Send a stanza and wait asynchronously for a response by using <code>replyFilter</code>.
-     * <p>
-     * If there is a response, then <code>callback</code> will be invoked. If there is no response
-     * after the connections default reply timeout, then <code>exceptionCallback</code> will be invoked
-     * with a {@link SmackException.NoResponseException}. The callback will be invoked at most once.
-     * </p>
-     *
-     * @param stanza the stanza to send (required)
-     * @param replyFilter the filter used to determine response stanza (required)
-     * @param callback the callback invoked if there is a response (required)
-     * @param exceptionCallback the callback invoked if there is an exception (optional)
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @deprecated use {@link #sendAsync(Stanza, StanzaFilter)} instead.
-     */
-    @Deprecated
-    // TODO: Remove in Smack 4.4.
-    void sendStanzaWithResponseCallback(Stanza stanza, StanzaFilter replyFilter, StanzaListener callback,
-                    @SuppressWarnings("deprecation") ExceptionCallback exceptionCallback) throws NotConnectedException, InterruptedException;
-
-    /**
-     * Send a stanza and wait asynchronously for a response by using <code>replyFilter</code>.
-     * <p>
-     * If there is a response, then <code>callback</code> will be invoked. If there is no response
-     * after <code>timeout</code> milliseconds, then <code>exceptionCallback</code> will be invoked
-     * with a {@link SmackException.NoResponseException}. The callback will be invoked at most once.
-     * </p>
-     *
-     * @param stanza the stanza to send (required)
-     * @param replyFilter the filter used to determine response stanza (required)
-     * @param callback the callback invoked if there is a response (required)
-     * @param exceptionCallback the callback invoked if there is an exception (optional)
-     * @param timeout the timeout in milliseconds to wait for a response
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @deprecated use {@link #sendAsync(Stanza, StanzaFilter, long)} instead.
-     */
-    @Deprecated
-    // TODO: Remove in Smack 4.4.
-    void sendStanzaWithResponseCallback(Stanza stanza, StanzaFilter replyFilter,
-                    StanzaListener callback, @SuppressWarnings("deprecation") ExceptionCallback exceptionCallback,
-                    long timeout) throws NotConnectedException, InterruptedException;
-
-    /**
-     * Send a IQ stanza and invoke <code>callback</code> if there is a result of
-     * {@link org.jivesoftware.smack.packet.IQ.Type#result} with that result IQ. The callback will
-     * not be invoked after the connections default reply timeout has been elapsed.
-     *
-     * @param iqRequest the IQ stanza to send (required)
-     * @param callback the callback invoked if there is result response (required)
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @deprecated use {@link #sendIqRequestAsync(IQ)} instead.
-     */
-    @Deprecated
-    // TODO: Remove in Smack 4.4.
-    void sendIqWithResponseCallback(IQ iqRequest, StanzaListener callback) throws NotConnectedException, InterruptedException;
-
-    /**
-     * Send a IQ stanza and invoke <code>callback</code> if there is a result of
-     * {@link org.jivesoftware.smack.packet.IQ.Type#result} with that result IQ. If there is an
-     * error response <code>exceptionCallback</code> will be invoked, if not null, with the received
-     * error as {@link XMPPException.XMPPErrorException}. If there is no response after the
-     * connections default reply timeout, then <code>exceptionCallback</code> will be invoked with a
-     * {@link SmackException.NoResponseException}.
-     *
-     * @param iqRequest the IQ stanza to send (required)
-     * @param callback the callback invoked if there is result response (required)
-     * @param exceptionCallback the callback invoked if there is an Exception optional
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @deprecated use {@link #sendIqRequestAsync(IQ)} instead.
-     */
-    @Deprecated
-    // TODO: Remove in Smack 4.4.
-    void sendIqWithResponseCallback(IQ iqRequest, StanzaListener callback,
-                    @SuppressWarnings("deprecation") ExceptionCallback exceptionCallback) throws NotConnectedException, InterruptedException;
-
-    /**
-     * Send a IQ stanza and invoke <code>callback</code> if there is a result of
-     * {@link org.jivesoftware.smack.packet.IQ.Type#result} with that result IQ. If there is an
-     * error response <code>exceptionCallback</code> will be invoked, if not null, with the received
-     * error as {@link XMPPException.XMPPErrorException}. If there is no response after
-     * <code>timeout</code>, then <code>exceptionCallback</code> will be invoked with a
-     * {@link SmackException.NoResponseException}.
-     *
-     * @param iqRequest the IQ stanza to send (required)
-     * @param callback the callback invoked if there is result response (required)
-     * @param exceptionCallback the callback invoked if there is an Exception optional
-     * @param timeout the timeout in milliseconds to wait for a response
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @deprecated use {@link #sendIqRequestAsync(IQ, long)} instead.
-     */
-    @Deprecated
-    // TODO: Remove in Smack 4.4.
-    void sendIqWithResponseCallback(IQ iqRequest, StanzaListener callback,
-                    @SuppressWarnings("deprecation") ExceptionCallback exceptionCallback, long timeout)
-                    throws NotConnectedException, InterruptedException;
 
     /**
      * Add a callback that is called exactly once and synchronously with the incoming stanza that matches the given
@@ -695,7 +711,7 @@ public interface XMPPConnection {
     /**
      * Convenience method for {@link #unregisterIQRequestHandler(String, String, org.jivesoftware.smack.packet.IQ.Type)}.
      *
-     * @param iqRequestHandler
+     * @param iqRequestHandler TODO javadoc me please
      * @return the previously registered IQ request handler or null.
      */
     IQRequestHandler unregisterIQRequestHandler(IQRequestHandler iqRequestHandler);
@@ -716,5 +732,4 @@ public interface XMPPConnection {
      * @return the timestamp in milliseconds
      */
     long getLastStanzaReceived();
-
 }

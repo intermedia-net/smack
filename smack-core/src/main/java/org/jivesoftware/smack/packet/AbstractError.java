@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.jivesoftware.smack.util.ExceptionUtil;
 import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.PacketUtil;
 import org.jivesoftware.smack.util.XmlStringBuilder;
@@ -65,15 +66,23 @@ public class AbstractError {
      * @return the descriptive text or null.
      */
     public String getDescriptiveText() {
-        String defaultLocale = Locale.getDefault().getLanguage();
-        String descriptiveText = getDescriptiveText(defaultLocale);
-        if (descriptiveText == null) {
-            descriptiveText = getDescriptiveText("en");
-            if (descriptiveText == null) {
-                descriptiveText = getDescriptiveText("");
-            }
+        if (descriptiveTexts.isEmpty())
+            return null;
+        // attempt to obtain the text in the user's locale, the English text, or the "" default
+        Locale l = Locale.getDefault();
+        String[] tags = new String[] {
+                l.getLanguage() + "-" + l.getCountry() + "-" + l.getVariant(),
+                l.getLanguage() + "-" + l.getCountry(),
+                l.getLanguage(),
+                "en",
+                ""
+        };
+        for (String tag : tags) {
+            String descriptiveText = getDescriptiveText(tag);
+            if (descriptiveText != null)
+                return descriptiveText;
         }
-        return descriptiveText;
+        return descriptiveTexts.values().iterator().next();
     }
 
     /**
@@ -92,12 +101,12 @@ public class AbstractError {
 
     /**
      * Returns the first stanza extension that matches the specified element name and
-     * namespace, or <tt>null</tt> if it doesn't exist.
+     * namespace, or <code>null</code> if it doesn't exist.
      *
      * @param elementName the XML element name of the stanza extension.
      * @param namespace the XML element namespace of the stanza extension.
      * @param <PE> type of the ExtensionElement.
-     * @return the extension, or <tt>null</tt> if it doesn't exist.
+     * @return the extension, or <code>null</code> if it doesn't exist.
      */
     public <PE extends ExtensionElement> PE getExtension(String elementName, String namespace) {
         return PacketUtil.extensionElementFrom(extensions, elementName, namespace);
@@ -113,9 +122,7 @@ public class AbstractError {
             xml.escape(text);
             xml.closeElement("text");
         }
-        for (ExtensionElement packetExtension : extensions) {
-            xml.append(packetExtension.toXML(null));
-        }
+        xml.append(extensions);
     }
 
     public abstract static class Builder<B extends Builder<B>> {
@@ -148,6 +155,17 @@ public class AbstractError {
             }
             descriptiveTexts.put("en", descriptiveEnText);
             return getThis();
+        }
+
+        public B setDescriptiveEnText(String descriptiveEnText, Exception exception) {
+            StringBuilder sb = new StringBuilder(512);
+            sb.append(descriptiveEnText)
+                .append('\n');
+
+            String stacktrace = ExceptionUtil.getStackTrace(exception);
+            sb.append(stacktrace);
+
+            return setDescriptiveEnText(sb.toString());
         }
 
         public B setTextNamespace(String textNamespace) {

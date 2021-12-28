@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 Florian Schmaus
+ * Copyright 2015-2021 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,15 @@
  */
 package org.jivesoftware.smack.util;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class CollectionUtil {
 
@@ -30,4 +38,55 @@ public class CollectionUtil {
         return collection;
     }
 
+    public static <T, C extends Collection<T>> List<T> removeUntil(C collection, Predicate<T> predicate) {
+        List<T> removedElements = new ArrayList<>(collection.size());
+        for (Iterator<T> it = collection.iterator(); it.hasNext();) {
+            T t = it.next();
+            if (predicate.test(t)) {
+                break;
+            }
+            removedElements.add(t);
+            it.remove();
+        }
+        return removedElements;
+    }
+
+    public interface Predicate<T> {
+        boolean test(T t);
+    }
+
+    public static <T> ArrayList<T> newListWith(Collection<? extends T> collection) {
+        if (collection == null) {
+            return null;
+        }
+        return new ArrayList<>(collection);
+    }
+
+    public static <T> List<T> cloneAndSeal(Collection<? extends T> collection) {
+        if (collection == null) {
+            return Collections.emptyList();
+        }
+
+        ArrayList<T> clone = newListWith(collection);
+        return Collections.unmodifiableList(clone);
+    }
+
+    public static <K, V> Map<K, V> cloneAndSeal(Map<K, V> map) {
+        Map<K, V> clone = new HashMap<>(map);
+        return Collections.unmodifiableMap(clone);
+    }
+
+    public static <T> Set<T> newSetWith(Collection<? extends T> collection) {
+        if (collection == null) {
+            return null;
+        }
+        return new HashSet<>(collection);
+    }
+
+    public static <T> List<T> emptyOrSingletonListFrom(T element) {
+        if (element == null) {
+            return Collections.emptyList();
+        }
+        return Collections.singletonList(element);
+    }
 }

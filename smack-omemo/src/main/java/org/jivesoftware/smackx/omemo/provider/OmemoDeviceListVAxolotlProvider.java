@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Paul Schaub
+ * Copyright 2017 Paul Schaub, 2021 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,35 +18,33 @@ package org.jivesoftware.smackx.omemo.provider;
 
 import static org.jivesoftware.smackx.omemo.element.OmemoDeviceListElement.DEVICE;
 import static org.jivesoftware.smackx.omemo.element.OmemoDeviceListElement.ID;
-import static org.jivesoftware.smackx.omemo.element.OmemoDeviceListElement.LIST;
-import static org.xmlpull.v1.XmlPullParser.END_TAG;
-import static org.xmlpull.v1.XmlPullParser.START_TAG;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
-import org.jivesoftware.smackx.omemo.element.OmemoDeviceListVAxolotlElement;
-
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smackx.omemo.element.OmemoDeviceListElement_VAxolotl;
 
 /**
  * Smack ExtensionProvider that parses OMEMO device list element into OmemoDeviceListElement objects.
  *
  * @author Paul Schaub
  */
-public class OmemoDeviceListVAxolotlProvider extends ExtensionElementProvider<OmemoDeviceListVAxolotlElement> {
+public class OmemoDeviceListVAxolotlProvider extends ExtensionElementProvider<OmemoDeviceListElement_VAxolotl> {
 
     @Override
-    public OmemoDeviceListVAxolotlElement parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public OmemoDeviceListElement_VAxolotl parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         Set<Integer> deviceListIds = new HashSet<>();
-        boolean stop = false;
-        while (!stop) {
-            int tag = parser.next();
-            String name = parser.getName();
+        outerloop: while (true) {
+            XmlPullParser.Event tag = parser.next();
             switch (tag) {
-                case START_TAG:
+                case START_ELEMENT:
+                    String name = parser.getName();
                     if (name.equals(DEVICE)) {
                         for (int i = 0; i < parser.getAttributeCount(); i++) {
                             if (parser.getAttributeName(i).equals(ID)) {
@@ -56,13 +54,16 @@ public class OmemoDeviceListVAxolotlProvider extends ExtensionElementProvider<Om
                         }
                     }
                     break;
-                case END_TAG:
-                    if (name.equals(LIST)) {
-                        stop = true;
+                case END_ELEMENT:
+                    if (parser.getDepth() == initialDepth) {
+                        break outerloop;
                     }
+                    break;
+                default:
+                    // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                     break;
             }
         }
-        return new OmemoDeviceListVAxolotlElement(deviceListIds);
+        return new OmemoDeviceListElement_VAxolotl(deviceListIds);
     }
 }

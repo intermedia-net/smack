@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2013 Florian Schmaus
+ * Copyright 2013-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.jivesoftware.smack.util.Objects;
+
 public abstract class XMPPInputOutputStream {
 
-    protected static FlushMethod flushMethod;
+    protected static FlushMethod flushMethod = FlushMethod.SYNC_FLUSH;
 
     /**
      * Set the used flushed method when compressing data. The default is full flush which may not
@@ -30,10 +32,14 @@ public abstract class XMPPInputOutputStream {
      * Only use sync flush if you fully understand the implications.
      *
      * @see <a href="https://blog.thijsalkema.de/blog/2014/08/07/https-attacks-and-xmpp-2-crime-and-breach/">Attacks against XMPP when using compression</a>
-     * @param flushMethod
+     * @param flushMethod TODO javadoc me please
      */
     public static void setFlushMethod(FlushMethod flushMethod) {
-        XMPPInputOutputStream.flushMethod = flushMethod;
+        XMPPInputOutputStream.flushMethod = Objects.requireNonNull(flushMethod);
+    }
+
+    public static FlushMethod getFlushMethod() {
+        return flushMethod;
     }
 
     protected final String compressionMethod;

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jivesoftware.smack.datatypes.UInt32;
 import org.jivesoftware.smack.packet.IQ;
 
 /**
@@ -106,9 +107,9 @@ public class Privacy extends IQ {
     }
 
     /**
-     * Returns the active privacy list or <tt>null</tt> if none was found.
+     * Returns the active privacy list or <code>null</code> if none was found.
      *
-     * @return list with {@link PrivacyItem} or <tt>null</tt> if none was found.
+     * @return list with {@link PrivacyItem} or <code>null</code> if none was found.
      */
     public List<PrivacyItem> getActivePrivacyList() {
         // Check if we have the default list
@@ -122,9 +123,9 @@ public class Privacy extends IQ {
     }
 
     /**
-     * Returns the default privacy list or <tt>null</tt> if none was found.
+     * Returns the default privacy list or <code>null</code> if none was found.
      *
-     * @return list with {@link PrivacyItem} or <tt>null</tt> if none was found.
+     * @return list with {@link PrivacyItem} or <code>null</code> if none was found.
      */
     public List<PrivacyItem> getDefaultPrivacyList() {
         // Check if we have the default list
@@ -147,6 +148,10 @@ public class Privacy extends IQ {
         return this.getItemLists().get(listName);
     }
 
+    public PrivacyItem getItem(String listName, int order) {
+        return getItem(listName, UInt32.from(order));
+    }
+
     /**
      * Returns the privacy item in the specified order.
      *
@@ -154,13 +159,13 @@ public class Privacy extends IQ {
      * @param order the order of the element.
      * @return a List with {@link PrivacyItem}
      */
-    public PrivacyItem getItem(String listName, int order) {
+    public PrivacyItem getItem(String listName, UInt32 order) {
         // CHECKSTYLE:OFF
         Iterator<PrivacyItem> values = getPrivacyList(listName).iterator();
         PrivacyItem itemFound = null;
         while (itemFound == null && values.hasNext()) {
             PrivacyItem element = values.next();
-            if (element.getOrder() == order) {
+            if (element.getOrder().equals(order)) {
                 itemFound = element;
             }
         }

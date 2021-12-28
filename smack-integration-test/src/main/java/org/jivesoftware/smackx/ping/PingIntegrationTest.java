@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015-2017 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 package org.jivesoftware.smackx.ping;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,8 +33,8 @@ import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 
 import org.igniterealtime.smack.inttest.AbstractSmackIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 import org.jxmpp.jid.Jid;
 
 public class PingIntegrationTest extends AbstractSmackIntegrationTest {

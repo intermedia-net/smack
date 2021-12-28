@@ -39,7 +39,6 @@ public class MamPrefsIQ extends IQ {
         always,
         never,
         roster,
-        ;
     }
 
     /**
@@ -80,9 +79,9 @@ public class MamPrefsIQ extends IQ {
     /**
      * MAM preferences IQ constructor.
      *
-     * @param alwaysJids
-     * @param neverJids
-     * @param defaultBehavior
+     * @param alwaysJids TODO javadoc me please
+     * @param neverJids TODO javadoc me please
+     * @param defaultBehavior TODO javadoc me please
      */
     public MamPrefsIQ(List<Jid> alwaysJids, List<Jid> neverJids, DefaultBehavior defaultBehavior) {
         super(ELEMENT, NAMESPACE);
@@ -135,12 +134,12 @@ public class MamPrefsIQ extends IQ {
 
         if (alwaysJids != null) {
             MamElements.AlwaysJidListElement alwaysElement = new AlwaysJidListElement(alwaysJids);
-            xml.element(alwaysElement);
+            xml.append(alwaysElement);
         }
 
         if (neverJids != null) {
             MamElements.NeverJidListElement neverElement = new NeverJidListElement(neverJids);
-            xml.element(neverElement);
+            xml.append(neverElement);
         }
 
         return xml;

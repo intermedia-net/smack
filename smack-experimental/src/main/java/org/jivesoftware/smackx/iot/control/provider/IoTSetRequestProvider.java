@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2016 Florian Schmaus
+ * Copyright © 2016-2021 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,14 @@
  */
 package org.jivesoftware.smackx.iot.control.provider;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.iot.control.element.IoTSetRequest;
 import org.jivesoftware.smackx.iot.control.element.SetBoolData;
@@ -28,18 +32,16 @@ import org.jivesoftware.smackx.iot.control.element.SetDoubleData;
 import org.jivesoftware.smackx.iot.control.element.SetIntData;
 import org.jivesoftware.smackx.iot.control.element.SetLongData;
 
-import org.xmlpull.v1.XmlPullParser;
-
 public class IoTSetRequestProvider extends IQProvider<IoTSetRequest> {
 
     @Override
-    public IoTSetRequest parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public IoTSetRequest parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         List<SetData> data = new ArrayList<>(4);
         outerloop: while (true) {
-            final int eventType = parser.next();
-            final String name = parser.getName();
+            final XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
+                final String name = parser.getName();
                 switch (name) {
                 case "bool": {
                     String valueName = parser.getAttributeValue(null, "name");
@@ -71,10 +73,13 @@ public class IoTSetRequestProvider extends IQProvider<IoTSetRequest> {
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }

@@ -19,6 +19,7 @@ package org.jivesoftware.smackx.jingle.transports.jingle_ibb;
 import java.util.WeakHashMap;
 
 import org.jivesoftware.smack.XMPPConnection;
+
 import org.jivesoftware.smackx.jingle.JingleSession;
 import org.jivesoftware.smackx.jingle.provider.JingleContentProviderManager;
 import org.jivesoftware.smackx.jingle.transports.JingleTransportManager;
@@ -38,7 +39,7 @@ public final class JingleIBBTransportManager extends JingleTransportManager<Jing
         JingleContentProviderManager.addJingleContentTransportProvider(getNamespace(), new JingleIBBTransportProvider());
     }
 
-    public static JingleIBBTransportManager getInstanceFor(XMPPConnection connection) {
+    public static synchronized JingleIBBTransportManager getInstanceFor(XMPPConnection connection) {
         JingleIBBTransportManager manager = INSTANCES.get(connection);
         if (manager == null) {
             manager = new JingleIBBTransportManager(connection);

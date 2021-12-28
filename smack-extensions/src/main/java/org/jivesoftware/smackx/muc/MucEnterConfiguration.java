@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015-2016 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,10 @@ package org.jivesoftware.smackx.muc;
 
 import java.util.Date;
 
+import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smack.packet.PresenceBuilder;
+import org.jivesoftware.smack.util.Consumer;
 import org.jivesoftware.smack.util.Objects;
 
 import org.jivesoftware.smackx.muc.packet.MUCInitialPresence;
@@ -57,19 +60,21 @@ public final class MucEnterConfiguration {
         since = builder.since;
         timeout = builder.timeout;
 
+        final PresenceBuilder joinPresenceBuilder;
         if (builder.joinPresence == null) {
-            joinPresence = new Presence(Presence.Type.available);
+            joinPresenceBuilder = builder.joinPresenceBuilder.ofType(Presence.Type.available);
         }
         else {
-            joinPresence = builder.joinPresence.clone();
+            joinPresenceBuilder = builder.joinPresence.asBuilder();
         }
         // Indicate the the client supports MUC
-        joinPresence.addExtension(new MUCInitialPresence(password, maxChars, maxStanzas, seconds,
+        joinPresenceBuilder.addExtension(new MUCInitialPresence(password, maxChars, maxStanzas, seconds,
                         since));
+        joinPresence = joinPresenceBuilder.build();
     }
 
     Presence getJoinPresence(MultiUserChat multiUserChat) {
-        final EntityFullJid jid = JidCreate.fullFrom(multiUserChat.getRoom(), nickname);
+        final EntityFullJid jid = JidCreate.entityFullFrom(multiUserChat.getRoom(), nickname);
         joinPresence.setTo(jid);
         return joinPresence;
     }
@@ -87,11 +92,19 @@ public final class MucEnterConfiguration {
         private int seconds = -1;
         private Date since;
         private long timeout;
+
+        private final PresenceBuilder joinPresenceBuilder;
+
+        // TODO: Remove in Smack 4.5.
         private Presence joinPresence;
 
-        Builder(Resourcepart nickname, long timeout) {
+        Builder(Resourcepart nickname, XMPPConnection connection) {
             this.nickname = Objects.requireNonNull(nickname, "Nickname must not be null");
+
+            timeout = connection.getReplyTimeout();
             timeoutAfter(timeout);
+
+            joinPresenceBuilder = connection.getStanzaFactory().buildPresenceStanza();
         }
 
         /**
@@ -101,15 +114,38 @@ public final class MucEnterConfiguration {
          * 'available', otherwise an {@link IllegalArgumentException} will be thrown.
          * <p>
          *
-         * @param presence
+         * @param presence TODO javadoc me please
          * @return a reference to this builder.
+         * @deprecated use {@link #withPresence(Consumer)} instead.
          */
+        @Deprecated
+        // TODO: Remove in Smack 4.5.
         public Builder withPresence(Presence presence) {
             if (presence.getType() != Presence.Type.available) {
                 throw new IllegalArgumentException("Presence must be of type 'available'");
             }
 
             joinPresence = presence;
+            return this;
+        }
+
+        /**
+         * Set the presence used to join the MUC room.
+         * <p>
+         * The consumer must not modify the presence type, otherwise an {@link IllegalArgumentException} will be thrown.
+         * <p>
+         *
+         * @param presenceBuilderConsumer a consumer which will be passed the presence build.
+         * @return a reference to this builder.
+         * @since 4.4.0
+         */
+        public Builder withPresence(Consumer<? super PresenceBuilder> presenceBuilderConsumer) {
+            presenceBuilderConsumer.accept(joinPresenceBuilder);
+
+            if (joinPresenceBuilder.getType() != Presence.Type.available) {
+                throw new IllegalArgumentException("Presence must be of type 'available'");
+            }
+
             return this;
         }
 

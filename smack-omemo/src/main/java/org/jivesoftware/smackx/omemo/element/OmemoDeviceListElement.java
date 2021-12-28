@@ -18,11 +18,14 @@ package org.jivesoftware.smackx.omemo.element;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.XmlStringBuilder;
+
+import org.jivesoftware.smackx.omemo.internal.OmemoCachedDeviceList;
 
 /**
  * A OMEMO device list update containing the IDs of all active devices of a contact.
@@ -45,6 +48,10 @@ public abstract class OmemoDeviceListElement implements ExtensionElement {
         this.deviceIds = Collections.unmodifiableSet(deviceIds);
     }
 
+    public OmemoDeviceListElement(OmemoCachedDeviceList cachedList) {
+        this.deviceIds = Collections.unmodifiableSet(cachedList.getActiveDevices());
+    }
+
     public Set<Integer> getDeviceIds() {
         return deviceIds;
     }
@@ -59,7 +66,7 @@ public abstract class OmemoDeviceListElement implements ExtensionElement {
     }
 
     @Override
-    public final XmlStringBuilder toXML(String enclosingNamespace) {
+    public final XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder sb = new XmlStringBuilder(this).rightAngleBracket();
 
         for (Integer id : deviceIds) {
@@ -72,10 +79,14 @@ public abstract class OmemoDeviceListElement implements ExtensionElement {
 
     @Override
     public final String toString() {
-        String out = "OmemoDeviceListElement[";
+        StringBuilder sb = new StringBuilder("OmemoDeviceListElement[");
+        Iterator<Integer> iterator = deviceIds.iterator();
         for (int i : deviceIds) {
-            out += i + ",";
+            sb.append(i);
+            if (iterator.hasNext()) {
+                sb.append(',');
+            }
         }
-        return out.substring(0, out.length() - 1) + "]";
+        return sb.append(']').toString();
     }
 }

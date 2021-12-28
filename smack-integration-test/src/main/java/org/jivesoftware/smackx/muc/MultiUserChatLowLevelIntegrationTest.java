@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015-2018 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@
  */
 package org.jivesoftware.smackx.muc;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
+import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPException;
-import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.util.StringUtils;
 
 import org.jivesoftware.smackx.bookmarks.BookmarkManager;
@@ -30,9 +30,9 @@ import org.jivesoftware.smackx.muc.MultiUserChat.MucCreateConfigFormHandle;
 import org.jivesoftware.smackx.muc.bookmarkautojoin.MucBookmarkAutojoinManager;
 
 import org.igniterealtime.smack.inttest.AbstractSmackLowLevelIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
 import org.igniterealtime.smack.inttest.TestNotPossibleException;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 import org.jxmpp.jid.DomainBareJid;
 import org.jxmpp.jid.impl.JidCreate;
 import org.jxmpp.jid.parts.Localpart;
@@ -42,18 +42,18 @@ public class MultiUserChatLowLevelIntegrationTest extends AbstractSmackLowLevelI
 
     public MultiUserChatLowLevelIntegrationTest(SmackIntegrationTestEnvironment environment) throws Exception {
         super(environment);
-        performCheck(new ConnectionCallback() {
-            @Override
-            public void connectionCallback(XMPPTCPConnection connection) throws Exception {
-                if (MultiUserChatManager.getInstanceFor(connection).getMucServiceDomains().isEmpty()) {
-                    throw new TestNotPossibleException("MUC component not offered by service");
-                }
+        AbstractXMPPConnection connection = getConnectedConnection();
+        try {
+            if (MultiUserChatManager.getInstanceFor(connection).getMucServiceDomains().isEmpty()) {
+                throw new TestNotPossibleException("MUC component not offered by service");
             }
-        });
+        } finally {
+            recycle(connection);
+        }
     }
 
     @SmackIntegrationTest
-    public void testMucBookmarksAutojoin(XMPPTCPConnection connection) throws InterruptedException,
+    public void testMucBookmarksAutojoin(AbstractXMPPConnection connection) throws InterruptedException,
                     TestNotPossibleException, XMPPException, SmackException, IOException {
         final BookmarkManager bookmarkManager = BookmarkManager.getBookmarkManager(connection);
         if (!bookmarkManager.isSupported()) {

@@ -20,10 +20,10 @@ package org.jivesoftware.smackx.workgroup.ext.notes;
 import java.io.IOException;
 
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  * IQ stanza for retrieving and adding Chat Notes.
@@ -84,13 +84,13 @@ public class ChatNotes extends IQ {
     public static class Provider extends IQProvider<ChatNotes> {
 
         @Override
-        public ChatNotes parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException {
+        public ChatNotes parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
             ChatNotes chatNotes = new ChatNotes();
 
             boolean done = false;
             while (!done) {
-                int eventType = parser.next();
-                if (eventType == XmlPullParser.START_TAG) {
+                XmlPullParser.Event eventType = parser.next();
+                if (eventType == XmlPullParser.Event.START_ELEMENT) {
                     if (parser.getName().equals("sessionID")) {
                         chatNotes.setSessionID(parser.nextText());
                     }
@@ -100,7 +100,7 @@ public class ChatNotes extends IQ {
                         chatNotes.setNotes(note);
                     }
                 }
-                else if (eventType == XmlPullParser.END_TAG) {
+                else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                     if (parser.getName().equals(ELEMENT_NAME)) {
                         done = true;
                     }

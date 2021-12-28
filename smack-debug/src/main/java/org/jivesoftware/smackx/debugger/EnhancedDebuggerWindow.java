@@ -43,7 +43,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 
-import org.jivesoftware.smack.SmackConfiguration;
+import org.jivesoftware.smack.Smack;
 import org.jivesoftware.smack.provider.ProviderManager;
 
 /**
@@ -140,11 +140,12 @@ public final class EnhancedDebuggerWindow {
         if (frame == null) {
             createDebug();
         }
-        debugger.tabbedPane.setName("XMPPConnection_" + tabbedPane.getComponentCount());
-        tabbedPane.add(debugger.tabbedPane, tabbedPane.getComponentCount() - 1);
+        debugger.tabbedPane.setName("XMPPConnection_" + tabbedPane.getTabCount());
+        tabbedPane.add(debugger.tabbedPane, -1);
         tabbedPane.setIconAt(tabbedPane.indexOfComponent(debugger.tabbedPane), connectionCreatedIcon);
+        tabbedPane.setSelectedIndex(tabbedPane.indexOfComponent(debugger.tabbedPane));
         frame.setTitle(
-                "Smack Debug Window -- Total connections: " + (tabbedPane.getComponentCount() - 1));
+                "Smack Debug Window -- Total connections: " + (tabbedPane.getTabCount() - 1));
         // Keep the added debugger for later access
         debuggers.add(debugger);
     }
@@ -231,7 +232,7 @@ public final class EnhancedDebuggerWindow {
         versionPanel.setLayout(new BoxLayout(versionPanel, BoxLayout.X_AXIS));
         versionPanel.setMaximumSize(new Dimension(2000, 31));
         versionPanel.add(new JLabel(" Smack version: "));
-        JFormattedTextField field = new JFormattedTextField(SmackConfiguration.getVersion());
+        JFormattedTextField field = new JFormattedTextField(Smack.getVersion());
         field.setEditable(false);
         field.setBorder(null);
         versionPanel.add(field);
@@ -285,7 +286,7 @@ public final class EnhancedDebuggerWindow {
             @Override
             public void actionPerformed(ActionEvent e) {
                 // Remove the selected tab pane if it's not the Smack info pane
-                if (tabbedPane.getSelectedIndex() < tabbedPane.getComponentCount() - 1) {
+                if (tabbedPane.getSelectedIndex() < tabbedPane.getTabCount() - 1) {
                     int index = tabbedPane.getSelectedIndex();
                     // Notify to the debugger to stop debugging
                     EnhancedDebugger debugger = debuggers.get(index);
@@ -296,7 +297,7 @@ public final class EnhancedDebuggerWindow {
                     // Update the root window title
                     frame.setTitle(
                             "Smack Debug Window -- Total connections: "
-                                    + (tabbedPane.getComponentCount() - 1));
+                                    + (tabbedPane.getTabCount() - 1));
                 }
             }
         });
@@ -308,7 +309,7 @@ public final class EnhancedDebuggerWindow {
             public void actionPerformed(ActionEvent e) {
                 ArrayList<EnhancedDebugger> debuggersToRemove = new ArrayList<>();
                 // Remove all the debuggers of which their connections are no longer valid
-                for (int index = 0; index < tabbedPane.getComponentCount() - 1; index++) {
+                for (int index = 0; index < tabbedPane.getTabCount() - 1; index++) {
                     EnhancedDebugger debugger = debuggers.get(index);
                     if (!debugger.isConnectionActive()) {
                         // Notify to the debugger to stop debugging
@@ -324,7 +325,7 @@ public final class EnhancedDebuggerWindow {
                 // Update the root window title
                 frame.setTitle(
                         "Smack Debug Window -- Total connections: "
-                                + (tabbedPane.getComponentCount() - 1));
+                                + (tabbedPane.getTabCount() - 1));
             }
         });
         menu.add(menuItem);
@@ -346,6 +347,7 @@ public final class EnhancedDebuggerWindow {
      *
      * @param evt the event that indicates that the root window is closing
      */
+    @SuppressWarnings("UnusedVariable")
     private synchronized void rootWindowClosing(WindowEvent evt) {
         // Notify to all the debuggers to stop debugging
         for (EnhancedDebugger debugger : debuggers) {

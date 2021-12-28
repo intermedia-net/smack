@@ -57,6 +57,7 @@ public class DirectoryRosterStoreTest {
 
     /**
      * Tests that opening an uninitialized directory fails.
+     * @throws IOException if IO exception.
      */
     @Test
     public void testStoreUninitialized() throws IOException {
@@ -66,6 +67,7 @@ public class DirectoryRosterStoreTest {
 
     /**
      * Tests that an initialized directory is empty.
+     * @throws IOException if IO exception.
      */
     @Test
     public void testStoreInitializedEmpty() throws IOException {
@@ -80,6 +82,7 @@ public class DirectoryRosterStoreTest {
 
     /**
      * Tests adding and removing entries.
+     * @throws IOException if IO exception.
      */
     @Test
     public void testStoreAddRemove() throws IOException {
@@ -118,7 +121,7 @@ public class DirectoryRosterStoreTest {
         item2.setSubscriptionPending(true);
         item2.setItemType(ItemType.none);
         item2.setApproved(true);
-        store.addEntry(item2,version2);
+        store.addEntry(item2, version2);
         assertEquals("Updating entry sets version correctly", version2, store.getRosterVersion());
         storedItem = store.getEntry(userName);
         assertNotNull("Added entry not found", storedItem);

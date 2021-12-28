@@ -19,9 +19,7 @@ package org.jivesoftware.smack.util.stringencoder;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-
-import org.jivesoftware.smack.util.StringUtils;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Base32 string encoding is useful for when filenames case-insensitive filesystems are encoded.
@@ -34,7 +32,7 @@ import org.jivesoftware.smack.util.StringUtils;
  */
 public class Base32 {
 
-    private static final StringEncoder base32Stringencoder = new StringEncoder() {
+    private static final StringEncoder<String> base32Stringencoder = new StringEncoder<String>() {
 
         @Override
         public String encode(String string) {
@@ -47,21 +45,16 @@ public class Base32 {
         }
 
     };
-    private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ2345678";
+    private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
-    public static StringEncoder getStringEncoder() {
+    public static StringEncoder<String> getStringEncoder() {
         return base32Stringencoder;
     }
 
     public static String decode(String str) {
         ByteArrayOutputStream bs = new ByteArrayOutputStream();
-        byte[] raw;
-        try {
-            raw = str.getBytes(StringUtils.UTF8);
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
-        }
+        byte[] raw = str.getBytes(StandardCharsets.UTF_8);
+
         for (int i = 0; i < raw.length; i++) {
             char c = (char) raw[i];
             if (!Character.isWhitespace(c)) {
@@ -114,24 +107,12 @@ public class Base32 {
             }
         }
 
-        String res;
-        try {
-            res = new String(bs.toByteArray(), StringUtils.UTF8);
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
-        }
+        String res = new String(bs.toByteArray(), StandardCharsets.UTF_8);
         return res;
     }
 
     public static String encode(String str) {
-        byte[] b;
-        try {
-            b = str.getBytes(StringUtils.UTF8);
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
-        }
+        byte[] b = str.getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream os = new ByteArrayOutputStream();
 
         for (int i = 0; i < (b.length + 4) / 5; i++) {
@@ -174,13 +155,7 @@ public class Base32 {
                 os.write(c);
             }
         }
-        String res;
-        try {
-            res = new String(os.toByteArray(), StringUtils.UTF8);
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
-        }
+        String res = new String(os.toByteArray(), StandardCharsets.UTF_8);
         return res;
     }
 

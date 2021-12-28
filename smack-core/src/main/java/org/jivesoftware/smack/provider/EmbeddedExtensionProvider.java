@@ -16,15 +16,18 @@
  */
 package org.jivesoftware.smack.provider;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.util.PacketParserUtils;
-
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  *
@@ -56,8 +59,8 @@ import org.xmlpull.v1.XmlPullParser;
  * &lt;/message&gt;
  *
  * I would have a classes
- * <tt>ItemsProvider</tt> extends {@link EmbeddedExtensionProvider}
- * <tt>ItemProvider</tt> extends {@link EmbeddedExtensionProvider}
+ * <code>ItemsProvider</code> extends {@link EmbeddedExtensionProvider}
+ * <code>ItemProvider</code> extends {@link EmbeddedExtensionProvider}
  * and
  * AtomProvider extends {@link ExtensionElementProvider}
  *
@@ -82,7 +85,7 @@ import org.xmlpull.v1.XmlPullParser;
 public abstract class EmbeddedExtensionProvider<PE extends ExtensionElement> extends ExtensionElementProvider<PE> {
 
     @Override
-    public final PE parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public final PE parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         final String namespace = parser.getNamespace();
         final String name = parser.getName();
         final int attributeCount = parser.getAttributeCount();
@@ -93,14 +96,14 @@ public abstract class EmbeddedExtensionProvider<PE extends ExtensionElement> ext
         }
 
         List<ExtensionElement> extensions = new ArrayList<>();
-        int event;
+        XmlPullParser.Event event;
         do {
             event = parser.next();
 
-            if (event == XmlPullParser.START_TAG)
-                PacketParserUtils.addExtensionElement(extensions, parser);
+            if (event == XmlPullParser.Event.START_ELEMENT)
+                PacketParserUtils.addExtensionElement(extensions, parser, xmlEnvironment);
         }
-        while (!(event == XmlPullParser.END_TAG && parser.getDepth() == initialDepth));
+        while (!(event == XmlPullParser.Event.END_ELEMENT && parser.getDepth() == initialDepth));
 
         return createReturnExtension(name, namespace, attMap, extensions);
     }

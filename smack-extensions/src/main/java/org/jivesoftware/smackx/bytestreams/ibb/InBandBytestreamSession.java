@@ -23,17 +23,21 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.SmackException.NotLoggedInException;
 import org.jivesoftware.smack.StanzaListener;
 import org.jivesoftware.smack.XMPPConnection;
+import org.jivesoftware.smack.datatypes.UInt16;
 import org.jivesoftware.smack.filter.AndFilter;
 import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.filter.StanzaTypeFilter;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 import org.jivesoftware.smack.packet.StanzaError;
 import org.jivesoftware.smack.util.stringencoder.Base64;
 
@@ -59,6 +63,10 @@ import org.jxmpp.jid.Jid;
  * @author Henning Staib
  */
 public class InBandBytestreamSession implements BytestreamSession {
+
+    private static final Logger LOGGER = Logger.getLogger(InBandBytestreamSession.class.getName());
+
+    static final String UNEXPECTED_IBB_SEQUENCE = "Unexpected IBB sequence";
 
     /* XMPP connection */
     private final XMPPConnection connection;
@@ -168,8 +176,8 @@ public class InBandBytestreamSession implements BytestreamSession {
      * This method is invoked if a request to close the In-Band Bytestream has been received.
      *
      * @param closeRequest the close request from the remote peer
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     protected void closeByPeer(Close closeRequest) throws NotConnectedException, InterruptedException {
 
@@ -260,7 +268,7 @@ public class InBandBytestreamSession implements BytestreamSession {
         private int bufferPointer = -1;
 
         /* data packet sequence (range from 0 to 65535) */
-        private long seq = -1;
+        private UInt16 expectedSeq = UInt16.MIN_VALUE;
 
         /* flag to indicate if input stream is closed */
         private boolean isClosed = false;
@@ -382,21 +390,16 @@ public class InBandBytestreamSession implements BytestreamSession {
                 return false;
             }
 
-            // handle sequence overflow
-            if (this.seq == 65535) {
-                this.seq = -1;
-            }
-
+            final UInt16 dataSeq = data.getSeq();
             // check if data packets sequence is successor of last seen sequence
-            long seq = data.getSeq();
-            if (seq - 1 != this.seq) {
+            if (!expectedSeq.equals(dataSeq)) {
                 // packets out of order; close stream/session
                 InBandBytestreamSession.this.close();
-                throw new IOException("Packets out of sequence");
+                String message = UNEXPECTED_IBB_SEQUENCE + " " + dataSeq + " received, expected "
+                                + expectedSeq;
+                throw new IOException(message);
             }
-            else {
-                this.seq = seq;
-            }
+            expectedSeq = dataSeq.incrementedByOne();
 
             // set buffer to decoded data
             buffer = data.getDecodedData();
@@ -464,22 +467,41 @@ public class InBandBytestreamSession implements BytestreamSession {
         protected StanzaListener getDataPacketListener() {
             return new StanzaListener() {
 
-                private long lastSequence = -1;
+                private UInt16 expectedSequence = UInt16.MIN_VALUE;;
 
                 @Override
                 public void processStanza(Stanza packet) throws NotConnectedException, InterruptedException {
+                    final Data dataIq = (Data) packet;
                     // get data packet extension
-                    DataPacketExtension data = ((Data) packet).getDataPacketExtension();
+                    DataPacketExtension data = dataIq.getDataPacketExtension();
 
+                    final UInt16 seq = data.getSeq();
                     /*
                      * check if sequence was not used already (see XEP-0047 Section 2.2)
                      */
-                    if (data.getSeq() <= this.lastSequence) {
-                        IQ unexpectedRequest = IQ.createErrorResponse((IQ) packet,
-                                        StanzaError.Condition.unexpected_request);
+                    if (!expectedSequence.equals(seq)) {
+                        String descriptiveEnTest = UNEXPECTED_IBB_SEQUENCE + " " + seq + " received, expected "
+                                        + expectedSequence;
+                        StanzaError stanzaError = StanzaError.getBuilder()
+                                        .setCondition(StanzaError.Condition.unexpected_request)
+                                        .setDescriptiveEnText(descriptiveEnTest)
+                                        .build();
+                        IQ unexpectedRequest = IQ.createErrorResponse(dataIq, stanzaError);
                         connection.sendStanza(unexpectedRequest);
-                        return;
 
+                        try {
+                            // TODO: It would be great if close would take a "close error reason" argument. Also there
+                            // is the question if this is really a reason to close the stream. We could have some more
+                            // tolerance regarding out-of-sequence stanzas arriving: Even though XMPP has the in-order
+                            // guarantee, I could imagine that there are cases where stanzas are, for example,
+                            // duplicated because of stream resumption.
+                            close();
+                        } catch (IOException e) {
+                            LOGGER.log(Level.FINER, "Could not close session, because of IOException. Close reason: "
+                                            + descriptiveEnTest);
+                        }
+
+                        return;
                     }
 
                     // check if encoded data is valid (see XEP-0047 Section 2.2)
@@ -491,19 +513,14 @@ public class InBandBytestreamSession implements BytestreamSession {
                         return;
                     }
 
+                    expectedSequence = seq.incrementedByOne();
+
                     // data is valid; add to data queue
                     dataQueue.offer(data);
 
                     // confirm IQ
                     IQ confirmData = IQ.createResultIQ((IQ) packet);
                     connection.sendStanza(confirmData);
-
-                    // set last seen sequence
-                    this.lastSequence = data.getSeq();
-                    if (this.lastSequence == 65535) {
-                        this.lastSequence = -1;
-                    }
-
                 }
 
             };
@@ -534,8 +551,7 @@ public class InBandBytestreamSession implements BytestreamSession {
                 public void processStanza(Stanza packet) {
                     // get data packet extension
                     DataPacketExtension data = packet.getExtension(
-                                    DataPacketExtension.ELEMENT,
-                                    DataPacketExtension.NAMESPACE);
+                                    DataPacketExtension.class);
 
                     // check if encoded data is valid
                     if (data.getDecodedData() == null) {
@@ -589,8 +605,7 @@ public class InBandBytestreamSession implements BytestreamSession {
             } else {
                 // stanza contains data packet extension
                 data = packet.getExtension(
-                        DataPacketExtension.ELEMENT,
-                        DataPacketExtension.NAMESPACE);
+                        DataPacketExtension.class);
                 if (data == null) {
                     return false;
                 }
@@ -619,7 +634,7 @@ public class InBandBytestreamSession implements BytestreamSession {
         protected int bufferPointer = 0;
 
         /* data packet sequence (range from 0 to 65535) */
-        protected long seq = 0;
+        protected UInt16 seq = UInt16.from(0);
 
         /* flag to indicate if output stream is closed */
         protected boolean isClosed = false;
@@ -636,8 +651,8 @@ public class InBandBytestreamSession implements BytestreamSession {
          *
          * @param data the data packet
          * @throws IOException if an I/O error occurred while sending or if the stream is closed
-         * @throws NotConnectedException
-         * @throws InterruptedException
+         * @throws NotConnectedException if the XMPP connection is not connected.
+         * @throws InterruptedException if the calling thread was interrupted.
          */
         protected abstract void writeToXML(DataPacketExtension data) throws IOException, NotConnectedException, InterruptedException;
 
@@ -757,7 +772,7 @@ public class InBandBytestreamSession implements BytestreamSession {
             bufferPointer = 0;
 
             // increment sequence, considering sequence overflow
-            this.seq = (this.seq + 1 == 65535 ? 0 : this.seq + 1);
+            seq = seq.incrementedByOne();
 
         }
 
@@ -835,8 +850,9 @@ public class InBandBytestreamSession implements BytestreamSession {
         @Override
         protected synchronized void writeToXML(DataPacketExtension data) throws NotConnectedException, InterruptedException {
             // create message stanza containing data packet
-            Message message = new Message(remoteJID);
-            message.addExtension(data);
+            Message message = StanzaBuilder.buildMessage().to(remoteJID)
+                    .addExtension(data)
+                    .build();
 
             connection.sendStanza(message);
 
@@ -846,10 +862,10 @@ public class InBandBytestreamSession implements BytestreamSession {
 
     /**
      * Process IQ stanza.
-     * @param data
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @throws NotLoggedInException
+     * @param data TODO javadoc me please
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws NotLoggedInException if the XMPP connection is not authenticated.
      */
     public void processIQPacket(Data data) throws NotConnectedException, InterruptedException, NotLoggedInException {
         inputStream.dataPacketListener.processStanza(data);

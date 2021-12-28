@@ -20,10 +20,9 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
-import org.jivesoftware.smack.packet.NamedElement;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
-public class TimestampElement implements NamedElement {
+public class TimestampElement extends IoTDataExtensionElement {
 
     public static final String ELEMENT = "timestamp";
 
@@ -45,8 +44,8 @@ public class TimestampElement implements NamedElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = new XmlStringBuilder(this);
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
+        XmlStringBuilder xml = new XmlStringBuilder(this, enclosingNamespace);
         xml.attribute("value", date);
         xml.rightAngleBracket();
 

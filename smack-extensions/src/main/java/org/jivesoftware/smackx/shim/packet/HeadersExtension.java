@@ -19,6 +19,8 @@ package org.jivesoftware.smackx.shim.packet;
 import java.util.Collections;
 import java.util.List;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.util.XmlStringBuilder;
@@ -33,6 +35,7 @@ import org.jivesoftware.smack.util.XmlStringBuilder;
 public class HeadersExtension implements ExtensionElement {
     public static final String ELEMENT = "headers";
     public static final String NAMESPACE = "http://jabber.org/protocol/shim";
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
     private final List<Header> headers;
 
@@ -59,7 +62,7 @@ public class HeadersExtension implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
         xml.rightAngleBracket();
         xml.append(headers);
@@ -70,10 +73,10 @@ public class HeadersExtension implements ExtensionElement {
     /**
      * Return the SHIM headers extension of this stanza or null if there is none.
      *
-     * @param packet
+     * @param packet TODO javadoc me please
      * @return the headers extension or null.
      */
     public static HeadersExtension from(Stanza packet) {
-        return packet.getExtension(ELEMENT, NAMESPACE);
+        return packet.getExtension(HeadersExtension.class);
     }
 }

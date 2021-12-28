@@ -16,10 +16,14 @@
  */
 package org.jivesoftware.smackx.jingle_filetransfer.provider;
 
-import static org.xmlpull.v1.XmlPullParser.END_TAG;
-import static org.xmlpull.v1.XmlPullParser.START_TAG;
+import java.io.IOException;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
+
 import org.jivesoftware.smackx.hashes.element.HashElement;
 import org.jivesoftware.smackx.hashes.provider.HashElementProvider;
 import org.jivesoftware.smackx.jingle.element.JingleContent;
@@ -27,14 +31,12 @@ import org.jivesoftware.smackx.jingle_filetransfer.element.Checksum;
 import org.jivesoftware.smackx.jingle_filetransfer.element.JingleFileTransferChild;
 import org.jivesoftware.smackx.jingle_filetransfer.element.Range;
 
-import org.xmlpull.v1.XmlPullParser;
-
 /**
  * Provider for the Checksum element.
  */
 public class ChecksumProvider extends ExtensionElementProvider<Checksum> {
     @Override
-    public Checksum parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public Checksum parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         JingleContent.Creator creator = null;
         String creatorString = parser.getAttributeValue(null, Checksum.ATTR_CREATOR);
         if (creatorString != null) {
@@ -49,10 +51,11 @@ public class ChecksumProvider extends ExtensionElementProvider<Checksum> {
 
         boolean go = true;
         while (go) {
-            int tag = parser.nextTag();
+            XmlPullParser.TagEvent tag = parser.nextTag();
             String n = parser.getText();
 
-            if (tag == START_TAG) {
+            switch (tag) {
+            case START_ELEMENT:
                 switch (n) {
                     case HashElement.ELEMENT:
                         hashElement = new HashElementProvider().parse(parser);
@@ -65,7 +68,8 @@ public class ChecksumProvider extends ExtensionElementProvider<Checksum> {
                         int l = length == null ? -1 : Integer.parseInt(length);
                         range = new Range(o, l);
                 }
-            } else if (tag == END_TAG) {
+                break;
+            case END_ELEMENT:
                 switch (n) {
                     case Range.ELEMENT:
                         if (hashElement != null && range != null) {
@@ -83,6 +87,7 @@ public class ChecksumProvider extends ExtensionElementProvider<Checksum> {
                         }
                         go = false;
                 }
+                break;
             }
         }
         return new Checksum(creator, name, cb.build());
