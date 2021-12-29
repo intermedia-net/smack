@@ -27,4 +27,8 @@ public class XmlPullParserException extends Exception {
     public XmlPullParserException(String message) {
         super(message);
     }
+
+    public XmlPullParserException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

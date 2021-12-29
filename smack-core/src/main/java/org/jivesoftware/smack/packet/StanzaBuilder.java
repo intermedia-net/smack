@@ -157,6 +157,7 @@ public abstract class StanzaBuilder<B extends StanzaBuilder<B>> implements Stanz
     }
 
     public final B addExtension(ExtensionElement extensionElement) {
+        if (extensionElement == null) return getThis();
         QName key = extensionElement.getQName();
         extensionElements.put(key, extensionElement);
         return getThis();
@@ -178,6 +179,7 @@ public abstract class StanzaBuilder<B extends StanzaBuilder<B>> implements Stanz
     }
 
     public final B overrideExtension(ExtensionElement extensionElement) {
+        if (extensionElement == null) return getThis();
         QName key = extensionElement.getQName();
         extensionElements.remove(key);
         extensionElements.put(key, extensionElement);

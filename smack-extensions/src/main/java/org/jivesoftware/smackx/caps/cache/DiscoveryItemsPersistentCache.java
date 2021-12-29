@@ -13,14 +13,14 @@ public interface DiscoveryItemsPersistentCache {
     /**
      * Add an DiscoverItems to the persistent Cache.
      *
-     * @param nodeVer
-     * @param info
+     * @param nodeVer item node
+     * @param items disco items
      */
-    void addDiscoverItemsByNodePersistent(String nodeVer, DiscoverItems info);
+    void addDiscoverItemsByNodePersistent(String nodeVer, DiscoverItems items);
 
     /**
      * Lookup DiscoverItems by a Node string.
-     * @param nodeVer
+     * @param nodeVer item node
      *
      * @return DiscoverItems.
      */

@@ -272,7 +272,7 @@ public final class EntityCapsManager extends Manager {
     /**
      * Set the discovery items persistent cache implementation.
      *
-     * @param cache
+     * @param cache discovery items persistent cache
      */
     public static void setDiscoveryItemsPersistentCache(DiscoveryItemsPersistentCache cache) {
         discoveryItemsPersistentCache = cache;

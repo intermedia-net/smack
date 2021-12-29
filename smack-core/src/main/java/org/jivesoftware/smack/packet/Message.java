@@ -147,6 +147,7 @@ public final class Message extends MessageOrPresence<MessageBuilder>
     Message(MessageBuilder messageBuilder) {
         super(messageBuilder);
         type = messageBuilder.type;
+        subType = messageBuilder.getSubType();
     }
 
     /**
@@ -176,14 +177,12 @@ public final class Message extends MessageOrPresence<MessageBuilder>
      * Sets the type of the message.
      *
      * @param type the type of the message.
-     * @deprecated use {@link StanzaBuilder} instead.
      */
-    @Deprecated
-    // TODO: Remove in Smack 4.5.
     public void setType(Type type) {
         this.type = type;
     }
 
+    @Override
     public SubType getSubType() {
         if (subType == null) {
             return SubType.regular;
@@ -191,6 +190,11 @@ public final class Message extends MessageOrPresence<MessageBuilder>
         return subType;
     }
 
+    /**
+     * Sets the subtype of the message.
+     *
+     * @param subType the subtype of the message.
+     */
     public void setSubType(final SubType subType) {
         this.subType = subType;
     }

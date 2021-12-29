@@ -22,10 +22,10 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.util.PacketParserUtils;
 import org.jivesoftware.smack.xml.XmlPullParser;
 import org.jivesoftware.smack.xml.XmlPullParserException;
 
-import org.jivesoftware.smack.util.PacketParserUtils;
 import org.jivesoftware.smackx.delay.packet.DelayInformation;
 import org.jivesoftware.smackx.delay.provider.DelayInformationProvider;
 import org.jivesoftware.smackx.forward.packet.Forwarded;
@@ -61,15 +61,15 @@ public class MamResultProvider extends ExtensionElementProvider<MamResultExtensi
                 case Forwarded.ELEMENT:
                     forwarded = ForwardedProvider.parseForwardedMessage(parser, xmlEnvironment);
                     break;
-                }
                 case DelayInformation.ELEMENT:
                     if (DelayInformation.NAMESPACE.equals(namespace)) {
-                        di = DelayInformationProvider.INSTANCE.parse(parser, parser.getDepth());
+                        di = DelayInformationProvider.INSTANCE.parse(parser, xmlEnvironment);
                     }
                     break;
                 case Message.ELEMENT:
                     message = PacketParserUtils.parseMessage(parser);
                     break;
+                }
                 break;
             case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {

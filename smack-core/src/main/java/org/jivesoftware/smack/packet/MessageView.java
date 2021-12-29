@@ -36,6 +36,14 @@ public interface MessageView extends StanzaView {
     Message.Type getType();
 
     /**
+     * Returns the subtype of the message.
+     *
+     * @see org.jivesoftware.smack.packet.Message.SubType
+     * @return the type of the message.
+     */
+    Message.SubType getSubType();
+
+    /**
      * Returns the default subject of the message, or null if the subject has not been set.
      * The subject is a short description of message contents.
      * <p>

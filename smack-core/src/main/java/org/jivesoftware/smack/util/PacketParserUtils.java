@@ -51,8 +51,8 @@ import org.jivesoftware.smack.packet.UnparsedIQ;
 import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.parsing.StandardExtensionElementProvider;
+import org.jivesoftware.smack.provider.BaseIqProvider;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
-import org.jivesoftware.smack.provider.IqProvider;
 import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.xml.SmackXmlParser;
 import org.jivesoftware.smack.xml.XmlPullParser;
@@ -539,7 +539,7 @@ public class PacketParserUtils {
 
             switch (eventType) {
             case START_ELEMENT:
-                IQProvider<IQ> provider;
+                BaseIqProvider<IQ> provider;
                 String elementName = parser.getName();
                 String namespace = parser.getNamespace();
                 switch (elementName) {
@@ -555,7 +555,7 @@ public class PacketParserUtils {
                         // Note that if we reach this code, it is guranteed that the result IQ contained a child element
                         // (RFC 6120 § 8.2.3 6) because otherwhise we would have reached the END_ELEMENT first.
                     } else if (iqPacket != null && ProviderManager.getExtensionProvider(elementName, namespace) != null) {
-                        addExtensionElement(iqPacket, parser, elementName, namespace);
+                        addExtensionElement(iqPacket, parser, elementName, namespace, iqXmlEnvironment);
                     } else {
                         // No Provider found for the IQ stanza, parse it to an UnparsedIQ instance
                         // so that the content of the IQ can be examined later on

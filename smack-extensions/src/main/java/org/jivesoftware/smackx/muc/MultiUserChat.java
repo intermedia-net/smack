@@ -344,7 +344,6 @@ public class MultiUserChat {
 
     public void setRoomJoined() throws XMPPErrorException, NotAMucServiceException, NotConnectedException, InterruptedException, NoResponseException {
         setupListeners();
-        joined = true;
         multiUserChatManager.addJoinedRoom(room);
     }
 
@@ -386,6 +385,9 @@ public class MultiUserChat {
         try {
             // This stanza collector will collect the final self presence from the MUC, which also signals that we have successful entered the MUC.
             StanzaCollector selfPresenceCollector = connection.createStanzaCollectorAndSend(responseFilter, joinPresence);
+            StanzaFilter presenceFromRoomFilter = new AndFilter(fromRoomFilter,
+                    StanzaTypeFilter.PRESENCE,
+                    PossibleFromTypeFilter.ENTITY_FULL_JID);
             StanzaCollector.Configuration presenceStanzaCollectorConfguration = StanzaCollector.newConfiguration().setCollectorToReset(
                             selfPresenceCollector).setStanzaFilter(presenceFromRoomFilter);
             // This stanza collector is used to reset the timeout of the selfPresenceCollector.
@@ -417,8 +419,6 @@ public class MultiUserChat {
         // performed roomnick rewriting
         Resourcepart receivedNickname = reflectedSelfPresence.getFrom().getResourceOrThrow();
         setNickname(receivedNickname);
-
-        joined = true;
 
         // Update the list of joined rooms
         multiUserChatManager.addJoinedRoom(room);
@@ -2077,6 +2077,7 @@ public class MultiUserChat {
      * Sends a Message to the chat room.
      *
      * @param message the message.
+     * @param listener the ack listener
      */
     public void sendMessageWithConfirmation(final Message message, final Chat.StanzaAckListener listener) {
         message.setTo(room);

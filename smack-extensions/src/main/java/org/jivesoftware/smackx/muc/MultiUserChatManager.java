@@ -19,7 +19,6 @@ package org.jivesoftware.smackx.muc;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -445,14 +444,14 @@ public final class MultiUserChatManager extends Manager {
      * @throws NotAMucServiceException if the entity is not a MUC serivce.
      * @since 4.3.1
      */
-    public Map<EntityBareJid, HostedRoom> getRoomsHostedBy(DomainBareJid serviceName) throws NoResponseException, XMPPErrorException,
-                    NotConnectedException, InterruptedException, NotAMucServiceException {
+    public List<HostedRoom> getRoomsHostedBy(DomainBareJid serviceName) throws NoResponseException, XMPPErrorException,
+            NotConnectedException, InterruptedException, NotAMucServiceException {
         if (!providesMucService(serviceName)) {
             throw new NotAMucServiceException(serviceName);
         }
         DiscoverItems discoverItems = serviceDiscoveryManager.discoverItems(serviceName);
         List<DiscoverItems.Item> items = discoverItems.getItems();
-        List<HostedRoom> answer = new ArrayList<HostedRoom>(items.size());
+        List<HostedRoom> answer = new ArrayList<>(items.size());
         for (DiscoverItems.Item item : items) {
             answer.add(new HostedRoom(item));
         }

@@ -28,6 +28,7 @@ public final class MessageBuilder extends MessageOrPresenceBuilder<Message, Mess
     });
 
     Message.Type type;
+    private Message.SubType subType;
 
     MessageBuilder(Message message, String stanzaId) {
         super(message, stanzaId);
@@ -59,6 +60,11 @@ public final class MessageBuilder extends MessageOrPresenceBuilder<Message, Mess
 
     public MessageBuilder ofType(Message.Type type) {
         this.type = type;
+        return getThis();
+    }
+
+    public MessageBuilder setSubType(final Message.SubType subType) {
+        this.subType = subType;
         return getThis();
     }
 
@@ -161,5 +167,10 @@ public final class MessageBuilder extends MessageOrPresenceBuilder<Message, Mess
     @Override
     public Message.Type getType() {
         return type;
+    }
+
+    @Override
+    public Message.SubType getSubType() {
+        return subType;
     }
 }

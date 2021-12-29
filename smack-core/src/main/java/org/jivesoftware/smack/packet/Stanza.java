@@ -406,7 +406,7 @@ public abstract class Stanza implements StanzaView, TopLevelStreamElement {
      * @param extension a stanza extension.
      */
     // TODO: Mark this as deprecated once StanzaBuilder is ready and all call sites are gone.
-    public final void addExtension(ExtensionElement extension) {
+    public void addExtension(ExtensionElement extension) {
         if (extension == null) return;
         QName key = extension.getQName();
         synchronized (extensionElements) {

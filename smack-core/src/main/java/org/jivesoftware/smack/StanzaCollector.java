@@ -41,7 +41,7 @@ import org.jivesoftware.smack.packet.Stanza;
  * @see XMPPConnection#createStanzaCollector(StanzaFilter)
  * @author Matt Tucker
  */
-public final class StanzaCollector implements AutoCloseable {
+public class StanzaCollector implements AutoCloseable {
 
     private final StanzaFilter packetFilter;
 
@@ -69,7 +69,7 @@ public final class StanzaCollector implements AutoCloseable {
      * @param connection the connection the collector is tied to.
      * @param configuration the configuration used to construct this collector
      */
-    StanzaCollector(XMPPConnection connection, Configuration configuration) {
+    protected StanzaCollector(XMPPConnection connection, Configuration configuration) {
         this.connection = connection;
         this.packetFilter = configuration.packetFilter;
         this.resultQueue = new ArrayDeque<>(configuration.size);

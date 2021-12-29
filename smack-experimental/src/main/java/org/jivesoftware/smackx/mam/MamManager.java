@@ -463,9 +463,9 @@ public final class MamManager extends Manager {
             }
 
             public Builder queryBunch() {
-                final FormField formField = new FormField(FORM_FIELD_BUNCH);
-                formField.setType(FormField.Type.bool);
-                formField.addValue("true");
+                final FormField formField = FormField.booleanBuilder(FORM_FIELD_BUNCH)
+                        .setValue(true)
+                        .build();
                 return withAdditionalFormField(formField);
             }
 
@@ -474,15 +474,16 @@ public final class MamManager extends Manager {
             }
 
             public Builder byApproxcount() {
-                final FormField formField = new FormField(FORM_FIELD_APPROXCOUNT);
-                formField.setType(FormField.Type.bool);
-                formField.addValue("true");
+                final FormField formField = FormField.booleanBuilder(FORM_FIELD_APPROXCOUNT)
+                        .setValue(true)
+                        .build();
                 return withAdditionalFormField(formField);
             }
 
             public Builder withText(final String text) {
-                final FormField formField = new FormField(FORM_FIELD_WITHTEXT);
-                formField.addValue(text);
+                final FormField formField = FormField.textSingleBuilder(FORM_FIELD_WITHTEXT)
+                        .setValue(text)
+                        .build();
                 return withAdditionalFormField(formField);
             }
 
@@ -631,7 +632,7 @@ public final class MamManager extends Manager {
             return mamQueryPage.messages;
         }
 
-        public List<Forwarded> getForwarded() {
+        public List<Forwarded<Message>> getForwarded() {
             return mamQueryPage.forwardedMessages;
         }
 
