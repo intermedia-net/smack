@@ -1,7 +1,7 @@
 name: CI
 
 env:
-  GRADLE_VERSION: 4.6
+  GRADLE_VERSION: 6.7.1
 
 on: [push, pull_request]
 
@@ -12,10 +12,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        java:
-          - 8
-    env:
-      PRIMARY_JAVA_VERSION: 8
+        java: [ 1.8, 11 ]
 
     steps:
       - name: Checkout
@@ -67,21 +64,25 @@ jobs:
         uses: android-actions/setup-android@v2
       - name: Install Android SDK
         run: |
-          sdkmanager "platforms;android-16"
+          sdkmanager "platforms;android-19"
 
       # Testing
       - name: Gradle Check
         run: ${PATH_TO_GRADLE} check --stacktrace
 
+      # Test local publish
+      - name: Gradle publish
+        run: ${PATH_TO_GRADLE} publishToMavenLocal --stacktrace
+
       # Javadoc
       - name: Javadoc
-        if: ${{ matrix.java == env.PRIMARY_JAVA_VERSION }}
+        if: ${{ matrix.java == 11 }}
         run: ${PATH_TO_GRADLE} javadocAll --stacktrace
 
       # Test Coverage Report
       - name: Jacoco Test Coverage
-        if: ${{ matrix.java == env.PRIMARY_JAVA_VERSION }}
-        run: ${PATH_TO_GRADLE} jacocoRootReport
+        if: ${{ matrix.java == 1.8 }}
+        run: ${PATH_TO_GRADLE} jacocoRootReport coveralls
 
       # Upload build artifacts
       - name: Upload build artifacts

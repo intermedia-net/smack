@@ -16,6 +16,8 @@
  */
 package org.jivesoftware.smackx.message_correct.element;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.util.StringUtils;
@@ -44,6 +46,8 @@ public class MessageCorrectExtension implements ExtensionElement {
      */
     public static final String NAMESPACE = "urn:xmpp:message-correct:0";
 
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
     /**
      * The id tag of a 'message correct' extension.
      */
@@ -55,7 +59,7 @@ public class MessageCorrectExtension implements ExtensionElement {
     private final String idInitialMessage;
 
     public MessageCorrectExtension(String idInitialMessage) {
-        this.idInitialMessage = StringUtils.requireNotNullOrEmpty(idInitialMessage, "idInitialMessage must not be null");
+        this.idInitialMessage = StringUtils.requireNotNullNorEmpty(idInitialMessage, "idInitialMessage must not be null");
     }
 
     public String getIdInitialMessage() {
@@ -68,7 +72,7 @@ public class MessageCorrectExtension implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
         xml.attribute(ID_TAG, getIdInitialMessage());
         xml.closeEmptyElement();
@@ -81,7 +85,7 @@ public class MessageCorrectExtension implements ExtensionElement {
     }
 
     public static MessageCorrectExtension from(Message message) {
-        return message.getExtension(ELEMENT, NAMESPACE);
+        return message.getExtension(MessageCorrectExtension.class);
     }
 
 }

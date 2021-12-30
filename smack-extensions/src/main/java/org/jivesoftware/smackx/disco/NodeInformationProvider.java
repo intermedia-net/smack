@@ -28,8 +28,7 @@ import org.jivesoftware.smackx.disco.packet.DiscoverItems;
 /**
  * The NodeInformationProvider is responsible for providing supported identities, features
  * and hosted items (i.e. DiscoverItems.Item) about a given node. This information will be
- * requested each time this XMPPP client receives a disco info or items requests on the
- * given node. each time this XMPPP client receives a disco info or items requests on the
+ * requested each time this XMPP client receives a disco info or items requests on the
  * given node.
  *
  * @author Gaston Dombiak
@@ -69,5 +68,5 @@ public interface NodeInformationProvider {
      *
      * @return a list of the stanza extensions defined in the node.
      */
-    List<ExtensionElement> getNodePacketExtensions();
+    List<? extends ExtensionElement> getNodePacketExtensions();
 }

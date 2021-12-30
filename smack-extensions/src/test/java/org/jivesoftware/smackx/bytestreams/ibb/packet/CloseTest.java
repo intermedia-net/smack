@@ -16,18 +16,18 @@
  */
 package org.jivesoftware.smackx.bytestreams.ibb.packet;
 
-import static org.custommonkey.xmlunit.XMLAssert.assertXMLEqual;
-import static org.junit.Assert.assertEquals;
+import static org.jivesoftware.smack.test.util.XmlAssertUtil.assertXmlSimilar;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Properties;
 
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.StreamOpen;
-
-import org.jivesoftware.smackx.InitExtensions;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 
 import com.jamesmurty.utils.XMLBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.impl.JidCreate;
 
 /**
@@ -35,16 +35,20 @@ import org.jxmpp.jid.impl.JidCreate;
  *
  * @author Henning Staib
  */
-public class CloseTest extends InitExtensions {
+public class CloseTest extends SmackTestSuite {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void shouldNotInstantiateWithInvalidArguments1() {
-        new Close(null);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new Close(null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void shouldNotInstantiateWithInvalidArguments2() {
-        new Close("");
+        assertThrows(IllegalArgumentException.class, () -> {
+            new Close("");
+        });
     }
 
     @Test
@@ -81,7 +85,7 @@ public class CloseTest extends InitExtensions {
         close.setTo(JidCreate.from("juliet@capulet.lit/balcony"));
         close.setStanzaId("us71g45j");
 
-        assertXMLEqual(control, close.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertXmlSimilar(control, close.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
     }
 
 }

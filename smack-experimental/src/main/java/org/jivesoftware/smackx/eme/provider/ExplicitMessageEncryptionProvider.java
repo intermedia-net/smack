@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
  */
 package org.jivesoftware.smackx.eme.provider;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.eme.element.ExplicitMessageEncryptionElement;
-
-import org.xmlpull.v1.XmlPullParser;
 
 public class ExplicitMessageEncryptionProvider extends ExtensionElementProvider<ExplicitMessageEncryptionElement> {
 
     @Override
-    public ExplicitMessageEncryptionElement parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public ExplicitMessageEncryptionElement parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) {
         String namespace = parser.getAttributeValue(null, "namespace");
         String name = parser.getAttributeValue(null, "name");
         return new ExplicitMessageEncryptionElement(namespace, name);

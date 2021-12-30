@@ -84,7 +84,7 @@ import org.jxmpp.jid.EntityBareJid;
  *
  * @author Kirill Maximov (kir@maxkir.com)
  */
-public class VCard extends IQ {
+public final class VCard extends IQ {
     public static final String ELEMENT = "vCard";
     public static final String NAMESPACE = "vcard-temp";
 
@@ -357,7 +357,7 @@ public class VCard extends IQ {
     /**
      * Set the avatar for the VCard by specifying the url to the image.
      *
-     * @param avatarURL the url to the image(png,jpeg,gif,bmp)
+     * @param avatarURL the url to the image(png, jpeg, gif, bmp)
      */
     public void setAvatar(URL avatarURL) {
         byte[] bytes = new byte[0];
@@ -491,9 +491,7 @@ public class VCard extends IQ {
     }
 
     private static byte[] getFileBytes(File file) throws IOException {
-        BufferedInputStream bis = null;
-        try {
-            bis = new BufferedInputStream(new FileInputStream(file));
+        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
             int bytes = (int) file.length();
             byte[] buffer = new byte[bytes];
             int readBytes = bis.read(buffer);
@@ -501,11 +499,6 @@ public class VCard extends IQ {
                 throw new IOException("Entire file not read");
             }
             return buffer;
-        }
-        finally {
-            if (bis != null) {
-                bis.close();
-            }
         }
     }
 
@@ -554,8 +547,8 @@ public class VCard extends IQ {
      * @param connection the XMPPConnection to use.
      * @throws XMPPErrorException thrown if there was an issue setting the VCard in the server.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @deprecated use {@link VCardManager#saveVCard(VCard)} instead.
      */
     @Deprecated
@@ -568,10 +561,10 @@ public class VCard extends IQ {
      * and not anonymous.
      *
      * @param connection connection.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @deprecated use {@link VCardManager#loadVCard()} instead.
      */
     @Deprecated
@@ -585,10 +578,10 @@ public class VCard extends IQ {
      * @param connection connection.
      * @param user user whos information we want to load.
      *
-     * @throws XMPPErrorException
+     * @throws XMPPErrorException if there was an XMPP error returned.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @deprecated use {@link VCardManager#loadVCard(EntityBareJid)} instead.
      */
     @Deprecated

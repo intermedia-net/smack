@@ -26,6 +26,7 @@ import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.Stanza;
+
 import org.jivesoftware.smackx.bytestreams.socks5.Socks5BytestreamManager;
 import org.jivesoftware.smackx.bytestreams.socks5.Socks5BytestreamRequest;
 import org.jivesoftware.smackx.bytestreams.socks5.Socks5BytestreamSession;
@@ -56,10 +57,10 @@ public class Socks5TransferNegotiator extends StreamNegotiator {
             return this.manager.establishSession(target, streamID).getOutputStream();
         }
         catch (IOException e) {
-            throw new SmackException("error establishing SOCKS5 Bytestream", e);
+            throw new SmackException.SmackWrappedException("error establishing SOCKS5 Bytestream", e);
         }
         catch (InterruptedException e) {
-            throw new SmackException("error establishing SOCKS5 Bytestream", e);
+            throw new SmackException.SmackWrappedException("error establishing SOCKS5 Bytestream", e);
         }
     }
 
@@ -87,8 +88,8 @@ public class Socks5TransferNegotiator extends StreamNegotiator {
     }
 
     @Override
-    public String[] getNamespaces() {
-        return new String[] { Bytestream.NAMESPACE };
+    public String getNamespace() {
+        return Bytestream.NAMESPACE;
     }
 
     @Override
@@ -109,7 +110,7 @@ public class Socks5TransferNegotiator extends StreamNegotiator {
             return stream;
         }
         catch (IOException e) {
-            throw new SmackException("Error establishing input stream", e);
+            throw new SmackException.SmackWrappedException("Error establishing input stream", e);
         }
     }
 

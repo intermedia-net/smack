@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2014-2018 Florian Schmaus
+ * Copyright © 2014-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,12 @@ package org.jivesoftware.smack.provider;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
-import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.util.ParserUtils;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 public class IntrospectionProvider{
 
@@ -40,14 +39,14 @@ public class IntrospectionProvider{
 
         @SuppressWarnings("unchecked")
         @Override
-        public I parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException,
-                        SmackException {
+        public I parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
             try {
                 return (I) parseWithIntrospection(elementClass, parser, initialDepth);
             }
             catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException
                             | IllegalArgumentException | InvocationTargetException | ClassNotFoundException e) {
-                throw new SmackException(e);
+                // TODO: Should probably be SmackParsingException (once it exists).
+                throw new IOException(e);
             }
         }
     }
@@ -61,14 +60,14 @@ public class IntrospectionProvider{
 
         @SuppressWarnings("unchecked")
         @Override
-        public PE parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException,
-                        SmackException {
+        public PE parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
             try {
                 return (PE) parseWithIntrospection(elementClass, parser, initialDepth);
             }
             catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException
                             | IllegalArgumentException | InvocationTargetException | ClassNotFoundException e) {
-                throw new SmackException(e);
+                // TODO: Should probably be SmackParsingException (once it exists).
+                throw new IOException(e);
             }
         }
     }
@@ -81,9 +80,9 @@ public class IntrospectionProvider{
         ParserUtils.assertAtStartTag(parser);
         Object object = objectClass.getConstructor().newInstance();
         outerloop: while (true) {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 String name = parser.getName();
                 String stringValue = parser.nextText();
                 Class<?> propertyType = object.getClass().getMethod(
@@ -97,10 +96,13 @@ public class IntrospectionProvider{
                                 propertyType).invoke(object, value);
                 break;
 
-            case  XmlPullParser.END_TAG:
+            case  END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }
@@ -123,7 +125,9 @@ public class IntrospectionProvider{
         case "java.lang.String":
             return value;
         case "boolean":
+            // CHECKSTYLE:OFF
             return Boolean.valueOf(value);
+            // CHECKSTYLE:ON
         case "int":
             return Integer.valueOf(value);
         case "long":

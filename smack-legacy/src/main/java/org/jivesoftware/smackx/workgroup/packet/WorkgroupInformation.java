@@ -20,12 +20,13 @@ package org.jivesoftware.smackx.workgroup.packet;
 import java.io.IOException;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jxmpp.jid.EntityBareJid;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * A stanza extension that contains information about the user and agent in a
@@ -64,7 +65,7 @@ public class WorkgroupInformation implements ExtensionElement {
     }
 
     @Override
-    public String toXML(String enclosingNamespace) {
+    public String toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         StringBuilder buf = new StringBuilder();
 
         buf.append('<').append(ELEMENT_NAME);
@@ -78,12 +79,12 @@ public class WorkgroupInformation implements ExtensionElement {
 
         /**
          * PacketExtensionProvider implementation.
-         * @throws IOException
-         * @throws XmlPullParserException
+         * @throws IOException if an I/O error occurred.
+         * @throws XmlPullParserException if an error in the XML parser occurred.
          */
         @Override
         public WorkgroupInformation parse(XmlPullParser parser,
-                        int initialDepth) throws XmlPullParserException,
+                        int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException,
                         IOException {
             EntityBareJid workgroupJID = ParserUtils.getBareJidAttribute(parser);
 

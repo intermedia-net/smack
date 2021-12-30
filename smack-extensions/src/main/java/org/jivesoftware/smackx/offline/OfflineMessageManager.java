@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2003-2007 Jive Software.
+ * Copyright 2003-2007 Jive Software, 2020 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,12 @@ package org.jivesoftware.smackx.offline;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.jivesoftware.smack.Manager;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.StanzaCollector;
@@ -40,7 +43,7 @@ import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 import org.jivesoftware.smackx.disco.packet.DiscoverItems;
 import org.jivesoftware.smackx.offline.packet.OfflineMessageInfo;
 import org.jivesoftware.smackx.offline.packet.OfflineMessageRequest;
-import org.jivesoftware.smackx.xdata.Form;
+import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 /**
  * The OfflineMessageManager helps manage offline messages even before the user has sent an
@@ -58,19 +61,31 @@ import org.jivesoftware.smackx.xdata.Form;
  *
  * @author Gaston Dombiak
  */
-public class OfflineMessageManager {
+public final class OfflineMessageManager extends Manager {
 
     private static final Logger LOGGER = Logger.getLogger(OfflineMessageManager.class.getName());
 
-    private static final String namespace = "http://jabber.org/protocol/offline";
+    public static final String NAMESPACE = "http://jabber.org/protocol/offline";
 
-    private final XMPPConnection connection;
+    private static final Map<XMPPConnection, OfflineMessageManager> INSTANCES = new WeakHashMap<>();
 
     private static final StanzaFilter PACKET_FILTER = new AndFilter(new StanzaExtensionFilter(
                     new OfflineMessageInfo()), StanzaTypeFilter.MESSAGE);
 
-    public OfflineMessageManager(XMPPConnection connection) {
-        this.connection = connection;
+    private ServiceDiscoveryManager serviceDiscoveryManager;
+
+    private OfflineMessageManager(XMPPConnection connection) {
+        super(connection);
+        this.serviceDiscoveryManager = ServiceDiscoveryManager.getInstanceFor(connection);
+    }
+
+    public static synchronized OfflineMessageManager getInstanceFor(XMPPConnection connection) {
+        OfflineMessageManager manager = INSTANCES.get(connection);
+        if (manager == null) {
+            manager = new OfflineMessageManager(connection);
+            INSTANCES.put(connection, manager);
+        }
+        return manager;
     }
 
     /**
@@ -81,11 +96,11 @@ public class OfflineMessageManager {
      * @return a boolean indicating if the server supports Flexible Offline Message Retrieval.
      * @throws XMPPErrorException If the user is not allowed to make this request.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public boolean supportsFlexibleRetrieval() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        return ServiceDiscoveryManager.getInstanceFor(connection).serverSupportsFeature(namespace);
+        return serviceDiscoveryManager.serverSupportsFeature(NAMESPACE);
     }
 
     /**
@@ -95,37 +110,35 @@ public class OfflineMessageManager {
      * @throws XMPPErrorException If the user is not allowed to make this request or the server does
      *                       not support offline message retrieval.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public int getMessageCount() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        DiscoverInfo info = ServiceDiscoveryManager.getInstanceFor(connection).discoverInfo(null,
-                namespace);
-        Form extendedInfo = Form.getFormFrom(info);
-        if (extendedInfo != null) {
-            String value = extendedInfo.getField("number_of_messages").getFirstValue();
-            return Integer.parseInt(value);
+        DiscoverInfo info = serviceDiscoveryManager.discoverInfo(null, NAMESPACE);
+        DataForm dataForm = DataForm.from(info, NAMESPACE);
+        if (dataForm == null) {
+            return 0;
         }
-        return 0;
+        String numberOfMessagesString = dataForm.getField("number_of_messages").getFirstValue();
+        return Integer.parseInt(numberOfMessagesString);
     }
 
     /**
-     * Returns a List of <tt>OfflineMessageHeader</tt> that keep information about the
+     * Returns a List of <code>OfflineMessageHeader</code> that keep information about the
      * offline message. The OfflineMessageHeader includes a stamp that could be used to retrieve
      * the complete message or delete the specific message.
      *
-     * @return a List of <tt>OfflineMessageHeader</tt> that keep information about the offline
+     * @return a List of <code>OfflineMessageHeader</code> that keep information about the offline
      *         message.
      * @throws XMPPErrorException If the user is not allowed to make this request or the server does
      *                       not support offline message retrieval.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public List<OfflineMessageHeader> getHeaders() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         List<OfflineMessageHeader> answer = new ArrayList<>();
-        DiscoverItems items = ServiceDiscoveryManager.getInstanceFor(connection).discoverItems(
-                null, namespace);
+        DiscoverItems items = serviceDiscoveryManager.discoverItems(null, NAMESPACE);
         for (DiscoverItems.Item item : items.getItems()) {
             answer.add(new OfflineMessageHeader(item));
         }
@@ -133,19 +146,19 @@ public class OfflineMessageManager {
     }
 
     /**
-     * Returns a List of the offline <tt>Messages</tt> whose stamp matches the specified
+     * Returns a List of the offline <code>Messages</code> whose stamp matches the specified
      * request. The request will include the list of stamps that uniquely identifies
      * the offline messages to retrieve. The returned offline messages will not be deleted
      * from the server. Use {@link #deleteMessages(java.util.List)} to delete the messages.
      *
      * @param nodes the list of stamps that uniquely identifies offline message.
-     * @return a List with the offline <tt>Messages</tt> that were received as part of
+     * @return a List with the offline <code>Messages</code> that were received as part of
      *         this request.
      * @throws XMPPErrorException If the user is not allowed to make this request or the server does
      *                       not support offline message retrieval.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public List<Message> getMessages(final List<String> nodes) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         List<Message> messages = new ArrayList<>(nodes.size());
@@ -159,15 +172,13 @@ public class OfflineMessageManager {
         StanzaFilter messageFilter = new AndFilter(PACKET_FILTER, new StanzaFilter() {
             @Override
             public boolean accept(Stanza packet) {
-                OfflineMessageInfo info = packet.getExtension("offline",
-                        namespace);
+                OfflineMessageInfo info = packet.getExtension(OfflineMessageInfo.class);
                 return nodes.contains(info.getNode());
             }
         });
         int pendingNodes = nodes.size();
-        StanzaCollector messageCollector = connection.createStanzaCollector(messageFilter);
-        try {
-            connection.createStanzaCollectorAndSend(request).nextResultOrThrow();
+        try (StanzaCollector messageCollector = connection().createStanzaCollector(messageFilter)) {
+            connection().createStanzaCollectorAndSend(request).nextResultOrThrow();
             // Collect the received offline messages
             Message message;
             do {
@@ -181,35 +192,30 @@ public class OfflineMessageManager {
                 }
             } while (message != null && pendingNodes > 0);
         }
-        finally {
-            // Stop queuing offline messages
-            messageCollector.cancel();
-        }
         return messages;
     }
 
     /**
-     * Returns a List of Messages with all the offline <tt>Messages</tt> of the user. The returned offline
+     * Returns a List of Messages with all the offline <code>Messages</code> of the user. The returned offline
      * messages will not be deleted from the server. Use {@link #deleteMessages(java.util.List)}
      * to delete the messages.
      *
-     * @return a List with all the offline <tt>Messages</tt> of the user.
+     * @return a List with all the offline <code>Messages</code> of the user.
      * @throws XMPPErrorException If the user is not allowed to make this request or the server does
      *                       not support offline message retrieval.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public List<Message> getMessages() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         OfflineMessageRequest request = new OfflineMessageRequest();
         request.setFetch(true);
 
-        StanzaCollector resultCollector = connection.createStanzaCollectorAndSend(request);
+        StanzaCollector resultCollector = connection().createStanzaCollectorAndSend(request);
         StanzaCollector.Configuration messageCollectorConfiguration = StanzaCollector.newConfiguration().setStanzaFilter(PACKET_FILTER).setCollectorToReset(resultCollector);
-        StanzaCollector messageCollector = connection.createStanzaCollector(messageCollectorConfiguration);
 
         List<Message> messages;
-        try {
+        try (StanzaCollector messageCollector = connection().createStanzaCollector(messageCollectorConfiguration)) {
             resultCollector.nextResultOrThrow();
             // Be extra safe, cancel the message collector right here so that it does not collector
             // other messages that eventually match (although I've no idea how this could happen in
@@ -220,11 +226,6 @@ public class OfflineMessageManager {
             while ((message = messageCollector.pollResult()) != null) {
                 messages.add(message);
             }
-        }
-        finally {
-            // Ensure that the message collector is canceled even if nextResultOrThrow threw. It
-            // doesn't matter if we cancel the message collector twice
-            messageCollector.cancel();
         }
         return messages;
     }
@@ -237,8 +238,8 @@ public class OfflineMessageManager {
      * @throws XMPPErrorException If the user is not allowed to make this request or the server does
      *                       not support offline message retrieval.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void deleteMessages(List<String> nodes) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         OfflineMessageRequest request = new OfflineMessageRequest();
@@ -248,7 +249,7 @@ public class OfflineMessageManager {
             item.setAction("remove");
             request.addItem(item);
         }
-        connection.createStanzaCollectorAndSend(request).nextResultOrThrow();
+        connection().createStanzaCollectorAndSend(request).nextResultOrThrow();
     }
 
     /**
@@ -257,13 +258,13 @@ public class OfflineMessageManager {
      * @throws XMPPErrorException If the user is not allowed to make this request or the server does
      *                       not support offline message retrieval.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void deleteMessages() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         OfflineMessageRequest request = new OfflineMessageRequest();
         request.setType(IQ.Type.set);
         request.setPurge(true);
-        connection.createStanzaCollectorAndSend(request).nextResultOrThrow();
+        connection().createStanzaCollectorAndSend(request).nextResultOrThrow();
     }
 }

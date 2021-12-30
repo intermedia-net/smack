@@ -148,7 +148,7 @@ public abstract class JingleContentDescription implements ExtensionElement {
      * @return a string with the XML representation
      */
     @Override
-    public String toXML(String enclosingNamespace) {
+    public String toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         StringBuilder buf = new StringBuilder();
 
         synchronized (payloads) {
@@ -181,6 +181,8 @@ public abstract class JingleContentDescription implements ExtensionElement {
 
         /**
          * Utility constructor, with a JinglePayloadType.
+         *
+         * @param pt the payload type.
          */
         public Audio(final JinglePayloadType pt) {
             super();

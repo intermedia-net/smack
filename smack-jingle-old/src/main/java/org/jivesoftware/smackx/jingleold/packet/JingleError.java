@@ -20,11 +20,11 @@ package org.jivesoftware.smackx.jingleold.packet;
 import java.util.Locale;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.jingleold.media.ContentInfo;
-
-import org.xmlpull.v1.XmlPullParser;
 
 public class JingleError implements ExtensionElement {
 
@@ -76,7 +76,7 @@ public class JingleError implements ExtensionElement {
      * @return the error as XML.
      */
     @Override
-    public String toXML(String enclosingNamespace) {
+    public String toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         StringBuilder buf = new StringBuilder();
         if (message != null) {
             buf.append("<error type=\"cancel\">");
@@ -89,6 +89,9 @@ public class JingleError implements ExtensionElement {
 
     /**
      * Returns a Action instance associated with the String value.
+     *
+     * @param value the input string.
+     * @return the jingle error.
      */
     public static JingleError fromString(String value) {
         if (value != null) {
@@ -142,7 +145,7 @@ public class JingleError implements ExtensionElement {
             * Parse a JingleDescription.Audio extension.
             */
            @Override
-           public ExtensionElement parse(XmlPullParser parser, int initialDepth) {
+           public ExtensionElement parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) {
                ExtensionElement result = null;
 
                if (audioInfo != null) {

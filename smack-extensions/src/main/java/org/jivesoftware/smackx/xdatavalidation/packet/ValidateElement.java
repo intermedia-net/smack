@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2014 Anno van Vliet
+ * Copyright 2014 Anno van Vliet, 2019-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,19 @@
  */
 package org.jivesoftware.smackx.xdatavalidation.packet;
 
-import org.jivesoftware.smack.packet.ExtensionElement;
-import org.jivesoftware.smack.packet.NamedElement;
-import org.jivesoftware.smack.util.NumberUtil;
+import java.math.BigInteger;
+
+import javax.xml.namespace.QName;
+
+import org.jivesoftware.smack.datatypes.UInt32;
+import org.jivesoftware.smack.packet.FullyQualifiedElement;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
+import org.jivesoftware.smackx.xdata.AbstractSingleStringValueFormField;
 import org.jivesoftware.smackx.xdata.FormField;
+import org.jivesoftware.smackx.xdata.FormFieldChildElement;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 import org.jivesoftware.smackx.xdatavalidation.ValidationConsistencyException;
 
@@ -34,11 +40,13 @@ import org.jivesoftware.smackx.xdatavalidation.ValidationConsistencyException;
  *
  * @author Anno van Vliet
  */
-public abstract class ValidateElement implements ExtensionElement {
+public abstract class ValidateElement implements FormFieldChildElement {
 
     public static final String DATATYPE_XS_STRING = "xs:string";
     public static final String ELEMENT = "validate";
     public static final String NAMESPACE = "http://jabber.org/protocol/xdata-validate";
+
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
     private final String datatype;
 
@@ -83,8 +91,18 @@ public abstract class ValidateElement implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder buf = new XmlStringBuilder(this);
+    public QName getQName() {
+        return QNAME;
+    }
+
+    @Override
+    public final boolean mustBeOnlyOfHisKind() {
+        return true;
+    }
+
+    @Override
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
+        XmlStringBuilder buf = new XmlStringBuilder(this, enclosingNamespace);
         buf.optAttribute("datatype", datatype);
         buf.rightAngleBracket();
         appendXML(buf);
@@ -94,7 +112,7 @@ public abstract class ValidateElement implements ExtensionElement {
     }
 
     /**
-     * @param buf
+     * @param buf TODO javadoc me please
      */
     protected abstract void appendXML(XmlStringBuilder buf);
 
@@ -115,11 +133,16 @@ public abstract class ValidateElement implements ExtensionElement {
     }
 
     /**
-     * Check if this element is consistent according to the business rules in XEP=0122.
+     * Check if this element is consistent according to the business rules in XEP-0122.
      *
-     * @param formField
+     * @param formFieldBuilder the builder used to construct the form field.
      */
-    public abstract void checkConsistency(FormField formField);
+    @Override
+    public abstract void checkConsistency(FormField.Builder<?, ?> formFieldBuilder);
+
+    public static ValidateElement from(FormField formField) {
+        return (ValidateElement) formField.getFormFieldChildElement(QNAME);
+    }
 
     /**
      * Validation only against the datatype itself. Indicates that the value(s) should simply match the field type and
@@ -133,11 +156,11 @@ public abstract class ValidateElement implements ExtensionElement {
 
         /**
          * Basic validate element constructor.
-         * @param dataType
+         * @param datatype TODO javadoc me please
          * @see #getDatatype()
          */
-        public BasicValidateElement(String dataType) {
-            super(dataType);
+        public BasicValidateElement(String datatype) {
+            super(datatype);
         }
 
         @Override
@@ -146,7 +169,7 @@ public abstract class ValidateElement implements ExtensionElement {
         }
 
         @Override
-        public void checkConsistency(FormField formField) {
+        public void checkConsistency(FormField.Builder<?, ?> formField) {
             checkListRangeConsistency(formField);
             if (formField.getType() != null) {
                 switch (formField.getType()) {
@@ -176,11 +199,11 @@ public abstract class ValidateElement implements ExtensionElement {
 
         /**
          * Open validate element constructor.
-         * @param dataType
+         * @param datatype TODO javadoc me please
          * @see #getDatatype()
          */
-        public OpenValidateElement(String dataType) {
-            super(dataType);
+        public OpenValidateElement(String datatype) {
+            super(datatype);
         }
 
         @Override
@@ -189,7 +212,7 @@ public abstract class ValidateElement implements ExtensionElement {
         }
 
         @Override
-        public void checkConsistency(FormField formField) {
+        public void checkConsistency(FormField.Builder<?, ?> formField) {
             checkListRangeConsistency(formField);
             if (formField.getType() != null) {
                 switch (formField.getType()) {
@@ -218,14 +241,14 @@ public abstract class ValidateElement implements ExtensionElement {
 
         /**
          * Range validate element constructor.
-         * @param dataType
+         * @param datatype TODO javadoc me please
          * @param min the minimum allowable value. This attribute is OPTIONAL. The value depends on the datatype in use.
          * @param max the maximum allowable value. This attribute is OPTIONAL. The value depends on the datatype in use.
          * @see #getDatatype()
          *
          */
-        public RangeValidateElement(String dataType, String min, String max) {
-            super(dataType);
+        public RangeValidateElement(String datatype, String min, String max) {
+            super(datatype);
             this.min = min;
             this.max = max;
         }
@@ -257,7 +280,7 @@ public abstract class ValidateElement implements ExtensionElement {
         }
 
         @Override
-        public void checkConsistency(FormField formField) {
+        public void checkConsistency(FormField.Builder<?, ?> formField) {
             checkNonMultiConsistency(formField, METHOD);
             if (getDatatype().equals(ValidateElement.DATATYPE_XS_STRING)) {
                 throw new ValidationConsistencyException(String.format(
@@ -266,6 +289,38 @@ public abstract class ValidateElement implements ExtensionElement {
             }
         }
 
+        @Override
+        public void validate(FormField formField) {
+            AbstractSingleStringValueFormField singleValueFormField = formField.ifPossibleAs(AbstractSingleStringValueFormField.class);
+            if (singleValueFormField == null) {
+                // We currently only implement validation for single value fields.
+                return;
+            }
+            String valueString = singleValueFormField.getValue();
+
+            switch (getDatatype()) {
+            case "xs:int":
+            case "xs:integer":
+                BigInteger value = new BigInteger(valueString);
+
+                String minString = getMin();
+                if (minString != null) {
+                    BigInteger min = new BigInteger(minString);
+                    if (value.compareTo(min) < 0) {
+                        throw new IllegalArgumentException("The provided value " + valueString + " is lower than the allowed minimum of " + minString);
+                    }
+                }
+
+                String maxString = getMax();
+                if (maxString != null) {
+                    BigInteger max = new BigInteger(maxString);
+                    if (value.compareTo(max) > 0) {
+                        throw new IllegalArgumentException("The provided value " + valueString + " is higher than the allowed maximum of " + maxString);
+                    }
+                }
+                break;
+            }
+        }
     }
 
     /**
@@ -283,12 +338,12 @@ public abstract class ValidateElement implements ExtensionElement {
 
         /**
          * Regex validate element.
-         * @param dataType
-         * @param regex
+         * @param datatype TODO javadoc me please
+         * @param regex TODO javadoc me please
          * @see #getDatatype()
          */
-        public RegexValidateElement(String dataType, String regex) {
-            super(dataType);
+        public RegexValidateElement(String datatype, String regex) {
+            super(datatype);
             this.regex = regex;
         }
 
@@ -307,7 +362,7 @@ public abstract class ValidateElement implements ExtensionElement {
         }
 
         @Override
-        public void checkConsistency(FormField formField) {
+        public void checkConsistency(FormField.Builder<?, ?> formField) {
             checkNonMultiConsistency(formField, METHOD);
         }
 
@@ -317,27 +372,25 @@ public abstract class ValidateElement implements ExtensionElement {
      * This element indicates for "list-multi", that a minimum and maximum number of options should be selected and/or
      * entered.
      */
-    public static class ListRange implements NamedElement {
+    public static class ListRange implements FullyQualifiedElement {
 
         public static final String ELEMENT = "list-range";
-        private final Long min;
-        private final Long max;
+        private final UInt32 min;
+        private final UInt32 max;
+
+        public ListRange(Long min, Long max) {
+            this(min != null ? UInt32.from(min) : null, max != null ? UInt32.from(max) : null);
+        }
 
         /**
          * The 'max' attribute specifies the maximum allowable number of selected/entered values. The 'min' attribute
          * specifies the minimum allowable number of selected/entered values. Both attributes are optional, but at
          * least one must bet set, and the value must be within the range of a unsigned 32-bit integer.
          *
-         * @param min
-         * @param max
+         * @param min TODO javadoc me please
+         * @param max TODO javadoc me please
          */
-        public ListRange(Long min, Long max) {
-            if (min != null) {
-                NumberUtil.checkIfInUInt32Range(min);
-            }
-            if (max != null) {
-                NumberUtil.checkIfInUInt32Range(max);
-            }
+        public ListRange(UInt32 min, UInt32 max) {
             if (max == null && min == null) {
                 throw new IllegalArgumentException("Either min or max must be given");
             }
@@ -346,10 +399,10 @@ public abstract class ValidateElement implements ExtensionElement {
         }
 
         @Override
-        public XmlStringBuilder toXML(String enclosingNamespace) {
-            XmlStringBuilder buf = new XmlStringBuilder(this);
-            buf.optLongAttribute("min", getMin());
-            buf.optLongAttribute("max", getMax());
+        public XmlStringBuilder toXML(XmlEnvironment enclosingXmlEnvironment) {
+            XmlStringBuilder buf = new XmlStringBuilder(this, enclosingXmlEnvironment);
+            buf.optAttributeCs("min", getMin());
+            buf.optAttributeCs("max", getMax());
             buf.closeEmptyElement();
             return buf;
         }
@@ -364,7 +417,7 @@ public abstract class ValidateElement implements ExtensionElement {
          *
          * @return a positive integer, can be null
          */
-        public Long getMin() {
+        public UInt32 getMin() {
             return min;
         }
 
@@ -373,8 +426,13 @@ public abstract class ValidateElement implements ExtensionElement {
          *
          * @return a positive integer, can be null
          */
-        public Long getMax() {
+        public UInt32 getMax() {
             return max;
+        }
+
+        @Override
+        public String getNamespace() {
+            return NAMESPACE;
         }
 
     }
@@ -383,16 +441,16 @@ public abstract class ValidateElement implements ExtensionElement {
      * The &gt;list-range/&lt; element SHOULD be included only when the &lt;field/&gt; is of type "list-multi" and SHOULD be ignored
      * otherwise.
      *
-     * @param formField
+     * @param formField TODO javadoc me please
      */
-    protected void checkListRangeConsistency(FormField formField) {
+    protected void checkListRangeConsistency(FormField.Builder<?, ?> formField) {
         ListRange listRange = getListRange();
         if (listRange == null) {
             return;
         }
 
-        Long max = listRange.getMax();
-        Long min = listRange.getMin();
+        Object max = listRange.getMax();
+        Object min = listRange.getMin();
         if ((max != null || min != null) && formField.getType() != FormField.Type.list_multi) {
             throw new ValidationConsistencyException(
                             "Field type is not of type 'list-multi' while a 'list-range' is defined.");
@@ -400,10 +458,10 @@ public abstract class ValidateElement implements ExtensionElement {
     }
 
     /**
-     * @param formField
-     * @param method
+     * @param formField TODO javadoc me please
+     * @param method TODO javadoc me please
      */
-    protected void checkNonMultiConsistency(FormField formField, String method) {
+    protected void checkNonMultiConsistency(FormField.Builder<?, ?> formField, String method) {
         checkListRangeConsistency(formField);
         if (formField.getType() != null) {
             switch (formField.getType()) {

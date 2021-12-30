@@ -20,10 +20,12 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -34,11 +36,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jivesoftware.smack.SmackException;
-import org.jivesoftware.smack.util.StringUtils;
+import org.jivesoftware.smack.util.CloseableUtil;
 
 /**
  * The Socks5Proxy class represents a local SOCKS5 proxy server. It can be enabled/disabled by
@@ -50,7 +53,7 @@ import org.jivesoftware.smack.util.StringUtils;
  * <p>
  * If your application is running on a machine with multiple network interfaces or if you want to
  * provide your public address in case you are behind a NAT router, invoke
- * {@link #addLocalAddress(String)} or {@link #replaceLocalAddresses(Collection)} to modify the list of
+ * {@link #addLocalAddress(InetAddress)} or {@link #replaceLocalAddresses(Collection)} to modify the list of
  * local network addresses used for outgoing SOCKS5 Bytestream requests.
  * <p>
  * The local SOCKS5 proxy server refuses all connections except the ones that are explicitly allowed
@@ -69,8 +72,10 @@ import org.jivesoftware.smack.util.StringUtils;
  *
  * @author Henning Staib
  */
-public final class Socks5Proxy {
+public class Socks5Proxy {
     private static final Logger LOGGER = Logger.getLogger(Socks5Proxy.class.getName());
+
+    private static final List<Socks5Proxy> RUNNING_PROXIES = new CopyOnWriteArrayList<>();
 
     /* SOCKS5 proxy singleton */
     private static Socks5Proxy socks5Server;
@@ -78,13 +83,19 @@ public final class Socks5Proxy {
     private static boolean localSocks5ProxyEnabled = true;
 
     /**
+     * The default port of the local Socks5 Proxy. If this value is negative, the next ports will be tried
+     * until a unused is found.
+     */
+    private static int DEFAULT_LOCAL_SOCKS5_PROXY_PORT = -7777;
+
+    /**
      * The port of the local Socks5 Proxy. If this value is negative, the next ports will be tried
      * until a unused is found.
      */
-    private static int localSocks5ProxyPort = -7777;
+    private int localSocks5ProxyPort = -7777;
 
     /* reusable implementation of a SOCKS5 proxy server process */
-    private Socks5ServerProcess serverProcess;
+    private final Socks5ServerProcess serverProcess;
 
     /* thread running the SOCKS5 server process */
     private Thread serverThread;
@@ -98,13 +109,21 @@ public final class Socks5Proxy {
     /* list of digests connections should be stored */
     private final List<String> allowedConnections = Collections.synchronizedList(new LinkedList<String>());
 
-    private final Set<String> localAddresses = new LinkedHashSet<>(4);
+    private final Set<InetAddress> localAddresses = new LinkedHashSet<>(4);
+
+    /**
+     * If set to <code>true</code>, then all connections are allowed and the digest is not verified. Should be set to
+     * <code>false</code> for production usage and <code>true</code> for (unit) testing purposes.
+     */
+    private final boolean allowAllConnections;
 
     /**
      * Private constructor.
      */
-    private Socks5Proxy() {
+    Socks5Proxy() {
         this.serverProcess = new Socks5ServerProcess();
+
+        allowAllConnections = false;
 
         Enumeration<NetworkInterface> networkInterfaces;
         try {
@@ -112,22 +131,34 @@ public final class Socks5Proxy {
         } catch (SocketException e) {
             throw new IllegalStateException(e);
         }
-        Set<String> localHostAddresses = new HashSet<>();
+        Set<InetAddress> localAddresses = new HashSet<>();
         for (NetworkInterface networkInterface : Collections.list(networkInterfaces)) {
-            // We can't use NetworkInterface.getInterfaceAddresses here, which
-            // would return a List instead the deprecated Enumeration, because
-            // it's Android API 9 and Smack currently uses 8. Change that when
-            // we raise Smack's minimum Android API.
-            Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
-            for (InetAddress address : Collections.list(inetAddresses)) {
-                localHostAddresses.add(address.getHostAddress());
+            List<InterfaceAddress> interfaceAddresses = networkInterface.getInterfaceAddresses();
+            for (InterfaceAddress interfaceAddress : interfaceAddresses) {
+                localAddresses.add(interfaceAddress.getAddress());
             }
         }
-        if (localHostAddresses.isEmpty()) {
-            throw new IllegalStateException("Could not determine any local host address");
+        if (localAddresses.isEmpty()) {
+            throw new IllegalStateException("Could not determine any local internet address");
         }
-        replaceLocalAddresses(localHostAddresses);
+        replaceLocalAddresses(localAddresses);
     }
+
+    /**
+     * Constructor a Socks5Proxy with the given socket. Used for unit test purposes.
+     *
+     * @param serverSocket the server socket to use
+     */
+    protected Socks5Proxy(ServerSocket serverSocket) {
+        this.serverProcess = new Socks5ServerProcess();
+        this.serverSocket = serverSocket;
+
+        allowAllConnections = true;
+
+        startServerThread();
+    }
+
+
 
    /**
     * Returns true if the local Socks5 proxy should be started. Default is true.
@@ -147,12 +178,27 @@ public final class Socks5Proxy {
        Socks5Proxy.localSocks5ProxyEnabled = localSocks5ProxyEnabled;
    }
 
+   private static void checkLocalSocks5ProxyPortArgument(int port) {
+       if (Math.abs(port) > 65535) {
+           throw new IllegalArgumentException("Local SOCKS5 proxy port must be within (-65535,65535)");
+       }
+   }
+
+   public static int getDefaultLocalSocks5ProxyPort() {
+       return DEFAULT_LOCAL_SOCKS5_PROXY_PORT;
+   }
+
+   public static void setDefaultLocalSocsk5ProxyPort(int defaultLocalSocks5ProxyPort) {
+       checkLocalSocks5ProxyPortArgument(defaultLocalSocks5ProxyPort);
+       DEFAULT_LOCAL_SOCKS5_PROXY_PORT = defaultLocalSocks5ProxyPort;
+   }
+
    /**
     * Return the port of the local Socks5 proxy. Default is 7777.
     *
     * @return the port of the local Socks5 proxy
     */
-   public static int getLocalSocks5ProxyPort() {
+   public int getLocalSocks5ProxyPort() {
        return localSocks5ProxyPort;
    }
 
@@ -162,11 +208,9 @@ public final class Socks5Proxy {
     *
     * @param localSocks5ProxyPort the port of the local Socks5 proxy to set
     */
-   public static void setLocalSocks5ProxyPort(int localSocks5ProxyPort) {
-       if (Math.abs(localSocks5ProxyPort) > 65535) {
-           throw new IllegalArgumentException("localSocks5ProxyPort must be within (-65535,65535)");
-       }
-       Socks5Proxy.localSocks5ProxyPort = localSocks5ProxyPort;
+   public void setLocalSocks5ProxyPort(int localSocks5ProxyPort) {
+       checkLocalSocks5ProxyPortArgument(localSocks5ProxyPort);
+       this.localSocks5ProxyPort = localSocks5ProxyPort;
    }
 
     /**
@@ -186,10 +230,12 @@ public final class Socks5Proxy {
 
     /**
      * Starts the local SOCKS5 proxy server. If it is already running, this method does nothing.
+     *
+     * @return the server socket.
      */
-    public synchronized void start() {
+    public synchronized ServerSocket start() {
         if (isRunning()) {
-            return;
+            return this.serverSocket;
         }
         try {
             if (getLocalSocks5ProxyPort() < 0) {
@@ -209,15 +255,24 @@ public final class Socks5Proxy {
             }
 
             if (this.serverSocket != null) {
-                this.serverThread = new Thread(this.serverProcess);
-                this.serverThread.setName("Smack Local SOCKS5 Proxy");
-                this.serverThread.start();
+                startServerThread();
             }
         }
         catch (IOException e) {
             // couldn't setup server
             LOGGER.log(Level.SEVERE, "couldn't setup local SOCKS5 proxy on port " + getLocalSocks5ProxyPort(), e);
         }
+
+        return this.serverSocket;
+    }
+
+    private synchronized void startServerThread() {
+        this.serverThread = new Thread(this.serverProcess);
+        this.serverThread.setName("Smack Local SOCKS5 Proxy [" + this.serverSocket + ']');
+        this.serverThread.setDaemon(true);
+
+        RUNNING_PROXIES.add(this);
+        this.serverThread.start();
     }
 
     /**
@@ -228,12 +283,9 @@ public final class Socks5Proxy {
             return;
         }
 
-        try {
-            this.serverSocket.close();
-        }
-        catch (IOException e) {
-            // do nothing
-        }
+        RUNNING_PROXIES.remove(this);
+
+        CloseableUtil.maybeClose(this.serverSocket, LOGGER);
 
         if (this.serverThread != null && this.serverThread.isAlive()) {
             try {
@@ -241,12 +293,11 @@ public final class Socks5Proxy {
                 this.serverThread.join();
             }
             catch (InterruptedException e) {
-                // do nothing
+                LOGGER.log(Level.WARNING, "SOCKS5 server thread termination was interrupted", e);
             }
         }
         this.serverThread = null;
         this.serverSocket = null;
-
     }
 
     /**
@@ -264,7 +315,7 @@ public final class Socks5Proxy {
      *
      * @param address the local network address to add
      */
-    public void addLocalAddress(String address) {
+    public void addLocalAddress(InetAddress address) {
         if (address == null) {
             return;
         }
@@ -280,7 +331,7 @@ public final class Socks5Proxy {
      * @param address the local network address to remove
      * @return true if the address was removed.
      */
-    public boolean removeLocalAddress(String address) {
+    public boolean removeLocalAddress(InetAddress address) {
         synchronized (localAddresses) {
             return localAddresses.remove(address);
         }
@@ -292,7 +343,7 @@ public final class Socks5Proxy {
      *
      * @return set of the local network addresses
      */
-    public List<String> getLocalAddresses() {
+    public List<InetAddress> getLocalAddresses() {
         synchronized (localAddresses) {
             return new LinkedList<>(localAddresses);
         }
@@ -308,7 +359,7 @@ public final class Socks5Proxy {
      *
      * @param addresses the new list of local network addresses
      */
-    public void replaceLocalAddresses(Collection<String> addresses) {
+    public void replaceLocalAddresses(Collection<? extends InetAddress> addresses) {
         if (addresses == null) {
             throw new IllegalArgumentException("list must not be null");
         }
@@ -386,40 +437,23 @@ public final class Socks5Proxy {
         @Override
         public void run() {
             while (true) {
+                ServerSocket serverSocket = Socks5Proxy.this.serverSocket;
+                if (serverSocket == null || serverSocket.isClosed() || Thread.currentThread().isInterrupted()) {
+                    return;
+                }
+
+                // accept connection
                 Socket socket = null;
-
                 try {
-
-                    if (Socks5Proxy.this.serverSocket == null || Socks5Proxy.this.serverSocket.isClosed()
-                                    || Thread.currentThread().isInterrupted()) {
-                        return;
-                    }
-
-                    // accept connection
-                    socket = Socks5Proxy.this.serverSocket.accept();
-
+                    socket = serverSocket.accept();
                     // initialize connection
                     establishConnection(socket);
-
-                }
-                catch (SocketException e) {
-                    /*
-                     * do nothing, if caused by closing the server socket, thread will terminate in
-                     * next loop
-                     */
-                }
-                catch (Exception e) {
-                    try {
-                        if (socket != null) {
-                            socket.close();
-                        }
-                    }
-                    catch (IOException e1) {
-                        /* do nothing */
-                    }
+                } catch (SmackException | IOException e) {
+                    // Do nothing, if caused by closing the server socket, thread will terminate in next loop.
+                    LOGGER.log(Level.FINE, "Exception while " + Socks5Proxy.this + " was handling connection", e);
+                    CloseableUtil.maybeClose(socket, LOGGER);
                 }
             }
-
         }
 
         /**
@@ -436,7 +470,7 @@ public final class Socks5Proxy {
             // first byte is version should be 5
             int b = in.read();
             if (b != 5) {
-                throw new SmackException("Only SOCKS5 supported");
+                throw new SmackException.SmackMessageException("Only SOCKS5 supported: Peer send " + b + " but we expect 5");
             }
 
             // second byte number of authentication methods supported
@@ -462,7 +496,7 @@ public final class Socks5Proxy {
                 authMethodSelectionResponse[1] = (byte) 0xFF; // no acceptable methods
                 out.write(authMethodSelectionResponse);
                 out.flush();
-                throw new SmackException("Authentication method not supported");
+                throw new SmackException.SmackMessageException("Authentication method not supported");
             }
 
             authMethodSelectionResponse[1] = (byte) 0x00; // no-authentication method
@@ -473,25 +507,39 @@ public final class Socks5Proxy {
             byte[] connectionRequest = Socks5Utils.receiveSocks5Message(in);
 
             // extract digest
-            String responseDigest = new String(connectionRequest, 5, connectionRequest[4], StringUtils.UTF8);
+            String responseDigest = new String(connectionRequest, 5, connectionRequest[4], StandardCharsets.UTF_8);
 
             // return error if digest is not allowed
-            if (!Socks5Proxy.this.allowedConnections.contains(responseDigest)) {
+            if (!allowAllConnections && !Socks5Proxy.this.allowedConnections.contains(responseDigest)) {
                 connectionRequest[1] = (byte) 0x05; // set return status to 5 (connection refused)
                 out.write(connectionRequest);
                 out.flush();
 
-                throw new SmackException("Connection is not allowed");
+                throw new SmackException.SmackMessageException(
+                                "Connection with digest '" + responseDigest + "' is not allowed");
             }
+
+            // Store the connection before we send the return status.
+            Socks5Proxy.this.connectionMap.put(responseDigest, socket);
 
             connectionRequest[1] = (byte) 0x00; // set return status to 0 (success)
             out.write(connectionRequest);
             out.flush();
-
-            // store connection
-            Socks5Proxy.this.connectionMap.put(responseDigest, socket);
         }
 
     }
 
+    public static Socket getSocketForDigest(String digest) {
+        for (Socks5Proxy socks5Proxy : RUNNING_PROXIES) {
+            Socket socket = socks5Proxy.getSocket(digest);
+            if (socket != null) {
+                return socket;
+            }
+        }
+        return null;
+    }
+
+    static List<Socks5Proxy> getRunningProxies() {
+        return RUNNING_PROXIES;
+    }
 }

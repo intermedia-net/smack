@@ -16,44 +16,48 @@
  */
 package org.jivesoftware.smackx.chat_markers;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.chat_markers.element.ChatMarkersElements;
 import org.jivesoftware.smackx.chat_markers.element.ChatMarkersElements.MarkableExtension;
 import org.jivesoftware.smackx.chat_markers.provider.MarkableProvider;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.impl.JidCreate;
-import org.xmlpull.v1.XmlPullParser;
 
 public class MarkableExtensionTest {
 
     String markableMessageStanza = "<message xmlns='jabber:client' to='ingrichard@royalty.england.lit/throne' id='message-1'>"
-            + "<body>My lord, dispatch; read o&apos;er these articles.</body>"
+            + "<body>My lord, dispatch; read o'er these articles.</body>"
             + "<markable xmlns='urn:xmpp:chat-markers:0'/>" + "</message>";
 
     String markableExtension = "<markable xmlns='urn:xmpp:chat-markers:0'/>";
 
     @Test
     public void checkMarkableExtension() throws Exception {
-        Message message = new Message(JidCreate.from("ingrichard@royalty.england.lit/throne"));
-        message.setStanzaId("message-1");
-        message.setBody("My lord, dispatch; read o'er these articles.");
-        message.addExtension(new ChatMarkersElements.MarkableExtension());
-        Assert.assertEquals(markableMessageStanza, message.toXML(null).toString());
+        Message message = StanzaBuilder.buildMessage("message-1")
+                .to(JidCreate.from("ingrichard@royalty.england.lit/throne"))
+                .setBody("My lord, dispatch; read o'er these articles.")
+                .addExtension(ChatMarkersElements.MarkableExtension.INSTANCE)
+                .build();
+
+        assertEquals(markableMessageStanza, message.toXML().toString());
     }
 
     @Test
     public void checkMarkableProvider() throws Exception {
         XmlPullParser parser = PacketParserUtils.getParserFor(markableExtension);
         MarkableExtension markableExtension1 = new MarkableProvider().parse(parser);
-        Assert.assertEquals(markableExtension, markableExtension1.toXML(null).toString());
+        assertEquals(markableExtension, markableExtension1.toXML().toString());
 
         Message message = PacketParserUtils.parseStanza(markableMessageStanza);
         MarkableExtension markableExtension2 = MarkableExtension.from(message);
-        Assert.assertEquals(markableExtension, markableExtension2.toXML(null).toString());
+        assertEquals(markableExtension, markableExtension2.toXML().toString());
     }
 
 }

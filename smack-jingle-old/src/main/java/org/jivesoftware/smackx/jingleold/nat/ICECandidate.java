@@ -30,7 +30,7 @@ import java.util.logging.Logger;
  *
  * @author Thiago Camargo
  */
-public class ICECandidate extends TransportCandidate implements Comparable<ICECandidate> {
+public final class ICECandidate extends TransportCandidate implements Comparable<ICECandidate> {
 
     private static final Logger LOGGER = Logger.getLogger(ICECandidate.class.getName());
 
@@ -219,6 +219,7 @@ public class ICECandidate extends TransportCandidate implements Comparable<ICECa
      *
      * ICE Candidate can check connectivity using UDP echo Test.
      */
+    @SuppressWarnings("UnusedVariable")
     @Override
     public void check(final List<TransportCandidate> localCandidates) {
         // TODO candidate is being checked trigger

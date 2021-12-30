@@ -16,29 +16,29 @@
  */
 package org.jivesoftware.smackx.amp;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.amp.packet.AMPExtension;
 import org.jivesoftware.smackx.amp.provider.AMPExtensionProvider;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserFactory;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class AMPExtensionTest {
 
     private InputStream CORRECT_SENDING_STANZA_STREAM;
     private InputStream INCORRECT_RECEIVING_STANZA_STREAM;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         CORRECT_SENDING_STANZA_STREAM = getClass().getResourceAsStream("correct_stanza_test.xml");
         INCORRECT_RECEIVING_STANZA_STREAM = getClass().getResourceAsStream("incorrect_stanza_test.xml");
@@ -59,17 +59,15 @@ public class AMPExtensionTest {
         ext.addRule(new AMPExtension.Rule(AMPExtension.Action.notify, new AMPMatchResourceCondition(AMPMatchResourceCondition.Value.exact)));
         ext.addRule(new AMPExtension.Rule(AMPExtension.Action.notify, new AMPMatchResourceCondition(AMPMatchResourceCondition.Value.other)));
 
-        assertEquals(correctStanza, ext.toXML(null));
+        assertEquals(correctStanza, ext.toXML().toString());
     }
 
     @Test
     public void isCorrectFromXmlErrorHandling() throws Exception {
         AMPExtensionProvider ampProvider = new AMPExtensionProvider();
-        XmlPullParser parser = XmlPullParserFactory.newInstance().newPullParser();
-        parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
-        parser.setInput(INCORRECT_RECEIVING_STANZA_STREAM, "UTF-8");
+        XmlPullParser parser = PacketParserUtils.getParserFor(INCORRECT_RECEIVING_STANZA_STREAM);
 
-        assertEquals(XmlPullParser.START_TAG, parser.next());
+        assertEquals(XmlPullParser.Event.START_ELEMENT, parser.next());
         assertEquals(AMPExtension.ELEMENT, parser.getName());
 
         ExtensionElement extension = ampProvider.parse(parser);
@@ -85,11 +83,9 @@ public class AMPExtensionTest {
     @Test
     public void isCorrectFromXmlDeserialization() throws Exception {
         AMPExtensionProvider ampProvider = new AMPExtensionProvider();
-        XmlPullParser parser = XmlPullParserFactory.newInstance().newPullParser();
-        parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
-        parser.setInput(CORRECT_SENDING_STANZA_STREAM, "UTF-8");
+        XmlPullParser parser = PacketParserUtils.getParserFor(CORRECT_SENDING_STANZA_STREAM);
 
-        assertEquals(XmlPullParser.START_TAG, parser.next());
+        assertEquals(XmlPullParser.Event.START_ELEMENT, parser.next());
         assertEquals(AMPExtension.ELEMENT, parser.getName());
         ExtensionElement extension = ampProvider.parse(parser);
         assertTrue(extension instanceof AMPExtension);

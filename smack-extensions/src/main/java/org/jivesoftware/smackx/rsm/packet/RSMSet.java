@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2014 Florian Schmaus
+ * Copyright © 2014-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
  */
 package org.jivesoftware.smackx.rsm.packet;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.util.XmlStringBuilder;
@@ -24,6 +26,7 @@ public class RSMSet implements ExtensionElement {
 
     public static final String ELEMENT = "set";
     public static final String NAMESPACE = "http://jabber.org/protocol/rsm";
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
     private final String after;
     private final String before;
@@ -127,7 +130,7 @@ public class RSMSet implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
         xml.rightAngleBracket();
         xml.optElement("after", after);
@@ -148,7 +151,7 @@ public class RSMSet implements ExtensionElement {
     }
 
     public static RSMSet from(Stanza packet) {
-        return (RSMSet) packet.getExtension(ELEMENT, NAMESPACE);
+        return (RSMSet) packet.getExtensionElement(ELEMENT, NAMESPACE);
     }
 
     public static RSMSet newAfter(String after) {

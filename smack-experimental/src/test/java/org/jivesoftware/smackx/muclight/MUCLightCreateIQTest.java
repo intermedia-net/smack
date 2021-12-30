@@ -16,23 +16,19 @@
  */
 package org.jivesoftware.smackx.muclight;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 import org.jivesoftware.smackx.muclight.element.MUCLightCreateIQ;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.impl.JidCreate;
 
 public class MUCLightCreateIQTest {
-
-    private static final String stanza = "<iq to='ef498f55-5f79-4238-a5ae-4efe19cbe617@muclight.test.com' id='1c72W-50' type='set'>"
-            + "<query xmlns='urn:xmpp:muclight:0#create'>" + "<configuration>" + "<roomname>test</roomname>"
-            + "</configuration>" + "<occupants>" + "<user affiliation='member'>charlie@test.com</user>"
-            + "<user affiliation='member'>pep@test.com</user>" + "</occupants>" + "</query>" + "</iq>";
 
     @Test
     public void checkCreateMUCLightStanza() throws Exception {
@@ -45,11 +41,11 @@ public class MUCLightCreateIQTest {
                 "test", occupants);
         mucLightCreateIQ.setStanzaId("1c72W-50");
 
-        Assert.assertEquals(mucLightCreateIQ.getConfiguration().getRoomName(), "test");
+        assertEquals(mucLightCreateIQ.getConfiguration().getRoomName(), "test");
 
         HashMap<Jid, MUCLightAffiliation> iqOccupants = mucLightCreateIQ.getOccupants();
-        Assert.assertEquals(iqOccupants.get(JidCreate.from("charlie@test.com")), MUCLightAffiliation.member);
-        Assert.assertEquals(iqOccupants.get(JidCreate.from("pep@test.com")), MUCLightAffiliation.member);
+        assertEquals(iqOccupants.get(JidCreate.from("charlie@test.com")), MUCLightAffiliation.member);
+        assertEquals(iqOccupants.get(JidCreate.from("pep@test.com")), MUCLightAffiliation.member);
     }
 
 }

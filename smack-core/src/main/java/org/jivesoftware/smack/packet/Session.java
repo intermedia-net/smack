@@ -17,6 +17,8 @@
 
 package org.jivesoftware.smack.packet;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
 /**
@@ -44,6 +46,8 @@ public class Session extends SimpleIQ {
 
     public static class Feature implements ExtensionElement {
 
+        public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
         public static final String OPTIONAL_ELEMENT = "optional";
 
         private final boolean optional;
@@ -67,7 +71,7 @@ public class Session extends SimpleIQ {
         }
 
         @Override
-        public XmlStringBuilder toXML(String enclosingNamespace) {
+        public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder(this);
             if (optional) {
                 xml.rightAngleBracket();

@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,25 @@
  */
 package org.igniterealtime.smack.inttest;
 
-import org.jivesoftware.smack.tcp.XMPPTCPConnection;
+import org.jivesoftware.smack.AbstractXMPPConnection;
 
 public class SmackIntegrationTestEnvironment {
 
-    public final XMPPTCPConnection conOne;
-
-    public final XMPPTCPConnection conTwo;
-
-    public final XMPPTCPConnection conThree;
+    public final AbstractXMPPConnection conOne, conTwo, conThree;
 
     public final String testRunId;
 
     public final Configuration configuration;
 
-    SmackIntegrationTestEnvironment(XMPPTCPConnection conOne, XMPPTCPConnection conTwo, XMPPTCPConnection conThree, String testRunId,
-                    Configuration configuration) {
+    public final XmppConnectionManager connectionManager;
+
+    SmackIntegrationTestEnvironment(AbstractXMPPConnection conOne, AbstractXMPPConnection conTwo, AbstractXMPPConnection conThree, String testRunId,
+                    Configuration configuration, XmppConnectionManager connectionManager) {
         this.conOne = conOne;
         this.conTwo = conTwo;
         this.conThree = conThree;
         this.testRunId = testRunId;
         this.configuration = configuration;
+        this.connectionManager = connectionManager;
     }
 }

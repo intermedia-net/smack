@@ -16,14 +16,18 @@
  */
 package org.jivesoftware.smackx.mam.provider;
 
+import java.io.IOException;
+
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.mam.element.MamFinIQ;
 import org.jivesoftware.smackx.rsm.packet.RSMSet;
 import org.jivesoftware.smackx.rsm.provider.RSMSetProvider;
-
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * MAM Fin IQ Provider class.
@@ -36,26 +40,28 @@ import org.xmlpull.v1.XmlPullParser;
 public class MamFinIQProvider extends IQProvider<MamFinIQ> {
 
     @Override
-    public MamFinIQ parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public MamFinIQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         String queryId = parser.getAttributeValue("", "queryid");
         boolean complete = ParserUtils.getBooleanAttribute(parser, "complete", false);
         boolean stable = ParserUtils.getBooleanAttribute(parser, "stable", true);
         final MamFinIQ mamFinIQ = new MamFinIQ(queryId, complete, stable);
 
         outerloop: while (true) {
-            int eventType = parser.next();
-            String name = parser.getName();
+            XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-                case XmlPullParser.START_TAG:
-                    if (RSMSet.ELEMENT.equals(name)) {
-                        mamFinIQ.setRsmSet(RSMSetProvider.INSTANCE.parse(parser));
-                    }
-                    break;
-                case XmlPullParser.END_TAG:
-                    if (parser.getDepth() == initialDepth) {
-                        break outerloop;
-                    }
-                    break;
+            case START_ELEMENT:
+                if (parser.getName().equals(RSMSet.ELEMENT)) {
+                    mamFinIQ.setRsmSet(RSMSetProvider.INSTANCE.parse(parser));
+                }
+                break;
+            case END_ELEMENT:
+                if (parser.getDepth() == initialDepth) {
+                    break outerloop;
+                }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
+                break;
             }
         }
 

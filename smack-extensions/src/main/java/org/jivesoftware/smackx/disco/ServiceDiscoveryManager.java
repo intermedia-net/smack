@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2003-2007 Jive Software, 2018 Florian Schmaus.
+ * Copyright 2003-2007 Jive Software, 2018-2020 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
  */
 package org.jivesoftware.smackx.disco;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,25 +29,36 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.jivesoftware.smack.ConnectionCreationListener;
+import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.Manager;
+import org.jivesoftware.smack.ScheduledAction;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPConnectionRegistry;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
+import org.jivesoftware.smack.filter.PresenceTypeFilter;
+import org.jivesoftware.smack.internal.AbstractStats;
 import org.jivesoftware.smack.iqrequest.AbstractIqRequestHandler;
 import org.jivesoftware.smack.iqrequest.IQRequestHandler.Mode;
-import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.packet.StanzaError;
+import org.jivesoftware.smack.util.CollectionUtil;
+import org.jivesoftware.smack.util.ExtendedAppendable;
 import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.StringUtils;
 
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo.Identity;
+import org.jivesoftware.smackx.disco.packet.DiscoverInfoBuilder;
 import org.jivesoftware.smackx.disco.packet.DiscoverItems;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
@@ -70,6 +82,8 @@ import org.jxmpp.util.cache.ExpirationCache;
  */
 public final class ServiceDiscoveryManager extends Manager {
 
+    private static final Logger LOGGER = Logger.getLogger(ServiceDiscoveryManager.class.getName());
+
     private static final String DEFAULT_IDENTITY_NAME = "Smack";
     private static final String DEFAULT_IDENTITY_CATEGORY = "client";
     private static final String DEFAULT_IDENTITY_TYPE = "pc";
@@ -88,8 +102,10 @@ public final class ServiceDiscoveryManager extends Manager {
     private static final Map<XMPPConnection, ServiceDiscoveryManager> instances = new WeakHashMap<>();
 
     private final Set<String> features = new HashSet<>();
-    private DataForm extendedInfo = null;
+    private List<DataForm> extendedInfos = new ArrayList<>(2);
     private final Map<String, NodeInformationProvider> nodeInformationProviders = new ConcurrentHashMap<>();
+
+    private volatile Presence presenceSend;
 
     // Create a new ServiceDiscoveryManager on every established connection
     static {
@@ -105,7 +121,7 @@ public final class ServiceDiscoveryManager extends Manager {
      * Set the default identity all new connections will have. If unchanged the default identity is an
      * identity where category is set to 'client', type is set to 'pc' and name is set to 'Smack'.
      *
-     * @param identity
+     * @param identity TODO javadoc me please
      */
     public static void setDefaultIdentity(DiscoverInfo.Identity identity) {
         defaultIdentity = identity;
@@ -147,7 +163,7 @@ public final class ServiceDiscoveryManager extends Manager {
                     // Return <item-not-found/> error since client doesn't contain
                     // the specified node
                     response.setType(IQ.Type.error);
-                    response.setError(StanzaError.getBuilder(StanzaError.Condition.item_not_found));
+                    response.setError(StanzaError.getBuilder(StanzaError.Condition.item_not_found).build());
                 }
                 return response;
             }
@@ -160,37 +176,48 @@ public final class ServiceDiscoveryManager extends Manager {
             public IQ handleIQRequest(IQ iqRequest) {
                 DiscoverInfo discoverInfo = (DiscoverInfo) iqRequest;
                 // Answer the client's supported features if the request is of the GET type
-                DiscoverInfo response = new DiscoverInfo();
-                response.setType(IQ.Type.result);
-                response.setTo(discoverInfo.getFrom());
-                response.setStanzaId(discoverInfo.getStanzaId());
-                response.setNode(discoverInfo.getNode());
+                DiscoverInfoBuilder responseBuilder = DiscoverInfoBuilder.buildResponseFor(discoverInfo, IQ.ResponseType.result);
+
                 // Add the client's identity and features only if "node" is null
                 // and if the request was not send to a node. If Entity Caps are
                 // enabled the client's identity and features are may also added
                 // if the right node is chosen
                 if (discoverInfo.getNode() == null) {
-                    addDiscoverInfoTo(response);
+                    addDiscoverInfoTo(responseBuilder);
                 } else {
                     // Disco#info was sent to a node. Check if we have information of the
                     // specified node
                     NodeInformationProvider nodeInformationProvider = getNodeInformationProvider(discoverInfo.getNode());
                     if (nodeInformationProvider != null) {
                         // Node was found. Add node features
-                        response.addFeatures(nodeInformationProvider.getNodeFeatures());
+                        responseBuilder.addFeatures(nodeInformationProvider.getNodeFeatures());
                         // Add node identities
-                        response.addIdentities(nodeInformationProvider.getNodeIdentities());
+                        responseBuilder.addIdentities(nodeInformationProvider.getNodeIdentities());
                         // Add packet extensions
-                        response.addExtensions(nodeInformationProvider.getNodePacketExtensions());
+                        responseBuilder.addOptExtensions(nodeInformationProvider.getNodePacketExtensions());
                     } else {
                         // Return <item-not-found/> error since specified node was not found
-                        response.setType(IQ.Type.error);
-                        response.setError(StanzaError.getBuilder(StanzaError.Condition.item_not_found));
+                        responseBuilder.ofType(IQ.Type.error);
+                        responseBuilder.setError(StanzaError.getBuilder(StanzaError.Condition.item_not_found).build());
                     }
                 }
+
+                DiscoverInfo response = responseBuilder.build();
                 return response;
             }
         });
+
+        connection.addConnectionListener(new ConnectionListener() {
+            @Override
+            public void authenticated(XMPPConnection connection, boolean resumed) {
+                // Reset presenceSend when the connection was not resumed
+                if (!resumed) {
+                    presenceSend = null;
+                }
+            }
+        });
+        connection.addStanzaSendingListener(p -> presenceSend = (Presence) p,
+                        PresenceTypeFilter.OUTGOING_PRESENCE_BROADCAST);
     }
 
     /**
@@ -207,7 +234,7 @@ public final class ServiceDiscoveryManager extends Manager {
     /**
      * Sets the default identity the client will report.
      *
-     * @param identity
+     * @param identity TODO javadoc me please
      */
     public synchronized void setIdentity(Identity identity) {
         this.identity = Objects.requireNonNull(identity, "Identity can not be null");
@@ -228,7 +255,7 @@ public final class ServiceDiscoveryManager extends Manager {
     /**
      * Returns the type of client that will be returned when asked for the client identity in a
      * disco request. The valid types are defined by the category client. Follow this link to learn
-     * the possible types: <a href="http://xmpp.org/registrar/disco-categories.html#client">Jabber::Registrar</a>.
+     * the possible types: <a href="https://xmpp.org/registrar/disco-categories.html">XMPP Registry for Service Discovery Identities</a>
      *
      * @return the type of client that will be returned when asked for the client identity in a
      *          disco request.
@@ -240,7 +267,7 @@ public final class ServiceDiscoveryManager extends Manager {
     /**
      * Add an further identity to the client.
      *
-     * @param identity
+     * @param identity TODO javadoc me please
      */
     public synchronized void addIdentity(DiscoverInfo.Identity identity) {
         identities.add(identity);
@@ -253,7 +280,7 @@ public final class ServiceDiscoveryManager extends Manager {
      * Remove an identity from the client. Note that the client needs at least one identity, the default identity, which
      * can not be removed.
      *
-     * @param identity
+     * @param identity TODO javadoc me please
      * @return true, if successful. Otherwise the default identity was given.
      */
     public synchronized boolean removeIdentity(DiscoverInfo.Identity identity) {
@@ -272,8 +299,8 @@ public final class ServiceDiscoveryManager extends Manager {
      */
     public Set<DiscoverInfo.Identity> getIdentities() {
         Set<Identity> res = new HashSet<>(identities);
-        // Add the default identity that must exist
-        res.add(defaultIdentity);
+        // Add the main identity that must exist
+        res.add(identity);
         return Collections.unmodifiableSet(res);
     }
 
@@ -300,7 +327,7 @@ public final class ServiceDiscoveryManager extends Manager {
      *
      * @param response the discover info response packet
      */
-    public synchronized void addDiscoverInfoTo(DiscoverInfo response) {
+    public synchronized void addDiscoverInfoTo(DiscoverInfoBuilder response) {
         // First add the identities of the connection
         response.addIdentities(getIdentities());
 
@@ -308,12 +335,13 @@ public final class ServiceDiscoveryManager extends Manager {
         for (String feature : getFeatures()) {
             response.addFeature(feature);
         }
-        response.addExtension(extendedInfo);
+
+        response.addExtensions(extendedInfos);
     }
 
     /**
      * Returns the NodeInformationProvider responsible for providing information
-     * (ie items) related to a given node or <tt>null</null> if none.<p>
+     * (ie items) related to a given node or <code>null</null> if none.<p>
      *
      * In MUC, a node could be 'http://jabber.org/protocol/muc#rooms' which means that the
      * NodeInformationProvider will provide information about the rooms where the user has joined.
@@ -426,25 +454,59 @@ public final class ServiceDiscoveryManager extends Manager {
      * configure the extended info before logging to the server so that the
      * information is already available if it is required upon login.
      *
-     * @param info
-     *            the data form that contains the extend service discovery
+     * @param info the data form that contains the extend service discovery
      *            information.
+     * @deprecated use {@link #addExtendedInfo(DataForm)} instead.
      */
+    // TODO: Remove in Smack 4.5
+    @Deprecated
     public synchronized void setExtendedInfo(DataForm info) {
-      extendedInfo = info;
-      // Notify others of a state change of SDM. In order to keep the state consistent, this
-      // method is synchronized
-      renewEntityCapsVersion();
+        addExtendedInfo(info);
     }
 
     /**
-     * Returns the data form that is set as extended information for this Service Discovery instance (XEP-0128).
+     * Registers extended discovery information of this XMPP entity. When this
+     * client is queried for its information this data form will be returned as
+     * specified by XEP-0128.
+     * <p>
      *
-     * @see <a href="http://xmpp.org/extensions/xep-0128.html">XEP-128: Service Discovery Extensions</a>
-     * @return the data form
+     * Since no stanza is actually sent to the server it is safe to perform this
+     * operation before logging to the server. In fact, you may want to
+     * configure the extended info before logging to the server so that the
+     * information is already available if it is required upon login.
+     *
+     * @param extendedInfo the data form that contains the extend service discovery information.
+     * @return the old data form which got replaced (if any)
+     * @since 4.4.0
      */
-    public DataForm getExtendedInfo() {
-        return extendedInfo;
+    public DataForm addExtendedInfo(DataForm extendedInfo) {
+        String formType = extendedInfo.getFormType();
+        StringUtils.requireNotNullNorEmpty(formType, "The data form must have a form type set");
+
+        DataForm removedDataForm;
+        synchronized (this) {
+            removedDataForm = DataForm.remove(extendedInfos, formType);
+
+            extendedInfos.add(extendedInfo);
+
+            // Notify others of a state change of SDM. In order to keep the state consistent, this
+            // method is synchronized
+            renewEntityCapsVersion();
+        }
+        return removedDataForm;
+    }
+
+    /**
+     * Remove the extended discovery information of the given form type.
+     *
+     * @param formType the type of the data form with the extended discovery information to remove.
+     * @since 4.4.0
+     */
+    public synchronized void removeExtendedInfo(String formType) {
+        DataForm removedForm = DataForm.remove(extendedInfos, formType);
+        if (removedForm != null) {
+            renewEntityCapsVersion();
+        }
     }
 
     /**
@@ -453,13 +515,21 @@ public final class ServiceDiscoveryManager extends Manager {
      *
      * @return the data form as List of PacketExtensions
      */
-    public List<ExtensionElement> getExtendedInfoAsList() {
-        List<ExtensionElement> res = null;
-        if (extendedInfo != null) {
-            res = new ArrayList<>(1);
-            res.add(extendedInfo);
-        }
-        return res;
+    public synchronized List<DataForm> getExtendedInfo() {
+        return CollectionUtil.newListWith(extendedInfos);
+    }
+
+    /**
+     * Returns the data form as List of PacketExtensions, or null if no data form is set.
+     * This representation is needed by some classes (e.g. EntityCapsManager, NodeInformationProvider)
+     *
+     * @return the data form as List of PacketExtensions
+     * @deprecated use {@link #getExtendedInfo()} instead.
+     */
+    // TODO: Remove in Smack 4.5
+    @Deprecated
+    public List<DataForm> getExtendedInfoAsList() {
+        return getExtendedInfo();
     }
 
     /**
@@ -470,10 +540,13 @@ public final class ServiceDiscoveryManager extends Manager {
      * operation before logging to the server.
      */
     public synchronized void removeExtendedInfo() {
-       extendedInfo = null;
-       // Notify others of a state change of SDM. In order to keep the state consistent, this
-       // method is synchronized
-       renewEntityCapsVersion();
+        int extendedInfosCount = extendedInfos.size();
+        extendedInfos.clear();
+        if (extendedInfosCount > 0) {
+            // Notify others of a state change of SDM. In order to keep the state consistent, this
+            // method is synchronized
+            renewEntityCapsVersion();
+        }
     }
 
     /**
@@ -482,10 +555,10 @@ public final class ServiceDiscoveryManager extends Manager {
      *
      * @param entityID the address of the XMPP entity or null.
      * @return the discovered information.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public DiscoverInfo discoverInfo(Jid entityID) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         if (entityID == null)
@@ -519,17 +592,19 @@ public final class ServiceDiscoveryManager extends Manager {
      * @return the discovered information.
      * @throws XMPPErrorException if the operation failed for some reason.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public DiscoverInfo discoverInfo(Jid entityID, String node) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        // Discover the entity's info
-        DiscoverInfo disco = new DiscoverInfo();
-        disco.setType(IQ.Type.get);
-        disco.setTo(entityID);
-        disco.setNode(node);
+        XMPPConnection connection = connection();
 
-        Stanza result = connection().createStanzaCollectorAndSend(disco).nextResultOrThrow();
+        // Discover the entity's info
+        DiscoverInfo discoInfoRequest = DiscoverInfo.builder(connection)
+                .to(entityID)
+                .setNode(node)
+                .build();
+
+        Stanza result = connection.createStanzaCollectorAndSend(discoInfoRequest).nextResultOrThrow();
 
         return (DiscoverInfo) result;
     }
@@ -541,8 +616,8 @@ public final class ServiceDiscoveryManager extends Manager {
      * @return the discovered information.
      * @throws XMPPErrorException if the operation failed for some reason.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public DiscoverItems discoverItems(Jid entityID) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException  {
         if (entityID == null) {
@@ -573,8 +648,8 @@ public final class ServiceDiscoveryManager extends Manager {
      * @return the discovered items.
      * @throws XMPPErrorException if the operation failed for some reason.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public DiscoverItems discoverItems(Jid entityID, String node) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         // Discover the entity's items
@@ -588,96 +663,14 @@ public final class ServiceDiscoveryManager extends Manager {
     }
 
     /**
-     * Returns true if the server supports publishing of items. A client may wish to publish items
-     * to the server so that the server can provide items associated to the client. These items will
-     * be returned by the server whenever the server receives a disco request targeted to the bare
-     * address of the client (i.e. user@host.com).
-     *
-     * @param entityID the address of the XMPP entity.
-     * @return true if the server supports publishing of items.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @deprecated The disco-publish feature was removed from XEP-0030 in 2008 in favor of XEP-0060: Publish-Subscribe.
-     */
-    @Deprecated
-    // TODO: Remove in Smack 4.4
-    public boolean canPublishItems(Jid entityID) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        DiscoverInfo info = discoverInfo(entityID);
-        return canPublishItems(info);
-     }
-
-     /**
-      * Returns true if the server supports publishing of items. A client may wish to publish items
-      * to the server so that the server can provide items associated to the client. These items will
-      * be returned by the server whenever the server receives a disco request targeted to the bare
-      * address of the client (i.e. user@host.com).
-      *
-      * @param info the discover info stanza to check.
-      * @return true if the server supports publishing of items.
-      * @deprecated The disco-publish feature was removed from XEP-0030 in 2008 in favor of XEP-0060: Publish-Subscribe.
-      */
-    @Deprecated
-     // TODO: Remove in Smack 4.4
-     public static boolean canPublishItems(DiscoverInfo info) {
-         return info.containsFeature("http://jabber.org/protocol/disco#publish");
-     }
-
-    /**
-     * Publishes new items to a parent entity. The item elements to publish MUST have at least
-     * a 'jid' attribute specifying the Entity ID of the item, and an action attribute which
-     * specifies the action being taken for that item. Possible action values are: "update" and
-     * "remove".
-     *
-     * @param entityID the address of the XMPP entity.
-     * @param discoverItems the DiscoveryItems to publish.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @deprecated The disco-publish feature was removed from XEP-0030 in 2008 in favor of XEP-0060: Publish-Subscribe.
-     */
-    @Deprecated
-    // TODO: Remove in Smack 4.4
-    public void publishItems(Jid entityID, DiscoverItems discoverItems) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        publishItems(entityID, null, discoverItems);
-    }
-
-    /**
-     * Publishes new items to a parent entity and node. The item elements to publish MUST have at
-     * least a 'jid' attribute specifying the Entity ID of the item, and an action attribute which
-     * specifies the action being taken for that item. Possible action values are: "update" and
-     * "remove".
-     *
-     * @param entityID the address of the XMPP entity.
-     * @param node the attribute that supplements the 'jid' attribute.
-     * @param discoverItems the DiscoveryItems to publish.
-     * @throws XMPPErrorException if the operation failed for some reason.
-     * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @deprecated The disco-publish feature was removed from XEP-0030 in 2008 in favor of XEP-0060: Publish-Subscribe.
-     */
-    @Deprecated
-    // TODO: Remove in Smack 4.4
-    public void publishItems(Jid entityID, String node, DiscoverItems discoverItems) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        discoverItems.setType(IQ.Type.set);
-        discoverItems.setTo(entityID);
-        discoverItems.setNode(node);
-
-        connection().createStanzaCollectorAndSend(discoverItems).nextResultOrThrow();
-    }
-
-    /**
      * Returns true if the server supports the given feature.
      *
-     * @param feature
+     * @param feature TODO javadoc me please
      * @return true if the server supports the given feature.
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @since 4.1
      */
     public boolean serverSupportsFeature(CharSequence feature) throws NoResponseException, XMPPErrorException,
@@ -702,10 +695,10 @@ public final class ServiceDiscoveryManager extends Manager {
      *
      * @param features the features to check
      * @return <code>true</code> if all features are supported by the connection account, <code>false</code> otherwise
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @since 4.2.2
      */
     public boolean accountSupportsFeatures(CharSequence... features)
@@ -719,10 +712,10 @@ public final class ServiceDiscoveryManager extends Manager {
      *
      * @param features a collection of features
      * @return <code>true</code> if all features are supported by the connection account, <code>false</code> otherwise
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @since 4.2.2
      */
     public boolean accountSupportsFeatures(Collection<? extends CharSequence> features)
@@ -735,12 +728,12 @@ public final class ServiceDiscoveryManager extends Manager {
      * Queries the remote entity for it's features and returns true if the given feature is found.
      *
      * @param jid the JID of the remote entity
-     * @param feature
+     * @param feature TODO javadoc me please
      * @return true if the entity supports the feature, false otherwise
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public boolean supportsFeature(Jid jid, CharSequence feature) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         return supportsFeatures(jid, feature);
@@ -774,10 +767,10 @@ public final class ServiceDiscoveryManager extends Manager {
      * @param stopOnFirst if true, stop searching after the first service was found
      * @param useCache if true, query a cache first to avoid network I/O
      * @return a possible empty list of services providing the given feature
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public List<DiscoverInfo> findServicesDiscoverInfo(String feature, boolean stopOnFirst, boolean useCache)
                     throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -792,10 +785,10 @@ public final class ServiceDiscoveryManager extends Manager {
      * @param useCache if true, query a cache first to avoid network I/O
      * @param encounteredExceptions an optional map which will be filled with the exceptions encountered
      * @return a possible empty list of services providing the given feature
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @since 4.2.2
      */
     public List<DiscoverInfo> findServicesDiscoverInfo(String feature, boolean stopOnFirst, boolean useCache, Map<? super Jid, Exception> encounteredExceptions)
@@ -813,10 +806,10 @@ public final class ServiceDiscoveryManager extends Manager {
      * @param useCache if true, query a cache first to avoid network I/O
      * @param encounteredExceptions an optional map which will be filled with the exceptions encountered
      * @return a possible empty list of services providing the given feature
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @since 4.3.0
      */
     public List<DiscoverInfo> findServicesDiscoverInfo(DomainBareJid serviceName, String feature, boolean stopOnFirst,
@@ -896,10 +889,10 @@ public final class ServiceDiscoveryManager extends Manager {
      * @param stopOnFirst if true, stop searching after the first service was found
      * @param useCache if true, query a cache first to avoid network I/O
      * @return a possible empty list of services providing the given feature
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public List<DomainBareJid> findServices(String feature, boolean stopOnFirst, boolean useCache) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         List<DiscoverInfo> services = findServicesDiscoverInfo(feature, stopOnFirst, useCache);
@@ -944,13 +937,56 @@ public final class ServiceDiscoveryManager extends Manager {
         return entityCapabilitiesChangedListeners.add(entityCapabilitiesChangedListener);
     }
 
+    private static final int RENEW_ENTITY_CAPS_DELAY_MILLIS = 25;
+
+    private ScheduledAction renewEntityCapsScheduledAction;
+
+    private final AtomicInteger renewEntityCapsPerformed = new AtomicInteger();
+    private int renewEntityCapsRequested = 0;
+    private int scheduledRenewEntityCapsAvoided = 0;
+
     /**
      * Notify the {@link EntityCapabilitiesChangedListener} about changed capabilities.
      */
-    private void renewEntityCapsVersion() {
-        for (EntityCapabilitiesChangedListener entityCapabilitiesChangedListener : entityCapabilitiesChangedListeners) {
-            entityCapabilitiesChangedListener.onEntityCapailitiesChanged();
+    private synchronized void renewEntityCapsVersion() {
+        renewEntityCapsRequested++;
+        if (renewEntityCapsScheduledAction != null) {
+            boolean canceled = renewEntityCapsScheduledAction.cancel();
+            if (canceled) {
+                scheduledRenewEntityCapsAvoided++;
+            }
         }
+
+        final XMPPConnection connection = connection();
+
+        renewEntityCapsScheduledAction = scheduleBlocking(() -> {
+            renewEntityCapsPerformed.incrementAndGet();
+
+            DiscoverInfoBuilder discoverInfoBuilder = DiscoverInfo.builder("synthetized-disco-info-response")
+                            .ofType(IQ.Type.result);
+            addDiscoverInfoTo(discoverInfoBuilder);
+            DiscoverInfo synthesizedDiscoveryInfo = discoverInfoBuilder.build();
+
+            for (EntityCapabilitiesChangedListener entityCapabilitiesChangedListener : entityCapabilitiesChangedListeners) {
+                entityCapabilitiesChangedListener.onEntityCapabilitiesChanged(synthesizedDiscoveryInfo);
+            }
+
+            // Re-send the last sent presence, and let the stanza interceptor
+            // add a <c/> node to it.
+            // See http://xmpp.org/extensions/xep-0115.html#advertise
+            // We only send a presence packet if there was already one send
+            // to respect ConnectionConfiguration.isSendPresence()
+            final Presence presenceSend = this.presenceSend;
+            if (connection.isAuthenticated() && presenceSend != null) {
+                Presence presence = presenceSend.asBuilder(connection).build();
+                try {
+                    connection.sendStanza(presence);
+                }
+                catch (InterruptedException | NotConnectedException e) {
+                    LOGGER.log(Level.WARNING, "Could could not update presence with caps info", e);
+                }
+            }
+        }, RENEW_ENTITY_CAPS_DELAY_MILLIS, TimeUnit.MILLISECONDS);
     }
 
     public static void addDiscoInfoLookupShortcutMechanism(DiscoInfoLookupShortcutMechanism discoInfoLookupShortcutMechanism) {
@@ -964,6 +1000,32 @@ public final class ServiceDiscoveryManager extends Manager {
         synchronized (discoInfoLookupShortcutMechanisms) {
             discoInfoLookupShortcutMechanisms.remove(discoInfoLookupShortcutMechanism);
         }
+    }
+
+    public synchronized Stats getStats() {
+        return new Stats(this);
+    }
+
+    public static final class Stats extends AbstractStats {
+
+        public final int renewEntityCapsRequested;
+        public final int renewEntityCapsPerformed;
+        public final int scheduledRenewEntityCapsAvoided;
+
+        private Stats(ServiceDiscoveryManager serviceDiscoveryManager) {
+            renewEntityCapsRequested = serviceDiscoveryManager.renewEntityCapsRequested;
+            renewEntityCapsPerformed = serviceDiscoveryManager.renewEntityCapsPerformed.get();
+            scheduledRenewEntityCapsAvoided = serviceDiscoveryManager.scheduledRenewEntityCapsAvoided;
+        }
+
+        @Override
+        public void appendStatsTo(ExtendedAppendable appendable) throws IOException {
+            StringUtils.appendHeading(appendable, "ServiceDiscoveryManager stats", '#').append('\n');
+            appendable.append("renew-entitycaps-requested: ").append(renewEntityCapsRequested).append('\n');
+            appendable.append("renew-entitycaps-performed: ").append(renewEntityCapsPerformed).append('\n');
+            appendable.append("scheduled-renew-entitycaps-avoided: ").append(scheduledRenewEntityCapsAvoided).append('\n');
+        }
+
     }
 
     public static void addDiscoItemsLookupShortcutMechanism(DiscoItemsLookupShortcutMechanism discoItemsLookupShortcutMechanism) {

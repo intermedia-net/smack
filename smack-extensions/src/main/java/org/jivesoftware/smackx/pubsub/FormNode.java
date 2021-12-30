@@ -16,7 +16,9 @@
  */
 package org.jivesoftware.smackx.pubsub;
 
-import org.jivesoftware.smackx.xdata.Form;
+import org.jivesoftware.smack.util.XmlStringBuilder;
+
+import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 /**
  * Generic stanza extension which represents any PubSub form that is
@@ -27,7 +29,7 @@ import org.jivesoftware.smackx.xdata.Form;
  * @author Robin Collier
  */
 public class FormNode extends NodeExtension {
-    private final Form configForm;
+    private final DataForm configForm;
 
     /**
      * Create a {@link FormNode} which contains the specified form.
@@ -35,12 +37,8 @@ public class FormNode extends NodeExtension {
      * @param formType The type of form being sent
      * @param submitForm The form
      */
-    public FormNode(FormNodeType formType, Form submitForm) {
-        super(formType.getNodeElement());
-
-        if (submitForm == null)
-            throw new IllegalArgumentException("Submit form cannot be null");
-        configForm = submitForm;
+    public FormNode(FormNodeType formType, DataForm submitForm) {
+        this(formType, null, submitForm);
     }
 
     /**
@@ -51,11 +49,8 @@ public class FormNode extends NodeExtension {
      * @param nodeId The node the form is associated with
      * @param submitForm The form
      */
-    public FormNode(FormNodeType formType, String nodeId, Form submitForm) {
+    public FormNode(FormNodeType formType, String nodeId, DataForm submitForm) {
         super(formType.getNodeElement(), nodeId);
-
-        if (submitForm == null)
-            throw new IllegalArgumentException("Submit form cannot be null");
         configForm = submitForm;
     }
 
@@ -64,31 +59,20 @@ public class FormNode extends NodeExtension {
      *
      * @return The form
      */
-    public Form getForm() {
+    public DataForm getForm() {
         return configForm;
     }
 
     @Override
-    public CharSequence toXML(String enclosingNamespace) {
+    protected void addXml(XmlStringBuilder xml) {
         if (configForm == null) {
-            return super.toXML(enclosingNamespace);
+            xml.closeEmptyElement();
+            return;
         }
-        else {
-            StringBuilder builder = new StringBuilder("<");
-            builder.append(getElementName());
 
-            if (getNode() != null) {
-                builder.append(" node='");
-                builder.append(getNode());
-                builder.append("'>");
-            }
-            else
-                builder.append('>');
-            builder.append(configForm.getDataFormToSend().toXML(null));
-            builder.append("</");
-            builder.append(getElementName() + '>');
-            return builder.toString();
-        }
+        xml.rightAngleBracket();
+        xml.append(configForm);
+        xml.closeElement(this);
     }
 
 }

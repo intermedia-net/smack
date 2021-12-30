@@ -26,12 +26,13 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TimeZone;
 
-import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
+import org.jivesoftware.smack.parsing.SmackParsingException.SmackTextParseException;
 import org.jivesoftware.smack.provider.IQProvider;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  * Stanza used for requesting information about occupants of a room or for retrieving information
@@ -136,16 +137,16 @@ public class OccupantsInfo extends IQ {
     public static class Provider extends IQProvider<OccupantsInfo> {
 
         @Override
-        public OccupantsInfo parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException, SmackException {
+        public OccupantsInfo parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackTextParseException {
             OccupantsInfo occupantsInfo = new OccupantsInfo(parser.getAttributeValue("", "roomID"));
 
             boolean done = false;
             while (!done) {
-                int eventType = parser.next();
-                if ((eventType == XmlPullParser.START_TAG) &&
-                        ("occupant".equals(parser.getName()))) {
+                XmlPullParser.Event eventType = parser.next();
+                if (eventType == XmlPullParser.Event.START_ELEMENT &&
+                        "occupant".equals(parser.getName())) {
                     occupantsInfo.occupants.add(parseOccupantInfo(parser));
-                } else if (eventType == XmlPullParser.END_TAG &&
+                } else if (eventType == XmlPullParser.Event.END_ELEMENT &&
                         ELEMENT_NAME.equals(parser.getName())) {
                     done = true;
                 }
@@ -153,29 +154,29 @@ public class OccupantsInfo extends IQ {
             return occupantsInfo;
         }
 
-        private OccupantInfo parseOccupantInfo(XmlPullParser parser) throws XmlPullParserException, IOException, SmackException {
-
+        private static OccupantInfo parseOccupantInfo(XmlPullParser parser)
+                        throws XmlPullParserException, IOException, SmackTextParseException {
             boolean done = false;
             String jid = null;
             String nickname = null;
             Date joined = null;
             while (!done) {
-                int eventType = parser.next();
-                if ((eventType == XmlPullParser.START_TAG) && ("jid".equals(parser.getName()))) {
+                XmlPullParser.Event eventType = parser.next();
+                if (eventType == XmlPullParser.Event.START_ELEMENT && "jid".equals(parser.getName())) {
                     jid = parser.nextText();
-                } else if ((eventType == XmlPullParser.START_TAG) &&
-                        ("nickname".equals(parser.getName()))) {
+                } else if (eventType == XmlPullParser.Event.START_ELEMENT &&
+                        "nickname".equals(parser.getName())) {
                     nickname = parser.nextText();
-                } else if ((eventType == XmlPullParser.START_TAG) &&
-                        ("joined".equals(parser.getName()))) {
-                    try {
+                } else if (eventType == XmlPullParser.Event.START_ELEMENT &&
+                        "joined".equals(parser.getName())) {
                         synchronized (UTC_FORMAT) {
+                        try {
                             joined = UTC_FORMAT.parse(parser.nextText());
+                        } catch (ParseException e) {
+                            throw new SmackParsingException.SmackTextParseException(e);
                         }
-                    } catch (ParseException e) {
-                        throw new SmackException(e);
-                    }
-                } else if (eventType == XmlPullParser.END_TAG &&
+                        }
+                } else if (eventType == XmlPullParser.Event.END_ELEMENT &&
                         "occupant".equals(parser.getName())) {
                     done = true;
                 }

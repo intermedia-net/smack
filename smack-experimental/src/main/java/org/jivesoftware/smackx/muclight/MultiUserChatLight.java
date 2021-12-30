@@ -35,6 +35,7 @@ import org.jivesoftware.smack.filter.MessageTypeFilter;
 import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageBuilder;
 import org.jivesoftware.smack.packet.Stanza;
 
 import org.jivesoftware.smackx.muclight.element.MUCLightAffiliationsIQ;
@@ -120,15 +121,15 @@ public class MultiUserChatLight {
     /**
      * Sends a message to the chat room.
      *
-     * @param text
+     * @param text TODO javadoc me please
      *            the text of the message to send.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void sendMessage(String text) throws NotConnectedException, InterruptedException {
-        Message message = createMessage();
+        MessageBuilder message = buildMessage();
         message.setBody(text);
-        connection.sendStanza(message);
+        connection.sendStanza(message.build());
     }
 
     /**
@@ -138,15 +139,14 @@ public class MultiUserChatLight {
      * to the sender's room JID and delivering the message to the intended
      * recipient's full JID.
      *
-     * @param occupant
+     * @param occupant TODO javadoc me please
      *            occupant unique room JID (e.g.
      *            'darkcave@macbeth.shakespeare.lit/Paul').
-     * @param listener
+     * @param listener TODO javadoc me please
      *            the listener is a message listener that will handle messages
      *            for the newly created chat.
      * @return new Chat for sending private messages to a given room occupant.
      */
-    @SuppressWarnings("deprecation")
     @Deprecated
     // Do not re-use Chat API, which was designed for XMPP-IM 1:1 chats and not MUClight private chats.
     public org.jivesoftware.smack.chat.Chat createPrivateChat(EntityJid occupant, ChatMessageListener listener) {
@@ -157,22 +157,54 @@ public class MultiUserChatLight {
      * Creates a new Message to send to the chat room.
      *
      * @return a new Message addressed to the chat room.
+     * @deprecated use {@link #buildMessage()} instead.
      */
+    @Deprecated
+    // TODO: Remove when stanza builder is ready.
     public Message createMessage() {
-        return new Message(room, Message.Type.groupchat);
+        return connection.getStanzaFactory().buildMessageStanza()
+                .ofType(Message.Type.groupchat)
+                .to(room)
+                .build();
+    }
+
+    /**
+     * Constructs a new message builder for messages send to this MUC room.
+     *
+     * @return a new message builder.
+     */
+    public MessageBuilder buildMessage() {
+        return connection.getStanzaFactory()
+                .buildMessageStanza()
+                .ofType(Message.Type.groupchat)
+                .to(room)
+                ;
     }
 
     /**
      * Sends a Message to the chat room.
      *
-     * @param message
+     * @param message TODO javadoc me please
      *            the message.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @deprecated use {@link #sendMessage(MessageBuilder)} instead.
      */
+    @Deprecated
+    // TODO: Remove in Smack 4.5.
     public void sendMessage(Message message) throws NotConnectedException, InterruptedException {
-        message.setTo(room);
-        message.setType(Message.Type.groupchat);
+        sendMessage(message.asBuilder());
+    }
+
+    /**
+     * Sends a Message to the chat room.
+     *
+     * @param messageBuilder the message.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
+     */
+    public void sendMessage(MessageBuilder messageBuilder) throws NotConnectedException, InterruptedException {
+        Message message = messageBuilder.to(room).ofType(Message.Type.groupchat).build();
         connection.sendStanza(message);
     }
 
@@ -190,7 +222,7 @@ public class MultiUserChatLight {
      * block (not return) until a message is available.
      *
      * @return the next message.
-     * @throws InterruptedException
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public Message nextMessage() throws InterruptedException {
         return messageCollector.nextResult();
@@ -199,11 +231,11 @@ public class MultiUserChatLight {
     /**
      * Returns the next available message in the chat.
      *
-     * @param timeout
+     * @param timeout TODO javadoc me please
      *            the maximum amount of time to wait for the next message.
      * @return the next message, or null if the timeout elapses without a
      *         message becoming available.
-     * @throws InterruptedException
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public Message nextMessage(long timeout) throws InterruptedException {
         return messageCollector.nextResult(timeout);
@@ -214,7 +246,7 @@ public class MultiUserChatLight {
      * in the group chat. Only "group chat" messages addressed to this group
      * chat will be delivered to the listener.
      *
-     * @param listener
+     * @param listener TODO javadoc me please
      *            a stanza listener.
      * @return true if the listener was not already added.
      */
@@ -227,7 +259,7 @@ public class MultiUserChatLight {
      * messages in the MUCLight. Only "group chat" messages addressed to this
      * MUCLight were being delivered to the listener.
      *
-     * @param listener
+     * @param listener TODO javadoc me please
      *            a stanza listener.
      * @return true if the listener was removed, otherwise the listener was not
      *         added previously.
@@ -256,11 +288,11 @@ public class MultiUserChatLight {
     /**
      * Create new MUCLight.
      *
-     * @param roomName
-     * @param subject
-     * @param customConfigs
-     * @param occupants
-     * @throws Exception
+     * @param roomName TODO javadoc me please
+     * @param subject TODO javadoc me please
+     * @param customConfigs TODO javadoc me please
+     * @param occupants TODO javadoc me please
+     * @throws Exception TODO javadoc me please
      */
     public void create(String roomName, String subject, HashMap<String, String> customConfigs, List<Jid> occupants)
             throws Exception {
@@ -279,9 +311,9 @@ public class MultiUserChatLight {
     /**
      * Create new MUCLight.
      *
-     * @param roomName
-     * @param occupants
-     * @throws Exception
+     * @param roomName TODO javadoc me please
+     * @param occupants TODO javadoc me please
+     * @throws Exception TODO javadoc me please
      */
     public void create(String roomName, List<Jid> occupants) throws Exception {
         create(roomName, null, null, occupants);
@@ -290,10 +322,10 @@ public class MultiUserChatLight {
     /**
      * Leave the MUCLight.
      *
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @throws NoResponseException
-     * @throws XMPPErrorException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
      */
     public void leave() throws NotConnectedException, InterruptedException, NoResponseException, XMPPErrorException {
         HashMap<Jid, MUCLightAffiliation> affiliations = new HashMap<>();
@@ -311,12 +343,12 @@ public class MultiUserChatLight {
     /**
      * Get the MUC Light info.
      *
-     * @param version
+     * @param version TODO javadoc me please
      * @return the room info
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public MUCLightRoomInfo getFullInfo(String version)
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -333,10 +365,10 @@ public class MultiUserChatLight {
      * Get the MUC Light info.
      *
      * @return the room info
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public MUCLightRoomInfo getFullInfo()
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -346,12 +378,12 @@ public class MultiUserChatLight {
     /**
      * Get the MUC Light configuration.
      *
-     * @param version
+     * @param version TODO javadoc me please
      * @return the room configuration
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public MUCLightRoomConfiguration getConfiguration(String version)
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -365,10 +397,10 @@ public class MultiUserChatLight {
      * Get the MUC Light configuration.
      *
      * @return the room configuration
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public MUCLightRoomConfiguration getConfiguration()
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -378,12 +410,12 @@ public class MultiUserChatLight {
     /**
      * Get the MUC Light affiliations.
      *
-     * @param version
+     * @param version TODO javadoc me please
      * @return the room affiliations
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public HashMap<Jid, MUCLightAffiliation> getAffiliations(String version)
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -399,10 +431,10 @@ public class MultiUserChatLight {
      * Get the MUC Light affiliations.
      *
      * @return the room affiliations
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public HashMap<Jid, MUCLightAffiliation> getAffiliations()
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -412,11 +444,11 @@ public class MultiUserChatLight {
     /**
      * Change the MUC Light affiliations.
      *
-     * @param affiliations
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @param affiliations TODO javadoc me please
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void changeAffiliations(HashMap<Jid, MUCLightAffiliation> affiliations)
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -427,10 +459,10 @@ public class MultiUserChatLight {
     /**
      * Destroy the MUC Light. Only will work if it is requested by the owner.
      *
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void destroy() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         MUCLightDestroyIQ mucLightDestroyIQ = new MUCLightDestroyIQ(room);
@@ -445,11 +477,11 @@ public class MultiUserChatLight {
     /**
      * Change the subject of the MUC Light.
      *
-     * @param subject
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @param subject TODO javadoc me please
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void changeSubject(String subject)
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -460,11 +492,11 @@ public class MultiUserChatLight {
     /**
      * Change the name of the room.
      *
-     * @param roomName
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @param roomName TODO javadoc me please
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void changeRoomName(String roomName)
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -475,11 +507,11 @@ public class MultiUserChatLight {
     /**
      * Set the room configurations.
      *
-     * @param customConfigs
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @param customConfigs TODO javadoc me please
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void setRoomConfigs(HashMap<String, String> customConfigs)
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
@@ -489,12 +521,12 @@ public class MultiUserChatLight {
     /**
      * Set the room configurations.
      *
-     * @param roomName
-     * @param customConfigs
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @param roomName TODO javadoc me please
+     * @param customConfigs TODO javadoc me please
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void setRoomConfigs(String roomName, HashMap<String, String> customConfigs)
             throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {

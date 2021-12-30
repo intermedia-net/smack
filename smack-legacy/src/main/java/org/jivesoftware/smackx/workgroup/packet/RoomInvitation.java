@@ -22,15 +22,16 @@ import java.io.IOException;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.IQ.IQChildElementXmlStringBuilder;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.XmlStringBuilder;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jxmpp.jid.EntityBareJid;
 import org.jxmpp.jid.EntityJid;
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.impl.JidCreate;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Stanza extension for {@link org.jivesoftware.smackx.workgroup.agent.InvitationRequest}.
@@ -112,8 +113,8 @@ public class RoomInvitation implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = getIQChildElementBuilder(new IQChildElementXmlStringBuilder(this));
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
+        XmlStringBuilder xml = getIQChildElementBuilder(new IQChildElementXmlStringBuilder(this, enclosingNamespace));
         xml.closeElement(this);
         return xml;
     }
@@ -169,16 +170,15 @@ public class RoomInvitation implements ExtensionElement {
 
         @Override
         public RoomInvitation parse(XmlPullParser parser,
-                        int initialDepth) throws XmlPullParserException,
+                        int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException,
                         IOException {
             final RoomInvitation invitation = new RoomInvitation();
             invitation.type = Type.valueOf(parser.getAttributeValue("", "type"));
 
-            boolean done = false;
-            while (!done) {
+            outerloop: while (true) {
                 parser.next();
-                String elementName = parser.getName();
-                if (parser.getEventType() == XmlPullParser.START_TAG) {
+                if (parser.getEventType() == XmlPullParser.Event.START_ELEMENT) {
+                    String elementName = parser.getName();
                     if ("session".equals(elementName)) {
                         invitation.sessionID = parser.getAttributeValue("", "id");
                     }
@@ -198,8 +198,8 @@ public class RoomInvitation implements ExtensionElement {
                         invitation.room = JidCreate.entityBareFrom(roomString);
                     }
                 }
-                else if (parser.getEventType() == XmlPullParser.END_TAG && ELEMENT_NAME.equals(elementName)) {
-                    done = true;
+                else if (parser.getEventType() == XmlPullParser.Event.END_ELEMENT && parser.getDepth() == initialDepth) {
+                    break outerloop;
                 }
             }
             return invitation;

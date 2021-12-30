@@ -33,6 +33,7 @@ import org.jivesoftware.smack.util.EventManger.Callback;
 
 import org.jivesoftware.smackx.si.packet.StreamInitiation;
 import org.jivesoftware.smackx.xdata.FormField;
+import org.jivesoftware.smackx.xdata.ListSingleFormField;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 import org.jxmpp.jid.Jid;
@@ -69,33 +70,31 @@ public abstract class StreamNegotiator extends Manager {
      * initiator.
      *
      * @param streamInitiationOffer The offer from the stream initiator to connect for a stream.
-     * @param namespaces            The namespace that relates to the accepted means of transfer.
+     * @param namespace            The namespace that relates to the accepted means of transfer.
      * @return The response to be forwarded to the initiator.
      */
     protected static StreamInitiation createInitiationAccept(
-            StreamInitiation streamInitiationOffer, String[] namespaces) {
+            StreamInitiation streamInitiationOffer, String namespace) {
         StreamInitiation response = new StreamInitiation();
         response.setTo(streamInitiationOffer.getFrom());
         response.setFrom(streamInitiationOffer.getTo());
         response.setType(IQ.Type.result);
         response.setStanzaId(streamInitiationOffer.getStanzaId());
 
-        DataForm form = new DataForm(DataForm.Type.submit);
-        FormField field = new FormField(
+        DataForm.Builder form = DataForm.builder();
+        ListSingleFormField.Builder field = FormField.listSingleBuilder(
                 FileTransferNegotiator.STREAM_DATA_FIELD_NAME);
-        for (String namespace : namespaces) {
-            field.addValue(namespace);
-        }
-        form.addField(field);
+        field.setValue(namespace);
+        form.addField(field.build());
 
-        response.setFeatureNegotiationForm(form);
+        response.setFeatureNegotiationForm(form.build());
         return response;
     }
 
     protected final IQ initiateIncomingStream(final XMPPConnection connection, StreamInitiation initiation)
                     throws NoResponseException, XMPPErrorException, NotConnectedException {
         final StreamInitiation response = createInitiationAccept(initiation,
-                getNamespaces());
+                getNamespace());
 
         newStreamInitiation(initiation.getFrom(), initiation.getSessionID());
 
@@ -152,7 +151,7 @@ public abstract class StreamNegotiator extends Manager {
      * @throws XMPPErrorException If an error occurs during this process an XMPPException is
      *                       thrown.
      * @throws InterruptedException If thread is interrupted.
-     * @throws SmackException
+     * @throws SmackException if Smack detected an exceptional situation.
      */
     public abstract InputStream createIncomingStream(StreamInitiation initiation)
             throws XMPPErrorException, InterruptedException, SmackException;
@@ -168,9 +167,9 @@ public abstract class StreamNegotiator extends Manager {
      * @param target    The fully-qualified JID of the target or receiver of the file
      *                  transfer.
      * @return The negotiated stream ready for data.
-     * @throws SmackException
-     * @throws XMPPException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws XMPPException if an XMPP protocol error was received.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public abstract OutputStream createOutgoingStream(String streamID,
             Jid initiator, Jid target) throws SmackException, XMPPException, InterruptedException;
@@ -182,7 +181,7 @@ public abstract class StreamNegotiator extends Manager {
      * @return Returns the XMPP namespace reserved for this particular type of
      *         file transfer.
      */
-    public abstract String[] getNamespaces();
+    public abstract String getNamespace();
 
     public static void signal(String eventKey, IQ eventValue) {
         initationSetEvents.signalEvent(eventKey, eventValue);

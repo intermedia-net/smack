@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015-2017 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,13 @@
  */
 package org.igniterealtime.smack.inttest;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+
+import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.XMPPException;
 
 import org.jxmpp.jid.JidTestUtil;
 
@@ -30,9 +35,16 @@ public class SmackIntegrationTestUnitTestUtil {
         Configuration configuration = Configuration.builder()
                         .setService(JidTestUtil.DOMAIN_BARE_JID_1)
                         .setUsernamesAndPassword("dummy1", "dummy1pass", "dummy2", "dummy2pass", "dummy3", "dummy3pass")
-                        .addEnabledTest(unitTest).build();
+                        .setDefaultConnection(DummySmackIntegrationTestFramework.DUMMY_CONNECTION_NICKNAME)
+                        .addEnabledTest(unitTest)
+                        .build();
         // @formatter:on
-        return new DummySmackIntegrationTestFramework(configuration);
+        try {
+            return new DummySmackIntegrationTestFramework(configuration);
+        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
+                | SmackException | IOException | XMPPException | InterruptedException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
 }

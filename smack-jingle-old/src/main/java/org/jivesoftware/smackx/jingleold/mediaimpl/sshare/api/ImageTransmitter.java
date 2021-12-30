@@ -36,6 +36,7 @@ import java.util.logging.Logger;
  *
  * @author Thiago Rocha Camargo
  */
+@SuppressWarnings("UnusedVariable")
 public class ImageTransmitter implements Runnable {
 
     private static final Logger LOGGER = Logger.getLogger(ImageTransmitter.class.getName());
@@ -163,7 +164,7 @@ public class ImageTransmitter implements Runnable {
                     }
                 }
 
-                trace = (System.currentTimeMillis() - trace);
+                trace = System.currentTimeMillis() - trace;
                 LOGGER.fine("Loop Time:" + trace);
 
                 if (trace < 500) {
@@ -195,7 +196,7 @@ public class ImageTransmitter implements Runnable {
     /**
      * Get the encoder used to encode Images Tiles.
      *
-     * @return encoder
+     * @return encoder TODO javadoc me please
      */
     public ImageEncoder getEncoder() {
         return encoder;

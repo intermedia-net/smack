@@ -17,32 +17,32 @@
 package org.jivesoftware.smackx.xhtmlim.provider;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.jivesoftware.smack.test.util.CharSequenceEquals.equalsCharSequence;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.xhtmlim.packet.XHTMLExtension;
 
-import org.junit.Test;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-
+import org.junit.jupiter.api.Test;
 
 public class XHTMLExtensionProviderTest {
     public static final String XHTML_EXTENSION_SAMPLE_RESOURCE_NAME = "xhtml.xml";
 
     @Test
     public void parsesWell() throws IOException, XmlPullParserException {
-        XmlPullParser parser = PacketParserUtils.newXmppParser();
-        parser.setInput(getClass().getResourceAsStream(XHTML_EXTENSION_SAMPLE_RESOURCE_NAME), "UTF-8");
+        InputStream inputStream = getClass().getResourceAsStream(XHTML_EXTENSION_SAMPLE_RESOURCE_NAME);
+        XmlPullParser parser = PacketParserUtils.getParserFor(inputStream);
         parser.next();
 
         XHTMLExtensionProvider provider = new XHTMLExtensionProvider();
-        ExtensionElement extension = provider.parse(parser, parser.getDepth());
+        ExtensionElement extension = provider.parse(parser, parser.getDepth(), null);
 
         assertThat(extension, instanceOf(XHTMLExtension.class));
         XHTMLExtension attachmentsInfo = (XHTMLExtension) extension;

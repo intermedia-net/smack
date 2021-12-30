@@ -20,7 +20,7 @@ import org.jivesoftware.smack.packet.Stanza;
 
 import org.jxmpp.jid.Jid;
 
-public final class FromTypeFilter extends AbstractJidTypeFilter {
+public final class FromTypeFilter extends AbstractExactJidTypeFilter {
 
     public static final FromTypeFilter ENTITY_FULL_JID = new FromTypeFilter(JidType.entityFull);
     public static final FromTypeFilter ENTITY_BARE_JID = new FromTypeFilter(JidType.entityBare);

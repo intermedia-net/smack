@@ -16,19 +16,20 @@
  */
 package org.jivesoftware.smackx.iot.provisioning.provider;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.iot.provisioning.element.Friend;
 
 import org.jxmpp.jid.BareJid;
 import org.jxmpp.stringprep.XmppStringprepException;
-import org.xmlpull.v1.XmlPullParser;
 
 public class FriendProvider extends ExtensionElementProvider<Friend> {
 
     @Override
-    public Friend parse(XmlPullParser parser, int initialDepth) throws XmppStringprepException {
+    public Friend parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmppStringprepException {
         BareJid jid = ParserUtils.getBareJidAttribute(parser);
         return new Friend(jid);
     }

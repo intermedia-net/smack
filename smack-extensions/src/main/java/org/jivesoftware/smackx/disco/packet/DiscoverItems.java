@@ -59,7 +59,7 @@ public class DiscoverItems extends IQ {
     /**
      * Adds a collection of items to the discovered information. Does nothing if itemsToAdd is null
      *
-     * @param itemsToAdd
+     * @param itemsToAdd TODO javadoc me please
      */
     public void addItems(Collection<Item> itemsToAdd) {
         if (itemsToAdd == null) return;
@@ -236,6 +236,11 @@ public class DiscoverItems extends IQ {
             xml.optAttribute("action", action);
             xml.closeEmptyElement();
             return xml;
+        }
+
+        @Override
+        public String toString() {
+            return toXML().toString();
         }
     }
 }

@@ -16,9 +16,9 @@
  */
 package org.jivesoftware.smackx.caps;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,28 +26,31 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.stringencoder.Base32;
 import org.jivesoftware.smack.util.stringencoder.StringEncoder;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.caps.cache.EntityCapsPersistentCache;
 import org.jivesoftware.smackx.caps.cache.SimpleDirectoryPersistentCache;
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
+import org.jivesoftware.smackx.disco.packet.DiscoverInfoBuilder;
 import org.jivesoftware.smackx.xdata.FormField;
+import org.jivesoftware.smackx.xdata.TextMultiFormField;
+import org.jivesoftware.smackx.xdata.TextSingleFormField;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.impl.JidCreate;
 import org.jxmpp.stringprep.XmppStringprepException;
 
 
-public class EntityCapsManagerTest extends InitExtensions {
+public class EntityCapsManagerTest extends SmackTestSuite {
 
     /**
      * <a href="http://xmpp.org/extensions/xep-0115.html#ver-gen-complex">XEP-
      * 0115 Complex Generation Example</a>.
-     * @throws XmppStringprepException
+     * @throws XmppStringprepException if the provided string is invalid.
      */
     @Test
     public void testComplexGenerationExample() throws XmppStringprepException {
@@ -75,7 +78,8 @@ public class EntityCapsManagerTest extends InitExtensions {
         assertTrue(di.containsDuplicateIdentities());
     }
 
-    private static void testSimpleDirectoryCache(StringEncoder stringEncoder) throws IOException {
+    @SuppressWarnings("UnusedVariable")
+    private static void testSimpleDirectoryCache(StringEncoder<String> stringEncoder) throws IOException {
 
         EntityCapsPersistentCache cache = new SimpleDirectoryPersistentCache(createTempDirectory());
         EntityCapsManager.setPersistentCache(cache);
@@ -92,15 +96,57 @@ public class EntityCapsManagerTest extends InitExtensions {
 
         DiscoverInfo restored_di = EntityCapsManager.getDiscoveryInfoByNodeVer(nodeVer);
         assertNotNull(restored_di);
-        assertEquals(di.toXML(null).toString(), restored_di.toXML(null).toString());
+        assertEquals(di.toXML().toString(), restored_di.toXML().toString());
+    }
+
+    private static DataForm createSampleSoftwareInfoDataForm() {
+        DataForm.Builder df = DataForm.builder(DataForm.Type.result);
+
+        {
+            TextSingleFormField.Builder ff = FormField.builder("os");
+            ff.setValue("Mac");
+            df.addField(ff.build());
+        }
+
+        {
+            TextSingleFormField.Builder ff = FormField.hiddenBuilder("FORM_TYPE");
+            ff.setValue("urn:xmpp:dataforms:softwareinfo");
+            df.addField(ff.build());
+        }
+
+        {
+            TextMultiFormField.Builder ff = FormField.textMultiBuilder("ip_version");
+            ff.addValue("ipv4");
+            ff.addValue("ipv6");
+            df.addField(ff.build());
+        }
+
+        {
+            TextSingleFormField.Builder ff = FormField.builder("os_version");
+            ff.setValue("10.5.1");
+            df.addField(ff.build());
+        }
+
+        {
+            TextSingleFormField.Builder ff = FormField.builder("software");
+            ff.setValue("Psi");
+            df.addField(ff.build());
+        }
+
+        {
+            TextSingleFormField.Builder ff = FormField.builder("software_version");
+            ff.setValue("0.11");
+            df.addField(ff.build());
+        }
+
+        return df.build();
     }
 
     private static DiscoverInfo createComplexSamplePacket() throws XmppStringprepException {
-        DiscoverInfo di = new DiscoverInfo();
-        di.setFrom(JidCreate.from("benvolio@capulet.lit/230193"));
-        di.setStanzaId("disco1");
-        di.setTo(JidCreate.from("juliet@capulet.lit/chamber"));
-        di.setType(IQ.Type.result);
+        DiscoverInfoBuilder di = DiscoverInfo.builder("disco1");
+        di.from(JidCreate.from("benvolio@capulet.lit/230193"));
+        di.to(JidCreate.from("juliet@capulet.lit/chamber"));
+        di.ofType(IQ.Type.result);
 
         Collection<DiscoverInfo.Identity> identities = new LinkedList<DiscoverInfo.Identity>();
         DiscoverInfo.Identity i = new DiscoverInfo.Identity("client", "pc", "Psi 0.11", "en");
@@ -114,44 +160,16 @@ public class EntityCapsManagerTest extends InitExtensions {
         di.addFeature("http://jabber.org/protocol/muc");
         di.addFeature("http://jabber.org/protocol/disco#info");
 
-        DataForm df = new DataForm(DataForm.Type.result);
-
-        FormField ff = new FormField("os");
-        ff.addValue("Mac");
-        df.addField(ff);
-
-        ff = new FormField("FORM_TYPE");
-        ff.setType(FormField.Type.hidden);
-        ff.addValue("urn:xmpp:dataforms:softwareinfo");
-        df.addField(ff);
-
-        ff = new FormField("ip_version");
-        ff.addValue("ipv4");
-        ff.addValue("ipv6");
-        df.addField(ff);
-
-        ff = new FormField("os_version");
-        ff.addValue("10.5.1");
-        df.addField(ff);
-
-        ff = new FormField("software");
-        ff.addValue("Psi");
-        df.addField(ff);
-
-        ff = new FormField("software_version");
-        ff.addValue("0.11");
-        df.addField(ff);
-
-        di.addExtension(df);
-        return di;
+        DataForm softwareInfoDataForm = createSampleSoftwareInfoDataForm();
+        di.addExtension(softwareInfoDataForm);
+        return di.build();
     }
 
     private static DiscoverInfo createMalformedDiscoverInfo() throws XmppStringprepException {
-        DiscoverInfo di = new DiscoverInfo();
-        di.setFrom(JidCreate.from("benvolio@capulet.lit/230193"));
-        di.setStanzaId("disco1");
-        di.setTo(JidCreate.from(")juliet@capulet.lit/chamber"));
-        di.setType(IQ.Type.result);
+        DiscoverInfoBuilder di = DiscoverInfo.builder("disco1");
+        di.from("benvolio@capulet.lit/230193");
+        di.to(")juliet@capulet.lit/chamber");
+        di.ofType(IQ.Type.result);
 
         Collection<DiscoverInfo.Identity> identities = new LinkedList<DiscoverInfo.Identity>();
         DiscoverInfo.Identity i = new DiscoverInfo.Identity("client", "pc", "Psi 0.11", "en");
@@ -171,52 +189,11 @@ public class EntityCapsManagerTest extends InitExtensions {
         // Failure 2: Duplicate features
         di.addFeature("http://jabber.org/protocol/disco#info");
 
-        DataForm df = new DataForm(DataForm.Type.result);
+        DataForm softwareInfoDataForm = createSampleSoftwareInfoDataForm();
+        di.addExtension(softwareInfoDataForm);
 
-        FormField ff = new FormField("os");
-        ff.addValue("Mac");
-        df.addField(ff);
-
-        ff = new FormField("FORM_TYPE");
-        ff.setType(FormField.Type.hidden);
-        ff.addValue("urn:xmpp:dataforms:softwareinfo");
-        df.addField(ff);
-
-        ff = new FormField("ip_version");
-        ff.addValue("ipv4");
-        ff.addValue("ipv6");
-        df.addField(ff);
-
-        ff = new FormField("os_version");
-        ff.addValue("10.5.1");
-        df.addField(ff);
-
-        ff = new FormField("software");
-        ff.addValue("Psi");
-        df.addField(ff);
-
-        ff = new FormField("software_version");
-        ff.addValue("0.11");
-        df.addField(ff);
-
-        di.addExtension(df);
-
-        // Failure 3: Another service discovery information form with the same
-        // FORM_TYPE
-        df = new DataForm(DataForm.Type.result);
-
-        ff = new FormField("FORM_TYPE");
-        ff.setType(FormField.Type.hidden);
-        ff.addValue("urn:xmpp:dataforms:softwareinfo");
-        df.addField(ff);
-
-        ff = new FormField("software");
-        ff.addValue("smack");
-        df.addField(ff);
-
-        di.addExtension(df);
-
-        return di;
+        DiscoverInfo discoverInfo = di.buildWithoutValidiation();
+        return discoverInfo;
     }
 
     public static File createTempDirectory() throws IOException {

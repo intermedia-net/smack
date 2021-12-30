@@ -18,14 +18,16 @@ package org.jivesoftware.smackx.receipts;
 
 import java.io.IOException;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageBuilder;
 import org.jivesoftware.smack.packet.Stanza;
-import org.jivesoftware.smack.packet.id.StanzaIdUtil;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  * Represents a <b>message delivery receipt request</b> entry as specified by
@@ -35,6 +37,8 @@ import org.xmlpull.v1.XmlPullParserException;
  */
 public class DeliveryReceiptRequest implements ExtensionElement {
     public static final String ELEMENT = "request";
+    public static final String NAMESPACE = DeliveryReceipt.NAMESPACE;
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
     @Override
     public String getElementName() {
@@ -47,7 +51,7 @@ public class DeliveryReceiptRequest implements ExtensionElement {
     }
 
     @Override
-    public String toXML(String enclosingNamespace) {
+    public String toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         return "<request xmlns='" + DeliveryReceipt.NAMESPACE + "'/>";
     }
 
@@ -70,7 +74,7 @@ public class DeliveryReceiptRequest implements ExtensionElement {
      * @return the {@link DeliveryReceiptRequest} extension or {@code null}
      */
     public static DeliveryReceiptRequest from(Stanza packet) {
-        return packet.getExtension(ELEMENT, DeliveryReceipt.NAMESPACE);
+        return packet.getExtension(DeliveryReceiptRequest.class);
     }
 
     /**
@@ -82,12 +86,26 @@ public class DeliveryReceiptRequest implements ExtensionElement {
      * @param message Message object to add a request to
      * @return the Message ID which will be used as receipt ID
      */
+    // TODO: Deprecate in favor of addTo(MessageBuilder) once connection's stanza interceptors use StanzaBuilder.
     public static String addTo(Message message) {
-        if (message.getStanzaId() == null) {
-            message.setStanzaId(StanzaIdUtil.newStanzaId());
-        }
+        message.throwIfNoStanzaId();
+
         message.addExtension(new DeliveryReceiptRequest());
         return message.getStanzaId();
+    }
+
+    /**
+     * Add a delivery receipt request to an outgoing packet.
+     *
+     * Only message packets may contain receipt requests as of XEP-0184,
+     * therefore only allow Message as the parameter type.
+     *
+     * @param messageBuilder Message object to add a request to
+     */
+    public static void addTo(MessageBuilder messageBuilder) {
+        messageBuilder.throwIfNoStanzaId();
+
+        messageBuilder.overrideExtension(new DeliveryReceiptRequest());
     }
 
     /**
@@ -96,7 +114,7 @@ public class DeliveryReceiptRequest implements ExtensionElement {
     public static class Provider extends ExtensionElementProvider<DeliveryReceiptRequest> {
         @Override
         public DeliveryReceiptRequest parse(XmlPullParser parser,
-                        int initialDepth) throws XmlPullParserException,
+                        int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException,
                         IOException {
             return new DeliveryReceiptRequest();
         }

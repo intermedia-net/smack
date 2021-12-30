@@ -18,15 +18,18 @@ package org.jivesoftware.smack.provider;
 
 import static org.jivesoftware.smack.util.PacketParserUtils.parseElementText;
 
-import org.jivesoftware.smack.packet.Message;
-import org.jivesoftware.smack.util.ParserUtils;
+import java.io.IOException;
 
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 public class BodyElementProvider extends ExtensionElementProvider<Message.Body> {
 
     @Override
-    public Message.Body parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public Message.Body parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         String xmlLang = ParserUtils.getXmlLang(parser);
         String body = parseElementText(parser);
 

@@ -16,22 +16,22 @@
  */
 package org.jivesoftware.smackx.iqversion;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.jivesoftware.smack.test.util.CharSequenceEquals.equalsCharSequence;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.jivesoftware.smack.DummyConnection;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.util.PacketParserUtils;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.iqversion.packet.Version;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class VersionTest extends InitExtensions {
+public class VersionTest extends SmackTestSuite {
     @Test
     public void checkProvider() throws Exception {
         // @formatter:off

@@ -20,6 +20,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.Element;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
@@ -44,6 +46,7 @@ public abstract class MUCLightElements {
 
         public static final String ELEMENT = DataForm.ELEMENT;
         public static final String NAMESPACE = MultiUserChatLight.NAMESPACE + MultiUserChatLight.AFFILIATIONS;
+        public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
         private final HashMap<Jid, MUCLightAffiliation> affiliations;
         private final String prevVersion;
@@ -94,7 +97,7 @@ public abstract class MUCLightElements {
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder(this);
             xml.rightAngleBracket();
 
@@ -104,7 +107,7 @@ public abstract class MUCLightElements {
             Iterator<Map.Entry<Jid, MUCLightAffiliation>> it = affiliations.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry<Jid, MUCLightAffiliation> pair = it.next();
-                xml.element(new UserWithAffiliationElement(pair.getKey(), pair.getValue()));
+                xml.append(new UserWithAffiliationElement(pair.getKey(), pair.getValue()));
             }
 
             xml.closeElement(this);
@@ -112,7 +115,7 @@ public abstract class MUCLightElements {
         }
 
         public static AffiliationsChangeExtension from(Message message) {
-            return message.getExtension(AffiliationsChangeExtension.ELEMENT, AffiliationsChangeExtension.NAMESPACE);
+            return message.getExtension(AffiliationsChangeExtension.class);
         }
 
     }
@@ -137,11 +140,11 @@ public abstract class MUCLightElements {
         /**
          * Configurations change extension constructor.
          *
-         * @param prevVersion
-         * @param version
-         * @param roomName
-         * @param subject
-         * @param customConfigs
+         * @param prevVersion TODO javadoc me please
+         * @param version TODO javadoc me please
+         * @param roomName TODO javadoc me please
+         * @param subject TODO javadoc me please
+         * @param customConfigs TODO javadoc me please
          */
         public ConfigurationsChangeExtension(String prevVersion, String version, String roomName, String subject,
                 HashMap<String, String> customConfigs) {
@@ -208,7 +211,7 @@ public abstract class MUCLightElements {
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder(this);
             xml.rightAngleBracket();
 
@@ -230,7 +233,7 @@ public abstract class MUCLightElements {
         }
 
         public static ConfigurationsChangeExtension from(Message message) {
-            return message.getExtension(ConfigurationsChangeExtension.ELEMENT, ConfigurationsChangeExtension.NAMESPACE);
+            return (ConfigurationsChangeExtension) message.getExtensionElement(ConfigurationsChangeExtension.ELEMENT, ConfigurationsChangeExtension.NAMESPACE);
         }
 
     }
@@ -248,14 +251,14 @@ public abstract class MUCLightElements {
         /**
          * Configuration element constructor.
          *
-         * @param configuration
+         * @param configuration TODO javadoc me please
          */
         public ConfigurationElement(MUCLightRoomConfiguration configuration) {
             this.configuration = configuration;
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder();
             xml.openElement("configuration");
 
@@ -289,21 +292,21 @@ public abstract class MUCLightElements {
         /**
          * Occupants element constructor.
          *
-         * @param occupants
+         * @param occupants TODO javadoc me please
          */
         public OccupantsElement(HashMap<Jid, MUCLightAffiliation> occupants) {
             this.occupants = occupants;
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder();
             xml.openElement("occupants");
 
             Iterator<Map.Entry<Jid, MUCLightAffiliation>> it = occupants.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry<Jid, MUCLightAffiliation> pair = it.next();
-                xml.element(new UserWithAffiliationElement(pair.getKey(), pair.getValue()));
+                xml.append(new UserWithAffiliationElement(pair.getKey(), pair.getValue()));
             }
 
             xml.closeElement("occupants");
@@ -326,8 +329,8 @@ public abstract class MUCLightElements {
         /**
          * User with affiliations element constructor.
          *
-         * @param user
-         * @param affiliation
+         * @param user TODO javadoc me please
+         * @param affiliation TODO javadoc me please
          */
         public UserWithAffiliationElement(Jid user, MUCLightAffiliation affiliation) {
             this.user = user;
@@ -335,7 +338,7 @@ public abstract class MUCLightElements {
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder();
             xml.halfOpenElement("user");
             xml.attribute("affiliation", affiliation);
@@ -362,9 +365,9 @@ public abstract class MUCLightElements {
         /**
          * Blocking element constructor.
          *
-         * @param jid
-         * @param allow
-         * @param isRoom
+         * @param jid TODO javadoc me please
+         * @param allow TODO javadoc me please
+         * @param isRoom TODO javadoc me please
          */
         public BlockingElement(Jid jid, Boolean allow, Boolean isRoom) {
             this.jid = jid;
@@ -373,7 +376,7 @@ public abstract class MUCLightElements {
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder();
 
             String tag = isRoom ? "room" : "user";

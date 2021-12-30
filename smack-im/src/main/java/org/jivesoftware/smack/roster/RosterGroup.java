@@ -71,10 +71,10 @@ public class RosterGroup extends Manager {
      * be invalid and will need to be updated to the new group specified by the new name.
      *
      * @param name the name of the group.
-     * @throws NotConnectedException
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void setName(String name) throws NotConnectedException, NoResponseException, XMPPErrorException, InterruptedException {
         synchronized (entries) {
@@ -114,10 +114,10 @@ public class RosterGroup extends Manager {
 
     /**
      * Returns the roster entry associated with the given XMPP address or
-     * <tt>null</tt> if the user is not an entry in the group.
+     * <code>null</code> if the user is not an entry in the group.
      *
      * @param user the XMPP address of the user (eg "jsmith@example.com").
-     * @return the roster entry or <tt>null</tt> if it does not exist in the group.
+     * @return the roster entry or <code>null</code> if it does not exist in the group.
      */
     public RosterEntry getEntry(Jid user) {
         if (user == null) {
@@ -165,10 +165,10 @@ public class RosterGroup extends Manager {
      * to receive the updated roster.
      *
      * @param entry a roster entry.
-     * @throws XMPPErrorException if an error occured while trying to add the entry to the group.
+     * @throws XMPPErrorException if an error occurred while trying to add the entry to the group.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void addEntry(RosterEntry entry) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         // Only add the entry if it isn't already in the list.
@@ -195,8 +195,8 @@ public class RosterGroup extends Manager {
      * @param entry a roster entry.
      * @throws XMPPErrorException if an error occurred while trying to remove the entry from the group.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void removeEntry(RosterEntry entry) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         // Only remove the entry if it's in the entry list.

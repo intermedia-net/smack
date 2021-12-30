@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2016 Florian Schmaus
+ * Copyright 2016-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,12 +29,10 @@ import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 
 import org.jivesoftware.smackx.commands.AdHocCommandManager;
 import org.jivesoftware.smackx.commands.RemoteCommand;
-import org.jivesoftware.smackx.xdata.Form;
-import org.jivesoftware.smackx.xdata.FormField;
+import org.jivesoftware.smackx.xdata.form.FillableForm;
 
 import org.jxmpp.jid.EntityBareJid;
 import org.jxmpp.jid.Jid;
-import org.jxmpp.jid.util.JidUtil;
 
 public class ServiceAdministrationManager extends Manager {
 
@@ -74,19 +72,14 @@ public class ServiceAdministrationManager extends Manager {
         RemoteCommand command = addUser();
         command.execute();
 
-        Form answerForm = command.getForm().createAnswerForm();
+        FillableForm answerForm = new FillableForm(command.getForm());
 
-        FormField accountJidField = answerForm.getField("accountjid");
-        accountJidField.addValue(userJid.toString());
-
-        FormField passwordField = answerForm.getField("password");
-        passwordField.addValue(password);
-
-        FormField passwordVerifyField = answerForm.getField("password-verify");
-        passwordVerifyField.addValue(password);
+        answerForm.setAnswer("accountjid", userJid);
+        answerForm.setAnswer("password", password);
+        answerForm.setAnswer("password-verify", password);
 
         command.execute(answerForm);
-        assert (command.isCompleted());
+        assert command.isCompleted();
     }
 
     public RemoteCommand deleteUser() {
@@ -108,12 +101,11 @@ public class ServiceAdministrationManager extends Manager {
         RemoteCommand command = deleteUser();
         command.execute();
 
-        Form answerForm = command.getForm().createAnswerForm();
+        FillableForm answerForm = new FillableForm(command.getForm());
 
-        FormField accountJids = answerForm.getField("accountjids");
-        accountJids.addValues(JidUtil.toStringList(jidsToDelete));
+        answerForm.setAnswer("accountjids", jidsToDelete);
 
         command.execute(answerForm);
-        assert (command.isCompleted());
+        assert command.isCompleted();
     }
 }

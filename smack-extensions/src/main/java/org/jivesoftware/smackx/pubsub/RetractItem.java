@@ -29,7 +29,7 @@ public class RetractItem implements ExtensionElement {
     private final String id;
 
     /**
-     * Construct a <tt>RetractItem</tt> with the specified id.
+     * Construct a <code>RetractItem</code> with the specified id.
      *
      * @param itemId The id if the item deleted
      */
@@ -54,7 +54,7 @@ public class RetractItem implements ExtensionElement {
     }
 
     @Override
-    public String toXML(String enclosingNamespace) {
+    public String toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         return "<retract id='" + id + "'/>";
     }
 }

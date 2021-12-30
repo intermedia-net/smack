@@ -73,6 +73,14 @@ public class MamFinIQ extends IQ {
         this.queryId = queryId;
     }
 
+    /**
+     * MamFinIQ constructor.
+     *
+     * @param queryId TODO javadoc me please
+     * @param rsmSet TODO javadoc me please
+     * @param complete TODO javadoc me please
+     * @param stable TODO javadoc me please
+     */
     public MamFinIQ(String queryId, RSMSet rsmSet, boolean complete, boolean stable) {
         super(ELEMENT, NAMESPACE);
         if (rsmSet == null) {
@@ -146,7 +154,7 @@ public class MamFinIQ extends IQ {
             xml.setEmptyElement();
         } else {
             xml.rightAngleBracket();
-            xml.element(rsmSet);
+            xml.append(rsmSet);
         }
         return xml;
     }

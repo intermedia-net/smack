@@ -16,6 +16,8 @@
  */
 package org.jivesoftware.smackx.mam;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
@@ -23,6 +25,7 @@ import java.util.TimeZone;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Message.Type;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 import org.jivesoftware.smack.packet.StreamOpen;
 
 import org.jivesoftware.smackx.delay.packet.DelayInformation;
@@ -32,20 +35,19 @@ import org.jivesoftware.smackx.mam.element.MamElements.MamResultExtension;
 import org.jivesoftware.smackx.mam.element.MamQueryIQ;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.impl.JidCreate;
 
 public class QueryArchiveTest extends MamTest {
 
     private static final String mamSimpleQueryIQ = "<iq id='sarasa' type='set'>" + "<query xmlns='urn:xmpp:mam:2' queryid='testid'>"
-            + "<x xmlns='jabber:x:data' type='submit'>" + "<field var='FORM_TYPE' type='hidden'>" + "<value>"
+            + "<x xmlns='jabber:x:data' type='submit'>" + "<field var='FORM_TYPE'>" + "<value>"
             + MamElements.NAMESPACE + "</value>" + "</field>" + "</x>" + "</query>" + "</iq>";
 
     private static final String mamQueryResultExample = "<message to='hag66@shakespeare.lit/pda' from='coven@chat.shakespeare.lit' id='iasd207'>"
             + "<result xmlns='urn:xmpp:mam:2' queryid='g27' id='34482-21985-73620'>"
             + "<forwarded xmlns='urn:xmpp:forward:0'>"
-            + "<delay xmlns='urn:xmpp:delay' stamp='2002-10-13T23:58:37.000+00:00'></delay>" + "<message "
+            + "<delay xmlns='urn:xmpp:delay' stamp='2002-10-13T23:58:37.000+00:00'/>" + "<message "
             + "xmlns='jabber:client' from='coven@chat.shakespeare.lit/firstwitch' " + "id='162BEBB1-F6DB-4D9A-9BD8-CFDCC801A0B2' "
             + "type='chat'>" + "<body>Thrice the brinded cat hath mew.</body>" + "</message>" + "</forwarded>"
             + "</result>" + "</message>";
@@ -56,44 +58,43 @@ public class QueryArchiveTest extends MamTest {
         MamQueryIQ mamQueryIQ = new MamQueryIQ(queryId, dataForm);
         mamQueryIQ.setType(IQ.Type.set);
         mamQueryIQ.setStanzaId("sarasa");
-        Assert.assertEquals(mamQueryIQ.toXML(StreamOpen.CLIENT_NAMESPACE).toString(), mamSimpleQueryIQ);
+        assertEquals(mamQueryIQ.toXML(StreamOpen.CLIENT_NAMESPACE).toString(), mamSimpleQueryIQ);
     }
 
     @Test
     public void checkMamQueryResults() throws Exception {
-        Message message = new Message();
-        message.setStanzaId("iasd207");
-        message.setFrom(JidCreate.from("coven@chat.shakespeare.lit"));
-        message.setTo(JidCreate.from("hag66@shakespeare.lit/pda"));
+        Message message = StanzaBuilder.buildMessage("iasd207")
+                .from("coven@chat.shakespeare.lit")
+                .to("hag66@shakespeare.lit/pda")
+                .build();
 
         GregorianCalendar calendar = new GregorianCalendar(2002, 10 - 1, 13, 23, 58, 37);
         calendar.setTimeZone(TimeZone.getTimeZone("UTC"));
         Date date = calendar.getTime();
 
         DelayInformation delay = new DelayInformation(date);
-        Message forwardedMessage = new Message();
-        forwardedMessage.setFrom(JidCreate.from("coven@chat.shakespeare.lit/firstwitch"));
-        forwardedMessage.setStanzaId("162BEBB1-F6DB-4D9A-9BD8-CFDCC801A0B2");
-        forwardedMessage.setType(Type.chat);
-        forwardedMessage.setBody("Thrice the brinded cat hath mew.");
+        Message forwardedMessage = StanzaBuilder.buildMessage("162BEBB1-F6DB-4D9A-9BD8-CFDCC801A0B2")
+                        .from(JidCreate.from("coven@chat.shakespeare.lit/firstwitch"))
+                        .ofType(Type.chat)
+                        .setBody("Thrice the brinded cat hath mew.")
+                        .build();
 
-        Forwarded forwarded = new Forwarded(delay, forwardedMessage);
+        Forwarded<Message> forwarded = new Forwarded<>(forwardedMessage, delay);
 
         message.addExtension(new MamResultExtension("g27", "34482-21985-73620", forwarded));
 
-        // FIXME: The order of assertEquals is reversed, fix it by switching it.
-        Assert.assertEquals(message.toXML(StreamOpen.CLIENT_NAMESPACE).toString(), mamQueryResultExample);
+        assertEquals(mamQueryResultExample, message.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
 
         MamResultExtension mamResultExtension = MamResultExtension.from(message);
 
-        Assert.assertEquals(mamResultExtension.getId(), "34482-21985-73620");
-        Assert.assertEquals(mamResultExtension.getForwarded().getDelayInformation().getStamp(), date);
+        assertEquals(mamResultExtension.getId(), "34482-21985-73620");
+        assertEquals(mamResultExtension.getForwarded().getDelayInformation().getStamp(), date);
 
-        Message resultMessage = (Message) mamResultExtension.getForwarded().getForwardedStanza();
-        Assert.assertEquals(resultMessage.getFrom(), JidCreate.from("coven@chat.shakespeare.lit/firstwitch"));
-        Assert.assertEquals(resultMessage.getStanzaId(), "162BEBB1-F6DB-4D9A-9BD8-CFDCC801A0B2");
-        Assert.assertEquals(resultMessage.getType(), Type.chat);
-        Assert.assertEquals(resultMessage.getBody(), "Thrice the brinded cat hath mew.");
+        Message resultMessage = mamResultExtension.getForwarded().getForwardedStanza();
+        assertEquals(resultMessage.getFrom(), JidCreate.from("coven@chat.shakespeare.lit/firstwitch"));
+        assertEquals(resultMessage.getStanzaId(), "162BEBB1-F6DB-4D9A-9BD8-CFDCC801A0B2");
+        assertEquals(resultMessage.getType(), Type.chat);
+        assertEquals(resultMessage.getBody(), "Thrice the brinded cat hath mew.");
     }
 
 }

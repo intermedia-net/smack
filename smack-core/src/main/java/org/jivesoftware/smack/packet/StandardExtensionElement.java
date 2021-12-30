@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 Florian Schmaus.
+ * Copyright 2015-2020 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.util.MultiMap;
 import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.XmlStringBuilder;
-
-import org.jxmpp.util.XmppStringUtils;
 
 /**
  * An {@link ExtensionElement} modeling the often required and used XML features when using XMPP. It
@@ -47,7 +47,7 @@ public final class StandardExtensionElement implements ExtensionElement {
     private final String namespace;
     private final Map<String, String> attributes;
     private final String text;
-    private final MultiMap<String, StandardExtensionElement> elements;
+    private final MultiMap<QName, StandardExtensionElement> elements;
 
     private XmlStringBuilder xmlCache;
 
@@ -65,9 +65,9 @@ public final class StandardExtensionElement implements ExtensionElement {
     }
 
     private StandardExtensionElement(String name, String namespace, Map<String, String> attributes, String text,
-                    MultiMap<String, StandardExtensionElement> elements) {
-        this.name = StringUtils.requireNotNullOrEmpty(name, "Name must not be null or empty");
-        this.namespace = StringUtils.requireNotNullOrEmpty(namespace, "Namespace must not be null or empty");
+                    MultiMap<QName, StandardExtensionElement> elements) {
+        this.name = StringUtils.requireNotNullNorEmpty(name, "Name must not be null nor empty");
+        this.namespace = StringUtils.requireNotNullNorEmpty(namespace, "Namespace must not be null nor empty");
         if (attributes == null) {
             this.attributes = Collections.emptyMap();
         }
@@ -100,7 +100,7 @@ public final class StandardExtensionElement implements ExtensionElement {
         if (elements == null) {
             return null;
         }
-        String key = XmppStringUtils.generateKey(element, namespace);
+        QName key = new QName(namespace, element);
         return elements.getFirst(key);
     }
 
@@ -112,7 +112,7 @@ public final class StandardExtensionElement implements ExtensionElement {
         if (elements == null) {
             return null;
         }
-        String key = XmppStringUtils.generateKey(element, namespace);
+        QName key = new QName(namespace, element);
         return elements.getAll(key);
     }
 
@@ -132,7 +132,7 @@ public final class StandardExtensionElement implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         if (xmlCache != null) {
             return xmlCache;
         }
@@ -142,10 +142,12 @@ public final class StandardExtensionElement implements ExtensionElement {
         }
         xml.rightAngleBracket();
 
-        xml.optEscape(text);
+        if (text != null) {
+            xml.text(text);
+        }
 
         if (elements != null) {
-            for (Map.Entry<String, StandardExtensionElement> entry : elements.entrySet()) {
+            for (Map.Entry<QName, StandardExtensionElement> entry : elements.entrySet()) {
                 xml.append(entry.getValue().toXML(getNamespace()));
             }
         }
@@ -165,7 +167,7 @@ public final class StandardExtensionElement implements ExtensionElement {
 
         private Map<String, String> attributes;
         private String text;
-        private MultiMap<String, StandardExtensionElement> elements;
+        private MultiMap<QName, StandardExtensionElement> elements;
 
         private Builder(String name, String namespace) {
             this.name = name;
@@ -173,7 +175,7 @@ public final class StandardExtensionElement implements ExtensionElement {
         }
 
         public Builder addAttribute(String name, String value) {
-            StringUtils.requireNotNullOrEmpty(name, "Attribute name must be set");
+            StringUtils.requireNotNullNorEmpty(name, "Attribute name must be set");
             Objects.requireNonNull(value, "Attribute value must be not null");
             if (attributes == null) {
                 attributes = new LinkedHashMap<>();
@@ -200,7 +202,8 @@ public final class StandardExtensionElement implements ExtensionElement {
             if (elements == null) {
                 elements = new MultiMap<>();
             }
-            String key = XmppStringUtils.generateKey(element.getElementName(), element.getNamespace());
+
+            QName key = element.getQName();
             elements.put(key, element);
             return this;
         }

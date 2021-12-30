@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2016 Florian Schmaus
+ * Copyright 2016-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
  */
 package org.jivesoftware.smackx.iot;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
-import org.jivesoftware.smack.roster.RosterIntegrationTest;
 import org.jivesoftware.smack.util.StringUtils;
 
 import org.jivesoftware.smackx.iot.data.IoTDataManager;
@@ -36,8 +35,9 @@ import org.jivesoftware.smackx.iot.data.element.NodeElement;
 import org.jivesoftware.smackx.iot.data.element.TimestampElement;
 
 import org.igniterealtime.smack.inttest.AbstractSmackIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
+import org.igniterealtime.smack.inttest.util.IntegrationTestRosterUtil;
 
 public class IoTDataIntegrationTest extends AbstractSmackIntegrationTest {
 
@@ -54,8 +54,8 @@ public class IoTDataIntegrationTest extends AbstractSmackIntegrationTest {
     /**
      * Connection one provides a thing, which momentary value is read out by connection two.
      *
-     * @throws Exception
-     * @throws TimeoutException
+     * @throws Exception if an exception occurs.
+     * @throws TimeoutException if there was a timeout.
      */
     @SmackIntegrationTest
     public void dataTest() throws Exception {
@@ -75,13 +75,13 @@ public class IoTDataIntegrationTest extends AbstractSmackIntegrationTest {
 
         List<IoTFieldsExtension> values;
         try {
-            RosterIntegrationTest.ensureBothAccountsAreSubscribedToEachOther(conOne, conTwo, timeout);
+            IntegrationTestRosterUtil.ensureBothAccountsAreSubscribedToEachOther(conOne, conTwo, timeout);
 
             values = iotDataManagerTwo.requestMomentaryValuesReadOut(conOne.getUser());
         }
         finally {
             iotDataManagerOne.uninstallThing(dataThing);
-            RosterIntegrationTest.ensureBothAccountsAreNotInEachOthersRoster(conOne, conTwo);
+            IntegrationTestRosterUtil.ensureBothAccountsAreNotInEachOthersRoster(conOne, conTwo);
         }
 
         assertEquals(1, values.size());

@@ -21,6 +21,7 @@ import java.util.WeakHashMap;
 
 import org.jivesoftware.smack.Manager;
 import org.jivesoftware.smack.XMPPConnection;
+
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 
 public final class SpoilerManager extends Manager {
@@ -59,9 +60,9 @@ public final class SpoilerManager extends Manager {
      * Return the connections instance of the SpoilerManager.
      *
      * @param connection xmpp connection
-     * @return SpoilerManager
+     * @return SpoilerManager TODO javadoc me please
      */
-    public static SpoilerManager getInstanceFor(XMPPConnection connection) {
+    public static synchronized SpoilerManager getInstanceFor(XMPPConnection connection) {
         SpoilerManager manager = INSTANCES.get(connection);
         if (manager == null) {
             manager = new SpoilerManager(connection);

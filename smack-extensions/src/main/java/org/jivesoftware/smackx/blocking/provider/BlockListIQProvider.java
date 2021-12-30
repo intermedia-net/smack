@@ -16,17 +16,20 @@
  */
 package org.jivesoftware.smackx.blocking.provider;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.jivesoftware.smack.packet.IQ.Type;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.blocking.element.BlockListIQ;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * Block list IQ provider class.
@@ -38,15 +41,13 @@ import org.xmlpull.v1.XmlPullParser;
 public class BlockListIQProvider extends IQProvider<BlockListIQ> {
 
     @Override
-    public BlockListIQ parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public BlockListIQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         List<Jid> jids = null;
 
         outerloop: while (true) {
-            int eventType = parser.next();
-
+            XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 if (parser.getName().equals("item")) {
                     if (jids == null) {
                         jids = new ArrayList<>();
@@ -56,12 +57,15 @@ public class BlockListIQProvider extends IQProvider<BlockListIQ> {
                 }
                 break;
 
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
                 break;
 
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
+                break;
             }
         }
 

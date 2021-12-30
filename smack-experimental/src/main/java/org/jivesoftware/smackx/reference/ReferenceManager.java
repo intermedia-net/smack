@@ -23,6 +23,7 @@ import org.jivesoftware.smack.ConnectionCreationListener;
 import org.jivesoftware.smack.Manager;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPConnectionRegistry;
+
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 
 public final class ReferenceManager extends Manager {
@@ -51,7 +52,7 @@ public final class ReferenceManager extends Manager {
      * @param connection xmpp connection
      * @return reference manager instance
      */
-    public static ReferenceManager getInstanceFor(XMPPConnection connection) {
+    public static synchronized ReferenceManager getInstanceFor(XMPPConnection connection) {
         ReferenceManager manager = INSTANCES.get(connection);
         if (manager == null) {
             manager = new ReferenceManager(connection);

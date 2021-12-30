@@ -24,6 +24,7 @@ import org.jivesoftware.smack.packet.IQ;
 
 import org.jivesoftware.smackx.pubsub.packet.PubSub;
 import org.jivesoftware.smackx.xdata.FormField;
+import org.jivesoftware.smackx.xdata.TextSingleFormField;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 import org.jxmpp.jid.Jid;
@@ -98,21 +99,23 @@ public class EnablePushNotificationsIQ extends IQ {
         xml.rightAngleBracket();
 
         if (publishOptions != null) {
-            DataForm dataForm = new DataForm(DataForm.Type.submit);
+            DataForm.Builder dataForm = DataForm.builder();
 
-            FormField formTypeField = new FormField("FORM_TYPE");
-            formTypeField.addValue(PubSub.NAMESPACE + "#publish-options");
+            // TODO: Shouldn't this use some potentially existing PubSub API? Also FORM_TYPE fields are usually of type
+            // 'hidden', but the examples in XEP-0357 do also not set the value to hidden and FORM_TYPE itself appears
+            // to be more convention than specification.
+            FormField formTypeField = FormField.buildHiddenFormType(PubSub.NAMESPACE + "#publish-options");
             dataForm.addField(formTypeField);
 
             Iterator<Map.Entry<String, String>> publishOptionsIterator = publishOptions.entrySet().iterator();
             while (publishOptionsIterator.hasNext()) {
                 Map.Entry<String, String> pairVariableValue = publishOptionsIterator.next();
-                FormField field = new FormField(pairVariableValue.getKey());
-                field.addValue(pairVariableValue.getValue());
-                dataForm.addField(field);
+                TextSingleFormField.Builder field = FormField.builder(pairVariableValue.getKey());
+                field.setValue(pairVariableValue.getValue());
+                dataForm.addField(field.build());
             }
 
-            xml.element(dataForm);
+            xml.append(dataForm.build());
         }
 
         return xml;

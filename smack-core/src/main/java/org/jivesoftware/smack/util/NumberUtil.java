@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2015 Florian Schmaus
+ * Copyright © 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,14 +21,44 @@ public class NumberUtil {
     /**
      * Checks if the given long is within the range of an unsigned 32-bit integer, the XML type "xs:unsignedInt".
      *
-     * @param value
+     * @param value TODO javadoc me please
+     * @deprecated use {@link #requireUInt32(long)} instead.
      */
+    @Deprecated
+    // TODO: Remove in Smack 4.5.
     public static void checkIfInUInt32Range(long value) {
+        requireUInt32(value);
+    }
+
+    /**
+     * Checks if the given long is within the range of an unsigned 32-bit integer, the XML type "xs:unsignedInt".
+     *
+     * @param value the long to check.
+     * @return the input value.
+     */
+    public static long requireUInt32(long value) {
         if (value < 0) {
-            throw new IllegalArgumentException("unsigned 32-bit integers can't be negative");
+            throw new IllegalArgumentException("unsigned 32-bit integers can't be negative: " + value);
         }
         if (value > ((1L << 32) - 1)) {
-            throw new IllegalArgumentException("unsigned 32-bit integers can't be greater then 2^32 - 1");
+            throw new IllegalArgumentException("unsigned 32-bit integers can't be greater than 2^32 - 1: " + value);
         }
+        return value;
+    }
+
+    /**
+     * Checks if the given int is within the range of an unsigned 16-bit integer, the XML type "xs:unsignedShort".
+     *
+     * @param value the int to check.
+     * @return the input value.
+     */
+    public static int requireUShort16(int value) {
+        if (value < 0) {
+            throw new IllegalArgumentException("unsigned 16-bit integers can't be negative: " + value);
+        }
+        if (value > ((1 << 16) - 1)) {
+            throw new IllegalArgumentException("unsigned 16-bit integers can't be greater than 2^16 - 1: " + value);
+        }
+        return value;
     }
 }

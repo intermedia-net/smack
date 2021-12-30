@@ -21,12 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
-import org.jivesoftware.smackx.xdata.Form;
 import org.jivesoftware.smackx.xdata.FormField;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 /**
  * SimpleUserSearch is used to support the non-dataform type of XEP 55. This provides
@@ -40,14 +39,14 @@ class SimpleUserSearch extends IQ {
     public static final String ELEMENT = UserSearch.ELEMENT;
     public static final String NAMESPACE = UserSearch.NAMESPACE;
 
-    private Form form;
+    private DataForm form;
     private ReportedData data;
 
     SimpleUserSearch() {
         super(ELEMENT, NAMESPACE);
     }
 
-    public void setForm(Form form) {
+    public void setForm(DataForm form) {
         this.form = form;
     }
 
@@ -66,7 +65,7 @@ class SimpleUserSearch extends IQ {
         StringBuilder buf = new StringBuilder();
 
         if (form == null) {
-            form = Form.getFormFrom(this);
+            form = DataForm.from(this);
         }
 
         if (form == null) {
@@ -74,7 +73,7 @@ class SimpleUserSearch extends IQ {
         }
 
         for (FormField field : form.getFields()) {
-            String name = field.getVariable();
+            String name = field.getFieldName();
             String value = getSingleValue(field);
             if (value.trim().length() > 0) {
                 buf.append('<').append(name).append('>').append(value).append("</").append(name).append('>');
@@ -109,16 +108,16 @@ class SimpleUserSearch extends IQ {
                 fields.add(field);
             }
 
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
 
-            if (eventType == XmlPullParser.START_TAG && parser.getName().equals("item")) {
+            if (eventType == XmlPullParser.Event.START_ELEMENT && parser.getName().equals("item")) {
                 fields = new ArrayList<>();
             }
-            else if (eventType == XmlPullParser.END_TAG && parser.getName().equals("item")) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT && parser.getName().equals("item")) {
                 ReportedData.Row row = new ReportedData.Row(fields);
                 data.addRow(row);
             }
-            else if (eventType == XmlPullParser.START_TAG) {
+            else if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 String name = parser.getName();
                 String value = parser.nextText();
 
@@ -141,7 +140,7 @@ class SimpleUserSearch extends IQ {
                     data.addColumn(column);
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("query")) {
                     done = true;
                 }

@@ -16,13 +16,17 @@
  */
 package org.jivesoftware.smackx.mam.provider;
 
+import java.io.IOException;
+
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.mam.element.MamQueryIQ;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 import org.jivesoftware.smackx.xdata.provider.DataFormProvider;
-
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * MAM Query IQ Provider class.
@@ -35,27 +39,31 @@ import org.xmlpull.v1.XmlPullParser;
 public class MamQueryIQProvider extends IQProvider<MamQueryIQ> {
 
     @Override
-    public MamQueryIQ parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public MamQueryIQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
+                    throws XmlPullParserException, IOException, SmackParsingException {
         DataForm dataForm = null;
         String queryId = parser.getAttributeValue("", "queryid");
         String node = parser.getAttributeValue("", "node");
 
         outerloop: while (true) {
-            final int eventType = parser.next();
-            final String name = parser.getName();
+            final XmlPullParser.Event eventType = parser.next();
 
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
+                final String name = parser.getName();
                 switch (name) {
                 case DataForm.ELEMENT:
                     dataForm = DataFormProvider.INSTANCE.parse(parser);
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }

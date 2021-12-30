@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015-2016 Florian Schmaus.
+ * Copyright 2015-2019 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,33 @@ package org.jivesoftware.smack.proxy;
 import java.io.IOException;
 import java.net.Socket;
 
+import org.jivesoftware.smack.util.Function;
+
 public interface ProxySocketConnection {
 
+    /**
+     * Initiate a connection to the given host on the given port. Note that the caller is responsible for closing the
+     * socket in case this method throws.
+     *
+     * @param socket the socket to use to initiate the connection to the proxy.
+     * @param host the host to connect to.
+     * @param port the port to connect to.
+     * @param timeout the timeout in milliseconds.
+     * @throws IOException in case an I/O error occurs.
+     */
     void connect(Socket socket, String host, int port, int timeout)
                     throws IOException;
 
+    static Function<ProxySocketConnection, ProxyInfo> forProxyType(ProxyInfo.ProxyType proxyType) {
+        switch (proxyType) {
+            case HTTP:
+                return HTTPProxySocketConnection::new;
+            case SOCKS4:
+                return Socks4ProxySocketConnection::new;
+            case SOCKS5:
+                return Socks5ProxySocketConnection::new;
+            default:
+                throw new AssertionError("Unknown proxy type: " + proxyType);
+        }
+    }
 }

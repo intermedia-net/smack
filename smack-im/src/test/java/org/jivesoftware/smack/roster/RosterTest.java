@@ -45,6 +45,7 @@ import org.jivesoftware.smack.roster.packet.RosterPacket.ItemType;
 import org.jivesoftware.smack.test.util.TestUtils;
 import org.jivesoftware.smack.test.util.WaitForPacketListener;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.junit.After;
 import org.junit.Before;
@@ -53,7 +54,6 @@ import org.jxmpp.jid.BareJid;
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.impl.JidCreate;
 import org.jxmpp.stringprep.XmppStringprepException;
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * Tests that verifies the correct behavior of the {@link Roster} implementation.
@@ -95,6 +95,8 @@ public class RosterTest extends InitSmackIm {
      * Test a simple roster initialization according to the example in
      * <a href="http://xmpp.org/rfcs/rfc3921.html#roster-login"
      *     >RFC3921: Retrieving One's Roster on Login</a>.
+     *
+     * @throws Exception in case of an exception.
      */
     @Test
     public void testSimpleRosterInitialization() throws Exception {
@@ -131,6 +133,8 @@ public class RosterTest extends InitSmackIm {
      * Test adding a roster item according to the example in
      * <a href="http://xmpp.org/rfcs/rfc3921.html#roster-add"
      *     >RFC3921: Adding a Roster Item</a>.
+     *
+     * @throws Throwable in case a throwable is thrown.
      */
     @Test
     public void testAddRosterItem() throws Throwable {
@@ -164,7 +168,7 @@ public class RosterTest extends InitSmackIm {
             }
         };
         serverSimulator.start();
-        roster.createEntry(contactJID, contactName, contactGroup);
+        roster.createItemAndRequestSubscription(contactJID, contactName, contactGroup);
         serverSimulator.join();
 
         // Check if an error occurred within the simulator
@@ -203,6 +207,8 @@ public class RosterTest extends InitSmackIm {
      * Test updating a roster item according to the example in
      * <a href="http://xmpp.org/rfcs/rfc3921.html#roster-update"
      *     >RFC3921: Updating a Roster Item</a>.
+     *
+     * @throws Throwable in case a throwable is thrown.
      */
     @Test
     public void testUpdateRosterItem() throws Throwable {
@@ -279,6 +285,7 @@ public class RosterTest extends InitSmackIm {
      * Test deleting a roster item according to the example in
      * <a href="http://xmpp.org/rfcs/rfc3921.html#roster-delete"
      *     >RFC3921: Deleting a Roster Item</a>.
+     * @throws Throwable if throwable is thrown.
      */
     @Test
     public void testDeleteRosterItem() throws Throwable {
@@ -327,6 +334,7 @@ public class RosterTest extends InitSmackIm {
      * Test a simple roster push according to the example in
      * <a href="http://xmpp.org/internet-drafts/draft-ietf-xmpp-3921bis-03.html#roster-syntax-actions-push"
      *     >RFC3921bis-03: Roster Push</a>.
+     * @throws Throwable in case a throwable is thrown.
      */
     @Test
     public void testSimpleRosterPush() throws Throwable {
@@ -369,7 +377,7 @@ public class RosterTest extends InitSmackIm {
 
     /**
      * Tests that roster pushes with invalid from are ignored.
-     * @throws XmppStringprepException
+     * @throws XmppStringprepException if the provided string is invalid.
      *
      * @see <a href="http://xmpp.org/rfcs/rfc6121.html#roster-syntax-actions-push">RFC 6121, Section 2.1.6</a>
      */
@@ -398,6 +406,7 @@ public class RosterTest extends InitSmackIm {
      * Test if adding an user with an empty group is equivalent with providing
      * no group.
      *
+     * @throws Throwable in case a throwable is thrown.
      * @see <a href="http://www.igniterealtime.org/issues/browse/SMACK-294">SMACK-294</a>
      */
     @Test(timeout = 5000)
@@ -430,7 +439,7 @@ public class RosterTest extends InitSmackIm {
             }
         };
         serverSimulator.start();
-        roster.createEntry(contactJID, contactName, contactGroup);
+        roster.createItemAndRequestSubscription(contactJID, contactName, contactGroup);
         serverSimulator.join();
 
         // Check if an error occurred within the simulator
@@ -466,6 +475,7 @@ public class RosterTest extends InitSmackIm {
      * Test processing a roster push with an empty group is equivalent with providing
      * no group.
      *
+     * @throws Throwable in case a throwable is thrown.
      * @see <a href="http://www.igniterealtime.org/issues/browse/SMACK-294">SMACK-294</a>
      */
     @Test
@@ -538,8 +548,8 @@ public class RosterTest extends InitSmackIm {
      * <a href="http://xmpp.org/rfcs/rfc3921.html#roster-login"
      *     >RFC3921: Retrieving One's Roster on Login</a>.
      *
-     * @throws SmackException
-     * @throws XmppStringprepException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws XmppStringprepException if the provided string is invalid.
      */
     private void initRoster() throws InterruptedException, SmackException, XmppStringprepException {
         roster.reload();

@@ -16,14 +16,18 @@
  */
 package org.jivesoftware.smackx.pubsub.provider;
 
+import java.io.IOException;
+
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.pubsub.packet.PubSub;
 import org.jivesoftware.smackx.pubsub.packet.PubSubNamespace;
-
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * Parses the root PubSub stanza extensions of the {@link IQ} stanza and returns
@@ -33,22 +37,24 @@ import org.xmlpull.v1.XmlPullParser;
  */
 public class PubSubProvider extends IQProvider<PubSub> {
     @Override
-    public PubSub parse(XmlPullParser parser, int initialDepth)
-                    throws Exception {
+    public PubSub parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         String namespace = parser.getNamespace();
         PubSubNamespace pubSubNamespace = PubSubNamespace.valueOfFromXmlns(namespace);
         PubSub pubsub = new PubSub(pubSubNamespace);
 
         outerloop: while (true)  {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
-                PacketParserUtils.addExtensionElement(pubsub, parser);
+            case START_ELEMENT:
+                PacketParserUtils.addExtensionElement(pubsub, parser, xmlEnvironment);
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }

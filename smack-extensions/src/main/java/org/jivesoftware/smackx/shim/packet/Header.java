@@ -21,7 +21,7 @@ import org.jivesoftware.smack.packet.NamedElement;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
 /**
- * Represents a <b>Header</b> entry as specified by the <a href="http://xmpp.org/extensions/xep-031.html">Stanza Headers and Internet Metadata (SHIM)</a>.
+ * Represents a <b>Header</b> entry as specified by the <a href="http://xmpp.org/extensions/xep-0131.html">Stanza Headers and Internet Metadata (SHIM)</a>.
 
  * @author Robin Collier
  */
@@ -55,7 +55,7 @@ public class Header implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         // Upcast to NamedElement since we don't want a xmlns attribute
         XmlStringBuilder xml = new XmlStringBuilder((NamedElement) this);
         xml.attribute("name", name);

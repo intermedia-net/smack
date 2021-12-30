@@ -16,24 +16,24 @@
  */
 package org.jivesoftware.smackx.filetransfer;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.jivesoftware.smack.DummyConnection;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.JidTestUtil;
 
-public class FileTransferNegotiatorTest extends InitExtensions {
+public class FileTransferNegotiatorTest extends SmackTestSuite {
     private DummyConnection connection;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         connection = new DummyConnection();
         connection.connect();
@@ -41,7 +41,7 @@ public class FileTransferNegotiatorTest extends InitExtensions {
         ServiceDiscoveryManager.getInstanceFor(connection);
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         if (connection != null)
             connection.disconnect();
@@ -56,7 +56,7 @@ public class FileTransferNegotiatorTest extends InitExtensions {
             // We do not expect an answer. This unit test only checks the request sent.
         }
         Stanza packet = connection.getSentPacket();
-        String xml = packet.toXML(null).toString();
+        String xml = packet.toXML().toString();
         assertTrue(xml.indexOf("var='stream-method' type='list-single'") != -1);
     }
 }

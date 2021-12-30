@@ -16,21 +16,24 @@
  */
 package org.jivesoftware.smackx.spoiler;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertNull;
-import static junit.framework.TestCase.assertTrue;
-import static org.custommonkey.xmlunit.XMLAssert.assertXMLEqual;
+import static org.jivesoftware.smack.test.util.XmlAssertUtil.assertXmlSimilar;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.test.util.TestUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+
 import org.jivesoftware.smackx.spoiler.element.SpoilerElement;
 import org.jivesoftware.smackx.spoiler.provider.SpoilerProvider;
 
-import org.junit.Test;
-import org.xmlpull.v1.XmlPullParser;
+import org.junit.jupiter.api.Test;
 
 public class SpoilerTest extends SmackTestSuite {
 
@@ -38,65 +41,65 @@ public class SpoilerTest extends SmackTestSuite {
     public void emptySpoilerTest() throws Exception {
         final String xml = "<spoiler xmlns='urn:xmpp:spoiler:0'/>";
 
-        Message message = new Message();
+        Message message = StanzaBuilder.buildMessage().build();
         SpoilerElement.addSpoiler(message);
 
-        SpoilerElement empty = message.getExtension(SpoilerElement.ELEMENT, SpoilerManager.NAMESPACE_0);
+        SpoilerElement empty = (SpoilerElement) message.getExtensionElement(SpoilerElement.ELEMENT, SpoilerManager.NAMESPACE_0);
 
         assertNull(empty.getHint());
         assertNull(empty.getLanguage());
 
-        assertXMLEqual(xml, empty.toXML(null).toString());
+        assertXmlSimilar(xml, empty.toXML().toString());
 
         XmlPullParser parser = TestUtils.getParser(xml);
         SpoilerElement parsed = SpoilerProvider.INSTANCE.parse(parser);
-        assertXMLEqual(xml, parsed.toXML(null).toString());
+        assertXmlSimilar(xml, parsed.toXML().toString());
     }
 
     @Test
     public void hintSpoilerTest() throws Exception {
         final String xml = "<spoiler xmlns='urn:xmpp:spoiler:0'>Love story end</spoiler>";
 
-        Message message = new Message();
+        Message message = StanzaBuilder.buildMessage().build();
         SpoilerElement.addSpoiler(message, "Love story end");
 
-        SpoilerElement withHint = message.getExtension(SpoilerElement.ELEMENT, SpoilerManager.NAMESPACE_0);
+        SpoilerElement withHint = (SpoilerElement) message.getExtensionElement(SpoilerElement.ELEMENT, SpoilerManager.NAMESPACE_0);
 
         assertEquals("Love story end", withHint.getHint());
         assertNull(withHint.getLanguage());
 
-        assertXMLEqual(xml, withHint.toXML(null).toString());
+        assertXmlSimilar(xml, withHint.toXML().toString());
 
         XmlPullParser parser = TestUtils.getParser(xml);
         SpoilerElement parsed = SpoilerProvider.INSTANCE.parse(parser);
 
-        assertXMLEqual(xml, parsed.toXML(null).toString());
+        assertXmlSimilar(xml, parsed.toXML().toString());
     }
 
     @Test
     public void i18nHintSpoilerTest() throws Exception {
         final String xml = "<spoiler xml:lang='de' xmlns='urn:xmpp:spoiler:0'>Der Kuchen ist eine Lüge!</spoiler>";
 
-        Message message = new Message();
+        Message message = StanzaBuilder.buildMessage().build();
         SpoilerElement.addSpoiler(message, "de", "Der Kuchen ist eine Lüge!");
 
-        SpoilerElement i18nHint = message.getExtension(SpoilerElement.ELEMENT, SpoilerManager.NAMESPACE_0);
+        SpoilerElement i18nHint = (SpoilerElement) message.getExtensionElement(SpoilerElement.ELEMENT, SpoilerManager.NAMESPACE_0);
 
         assertEquals("Der Kuchen ist eine Lüge!", i18nHint.getHint());
         assertEquals("de", i18nHint.getLanguage());
 
-        assertXMLEqual(xml, i18nHint.toXML(null).toString());
+        assertXmlSimilar(xml, i18nHint.toXML().toString());
 
         XmlPullParser parser = TestUtils.getParser(xml);
         SpoilerElement parsed = SpoilerProvider.INSTANCE.parse(parser);
         assertEquals(i18nHint.getLanguage(), parsed.getLanguage());
 
-        assertXMLEqual(xml, parsed.toXML(null).toString());
+        assertXmlSimilar(xml, parsed.toXML().toString());
     }
 
     @Test
     public void getSpoilersTest() {
-        Message m = new Message();
+        Message m = StanzaBuilder.buildMessage().build();
         assertTrue(SpoilerElement.getSpoilers(m).isEmpty());
 
         SpoilerElement.addSpoiler(m);
@@ -114,15 +117,15 @@ public class SpoilerTest extends SmackTestSuite {
         assertEquals(spoilerText, spoilers.get("de"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void spoilerCheckArgumentsNullTest() {
-        @SuppressWarnings("unused")
-        SpoilerElement spoilerElement = new SpoilerElement("de", null);
+        assertThrows(IllegalArgumentException.class, () ->
+        new SpoilerElement("de", null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void spoilerCheckArgumentsEmptyTest() {
-        @SuppressWarnings("unused")
-        SpoilerElement spoilerElement = new SpoilerElement("de", "");
+        assertThrows(IllegalArgumentException.class, () ->
+        new SpoilerElement("de", ""));
     }
 }

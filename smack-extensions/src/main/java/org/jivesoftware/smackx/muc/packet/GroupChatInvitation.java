@@ -19,13 +19,15 @@ package org.jivesoftware.smackx.muc.packet;
 
 import java.io.IOException;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.XmlStringBuilder;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  * A group chat invitation stanza extension, which is used to invite other
@@ -41,7 +43,7 @@ import org.xmlpull.v1.XmlPullParserException;
  * </pre>
  *
  * To listen for group chat invitations, use a StanzaExtensionFilter for the
- * <tt>x</tt> element name and <tt>jabber:x:conference</tt> namespace, as in the
+ * <code>x</code> element name and <code>jabber:x:conference</code> namespace, as in the
  * following code example:
  *
  * <pre>
@@ -68,13 +70,15 @@ public class GroupChatInvitation implements ExtensionElement {
      */
     public static final String NAMESPACE = "jabber:x:conference";
 
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
     private final String roomAddress;
 
     /**
      * Creates a new group chat invitation to the specified room address.
-     * GroupChat room addresses are in the form <tt>room@service</tt>,
-     * where <tt>service</tt> is the name of group chat server, such as
-     * <tt>chat.example.com</tt>.
+     * GroupChat room addresses are in the form <code>room@service</code>,
+     * where <code>service</code> is the name of group chat server, such as
+     * <code>chat.example.com</code>.
      *
      * @param roomAddress the address of the group chat room.
      */
@@ -84,8 +88,8 @@ public class GroupChatInvitation implements ExtensionElement {
 
     /**
      * Returns the address of the group chat room. GroupChat room addresses
-     * are in the form <tt>room@service</tt>, where <tt>service</tt> is
-     * the name of group chat server, such as <tt>chat.example.com</tt>.
+     * are in the form <code>room@service</code>, where <code>service</code> is
+     * the name of group chat server, such as <code>chat.example.com</code>.
      *
      * @return the address of the group chat room.
      */
@@ -104,7 +108,7 @@ public class GroupChatInvitation implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
         xml.attribute("jid", getRoomAddress());
         xml.closeEmptyElement();
@@ -112,30 +116,19 @@ public class GroupChatInvitation implements ExtensionElement {
     }
 
     /**
-     * Deprecated.
-     * @param packet
-     * @return the GroupChatInvitation or null
-     * @deprecated use {@link #from(Stanza)} instead
-     */
-    @Deprecated
-    public static GroupChatInvitation getFrom(Stanza packet) {
-        return from(packet);
-    }
-
-    /**
      * Get the group chat invitation from the given stanza.
-     * @param packet
+     * @param packet TODO javadoc me please
      * @return the GroupChatInvitation or null
      */
     public static GroupChatInvitation from(Stanza packet) {
-        return packet.getExtension(ELEMENT, NAMESPACE);
+        return packet.getExtension(GroupChatInvitation.class);
     }
 
     public static class Provider extends ExtensionElementProvider<GroupChatInvitation> {
 
         @Override
         public GroupChatInvitation parse(XmlPullParser parser,
-                        int initialDepth) throws XmlPullParserException,
+                        int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException,
                         IOException {
             String roomAddress = parser.getAttributeValue("", "jid");
             // Advance to end of extension.

@@ -16,17 +16,17 @@
  */
 package org.jivesoftware.smackx.shim.provider;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.test.util.TestUtils;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.shim.packet.Header;
 import org.jivesoftware.smackx.shim.packet.HeadersExtension;
 
-import org.junit.Test;
-import org.xmlpull.v1.XmlPullParser;
+import org.junit.jupiter.api.Test;
 
 public class HeadersProviderTest {
 

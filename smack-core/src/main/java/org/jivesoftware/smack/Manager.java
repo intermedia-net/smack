@@ -17,12 +17,14 @@
 package org.jivesoftware.smack;
 
 import java.lang.ref.WeakReference;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.jivesoftware.smack.SmackException.NotLoggedInException;
 import org.jivesoftware.smack.util.Objects;
 
+/**
+ * Managers provide the high-level API of certain functionality (often standardized by XMPP Extension Protocols).
+ */
 public abstract class Manager {
 
     final WeakReference<XMPPConnection> weakConnection;
@@ -51,7 +53,15 @@ public abstract class Manager {
         return connection;
     }
 
-    protected static final ScheduledFuture<?> schedule(Runnable runnable, long delay, TimeUnit unit) {
-        return AbstractXMPPConnection.SCHEDULED_EXECUTOR_SERVICE.schedule(runnable, delay, unit);
+    protected static final ScheduledAction schedule(Runnable runnable, long delay, TimeUnit unit) {
+        return schedule(runnable, delay, unit, ScheduledAction.Kind.NonBlocking);
+    }
+
+    protected static final ScheduledAction scheduleBlocking(Runnable runnable, long delay, TimeUnit unit) {
+        return schedule(runnable, delay, unit, ScheduledAction.Kind.Blocking);
+    }
+
+    protected static final ScheduledAction schedule(Runnable runnable, long delay, TimeUnit unit, ScheduledAction.Kind scheduledActionKind) {
+        return AbstractXMPPConnection.SMACK_REACTOR.schedule(runnable, delay, unit, scheduledActionKind);
     }
 }

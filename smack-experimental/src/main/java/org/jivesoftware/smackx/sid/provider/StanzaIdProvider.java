@@ -16,18 +16,20 @@
  */
 package org.jivesoftware.smackx.sid.provider;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
-import org.jivesoftware.smackx.sid.element.StanzaIdElement;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smackx.sid.element.StableAndUniqueIdElement;
+import org.jivesoftware.smackx.sid.element.StanzaIdElement;
 
 public class StanzaIdProvider extends ExtensionElementProvider<StanzaIdElement> {
 
-    public static StanzaIdProvider TEST_INSTANCE = new StanzaIdProvider();
+    public static final StanzaIdProvider INSTANCE = new StanzaIdProvider();
 
     @Override
-    public StanzaIdElement parse(XmlPullParser parser, int initialDepth) throws Exception {
-        String id = parser.getAttributeValue(null, StanzaIdElement.ATTR_ID);
+    public StanzaIdElement parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) {
+        String id = parser.getAttributeValue(null, StableAndUniqueIdElement.ATTR_ID);
         String by = parser.getAttributeValue(null, StanzaIdElement.ATTR_BY);
         return new StanzaIdElement(id, by);
     }

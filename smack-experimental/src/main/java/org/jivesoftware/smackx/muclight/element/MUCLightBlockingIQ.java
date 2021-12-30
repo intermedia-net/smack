@@ -44,8 +44,8 @@ public class MUCLightBlockingIQ extends IQ {
     /**
      * MUC Light blocking IQ constructor.
      *
-     * @param rooms
-     * @param users
+     * @param rooms TODO javadoc me please
+     * @param users TODO javadoc me please
      */
     public MUCLightBlockingIQ(HashMap<Jid, Boolean> rooms, HashMap<Jid, Boolean> users) {
         super(ELEMENT, NAMESPACE);
@@ -86,11 +86,11 @@ public class MUCLightBlockingIQ extends IQ {
         return xml;
     }
 
-    private void parseBlocking(IQChildElementXmlStringBuilder xml, HashMap<Jid, Boolean> map, boolean isRoom) {
+    private static void parseBlocking(IQChildElementXmlStringBuilder xml, HashMap<Jid, Boolean> map, boolean isRoom) {
         Iterator<Map.Entry<Jid, Boolean>> it = map.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<Jid, Boolean> pair = it.next();
-            xml.element(new BlockingElement(pair.getKey(), pair.getValue(), isRoom));
+            xml.append(new BlockingElement(pair.getKey(), pair.getValue(), isRoom));
         }
     }
 

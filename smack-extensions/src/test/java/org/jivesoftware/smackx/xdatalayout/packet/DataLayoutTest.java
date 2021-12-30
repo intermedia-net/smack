@@ -16,13 +16,15 @@
  */
 package org.jivesoftware.smackx.xdatalayout.packet;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 import org.jivesoftware.smackx.xdata.provider.DataFormProvider;
@@ -32,9 +34,7 @@ import org.jivesoftware.smackx.xdatalayout.packet.DataLayout.Section;
 import org.jivesoftware.smackx.xdatalayout.packet.DataLayout.Text;
 import org.jivesoftware.smackx.xdatalayout.provider.DataLayoutProvider;
 
-import org.junit.Test;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for DataForm reading and parsing.
@@ -80,8 +80,8 @@ public class DataLayoutTest {
         layout.getPageLayout().add(section);
         layout.getPageLayout().add(new Text("PageText"));
 
-        assertNotNull(layout.toXML(null));
-        String output = layout.toXML(null).toString();
+        assertNotNull(layout.toXML());
+        String output = layout.toXML().toString();
         assertEquals(TEST_OUTPUT_2, output);
 
         XmlPullParser parser = PacketParserUtils.getParserFor(output);
@@ -91,8 +91,8 @@ public class DataLayoutTest {
         assertEquals(3 , layout.getPageLayout().size());
         assertEquals("Label", layout.getLabel());
 
-        assertNotNull(layout.toXML(null));
-        output = layout.toXML(null).toString();
+        assertNotNull(layout.toXML());
+        output = layout.toXML().toString();
         assertEquals(TEST_OUTPUT_2, output);
     }
 
@@ -114,8 +114,8 @@ public class DataLayoutTest {
         layout.getPageLayout().add(new Text("<html><font color='red'><em>DO NOT DELAY</em></font><br/>supply further information</html>"));
 
 
-        assertNotNull(layout.toXML(null));
-        String output = layout.toXML(null).toString();
+        assertNotNull(layout.toXML());
+        String output = layout.toXML().toString();
         assertEquals(TEST_OUTPUT_SPECIAL, output);
 
         XmlPullParser parser = PacketParserUtils.getParserFor(output);
@@ -134,8 +134,8 @@ public class DataLayoutTest {
         assertEquals("<html><font color='red'><em>DO NOT DELAY</em></font><br/>supply further information</html>", text.getText());
 
 
-        assertNotNull(layout.toXML(null));
-        output = layout.toXML(null).toString();
+        assertNotNull(layout.toXML());
+        output = layout.toXML().toString();
         assertEquals(TEST_OUTPUT_SPECIAL, output);
     }
 
@@ -143,9 +143,8 @@ public class DataLayoutTest {
     public void testLayoutFromFile() throws Exception {
         DataFormProvider pr = new DataFormProvider();
 
-        XmlPullParser parser = PacketParserUtils.newXmppParser();
-        parser.setInput(new InputStreamReader(this.getClass().getResourceAsStream(TEST_INPUT_1), "UTF-8"));
-        parser.next();
+        InputStreamReader inputStreamReader = new InputStreamReader(this.getClass().getResourceAsStream(TEST_INPUT_1), "UTF-8");
+        XmlPullParser parser = PacketParserUtils.getParserFor(inputStreamReader);
 
         DataForm form = pr.parse(parser);
         assertNotNull(form);
@@ -165,8 +164,8 @@ public class DataLayoutTest {
         assertEquals("<html><font color='red'><em>DO NOT DELAY</em></font><br/>supply further information</html>", text.getText());
 
 
-        assertNotNull(layout.toXML(null));
-        String output = layout.toXML(null).toString();
+        assertNotNull(layout.toXML());
+        String output = layout.toXML().toString();
         assertEquals(TEST_OUTPUT_SPECIAL, output);
     }
 }

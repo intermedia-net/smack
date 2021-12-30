@@ -64,6 +64,7 @@ public class ScreenShareSession extends JingleMediaSession {
      * @param remote      the remote information. The candidate that the jmf will be sent to.
      * @param local       the local information. The candidate that will receive the jmf
      * @param locator     media locator
+     * @param jingleSession the jingle session.
      */
     public ScreenShareSession(final PayloadType payloadType, final TransportCandidate remote, final TransportCandidate local,
             final String locator, JingleSession jingleSession) {
@@ -78,7 +79,7 @@ public class ScreenShareSession extends JingleMediaSession {
     public void initialize() {
 
         JingleSession session = getJingleSession();
-        if ((session != null) && (session.getInitiator().equals(session.getConnection().getUser()))) {
+        if (session != null && session.getInitiator().equals(session.getConnection().getUser())) {
             // If the initiator of the jingle session is us then we transmit a screen share.
             try {
                 InetAddress remote = InetAddress.getByName(getRemote().getIp());

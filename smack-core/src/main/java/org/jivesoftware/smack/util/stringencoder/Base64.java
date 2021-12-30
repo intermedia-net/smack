@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2014-2015 Florian Schmaus
+ * Copyright © 2014-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 package org.jivesoftware.smack.util.stringencoder;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 
 import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.StringUtils;
@@ -31,76 +31,65 @@ public class Base64 {
     }
 
     public static final String encode(String string) {
-        try {
-            return encodeToString(string.getBytes(StringUtils.UTF8));
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("UTF-8 not supported", e);
-        }
+        return encodeToString(string.getBytes(StandardCharsets.UTF_8));
     }
 
     public static final String encodeToString(byte[] input) {
-        byte[] bytes = encode(input);
-        try {
-            return new String(bytes, StringUtils.USASCII);
-        } catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
-        }
+        return base64encoder.encodeToString(input);
     }
 
     public static final String encodeToString(byte[] input, int offset, int len) {
-        byte[] bytes = encode(input, offset, len);
-        try {
-            return new String(bytes, StringUtils.USASCII);
-        } catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
-        }
+        return encodeToString(slice(input, offset, len));
+    }
+
+    public static final String encodeToStringWithoutPadding(byte[] input) {
+        return base64encoder.encodeToStringWithoutPadding(input);
     }
 
     public static final byte[] encode(byte[] input) {
-        return encode(input, 0, input.length);
-    }
-
-    public static final byte[] encode(byte[] input, int offset, int len) {
-        return base64encoder.encode(input, offset, len);
+        return base64encoder.encode(input);
     }
 
     public static final String decodeToString(String string) {
         byte[] bytes = decode(string);
-        try {
-            return new String(bytes, StringUtils.UTF8);
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("UTF-8 not supported", e);
-        }
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
-    public static final String decodeToString(byte[] input, int offset, int len) {
-        byte[] bytes = decode(input, offset, len);
-        try {
-            return new String(bytes, StringUtils.UTF8);
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("UTF-8 not supported", e);
-        }
-    }
-
+    // TODO: We really should not mask the IllegalArgumentException. But some unit test depend on this behavior, like
+    // ibb.packet.DataPacketExtension.shouldReturnNullIfDataIsInvalid().
     public static final byte[] decode(String string) {
-        return base64encoder.decode(string);
+        // xs:base64Binary may include XML whitespace which we need to delete before feeding the string into the Base64
+        // decoder. See also XML Schema Part 2: Datatypes Second Edition § 3.2.16.
+        string = StringUtils.deleteXmlWhitespace(string);
+        try {
+            return base64encoder.decode(string);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public static final byte[] decode(byte[] input) {
-        return base64encoder.decode(input, 0, input.length);
+        String string = new String(input, StandardCharsets.US_ASCII);
+        return decode(string);
     }
 
-    public static final byte[] decode(byte[] input, int offset, int len) {
-        return base64encoder.decode(input, offset, len);
+    private static byte[] slice(byte[] input, int offset, int len) {
+        if (offset == 0 && len == input.length) {
+            return input;
+        }
+
+        byte[] res = new byte[len];
+        System.arraycopy(input, offset, res, 0, len);
+        return res;
     }
 
     public interface Encoder {
         byte[] decode(String string);
 
-        byte[] decode(byte[] input, int offset, int len);
+        String encodeToString(byte[] input);
 
-        String encodeToString(byte[] input, int offset, int len);
+        String encodeToStringWithoutPadding(byte[] input);
 
-        byte[] encode(byte[] input, int offset, int len);
+        byte[] encode(byte[] input);
     }
 }

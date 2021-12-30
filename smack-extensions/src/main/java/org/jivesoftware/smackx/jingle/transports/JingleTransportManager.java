@@ -16,8 +16,9 @@
  */
 package org.jivesoftware.smackx.jingle.transports;
 
-import org.jivesoftware.smack.AbstractConnectionListener;
+import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.XMPPConnection;
+
 import org.jivesoftware.smackx.jingle.JingleSession;
 import org.jivesoftware.smackx.jingle.element.JingleContentTransport;
 
@@ -25,7 +26,7 @@ import org.jivesoftware.smackx.jingle.element.JingleContentTransport;
  * Manager for a JingleTransport method.
  * @param <D> JingleContentTransport.
  */
-public abstract class JingleTransportManager<D extends JingleContentTransport> extends AbstractConnectionListener {
+public abstract class JingleTransportManager<D extends JingleContentTransport> implements ConnectionListener {
 
     private final XMPPConnection connection;
 
@@ -35,6 +36,10 @@ public abstract class JingleTransportManager<D extends JingleContentTransport> e
     }
 
     public XMPPConnection getConnection() {
+        return connection();
+    }
+
+    public XMPPConnection connection() {
         return connection;
     }
 

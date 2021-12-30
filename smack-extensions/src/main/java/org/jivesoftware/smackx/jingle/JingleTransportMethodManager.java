@@ -23,6 +23,7 @@ import java.util.WeakHashMap;
 
 import org.jivesoftware.smack.Manager;
 import org.jivesoftware.smack.XMPPConnection;
+
 import org.jivesoftware.smackx.jingle.element.Jingle;
 import org.jivesoftware.smackx.jingle.element.JingleContent;
 import org.jivesoftware.smackx.jingle.element.JingleContentTransport;
@@ -48,7 +49,7 @@ public final class JingleTransportMethodManager extends Manager {
         super(connection);
     }
 
-    public static JingleTransportMethodManager getInstanceFor(XMPPConnection connection) {
+    public static synchronized JingleTransportMethodManager getInstanceFor(XMPPConnection connection) {
         JingleTransportMethodManager manager = INSTANCES.get(connection);
         if (manager == null) {
             manager = new JingleTransportMethodManager(connection);

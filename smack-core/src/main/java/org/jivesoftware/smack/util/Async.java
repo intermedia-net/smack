@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2014 Florian Schmaus
+ * Copyright 2014-2018 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ public class Async {
     /**
      * Creates a new thread with the given Runnable, marks it daemon, starts it and returns the started thread.
      *
-     * @param runnable
+     * @param runnable TODO javadoc me please
      * @return the started thread.
      */
     public static Thread go(Runnable runnable) {
@@ -37,7 +37,7 @@ public class Async {
      * Creates a new thread with the given Runnable, marks it daemon, sets the name, starts it and returns the started
      * thread.
      *
-     * @param runnable
+     * @param runnable TODO javadoc me please
      * @param threadName the thread name.
      * @return the started thread.
      */

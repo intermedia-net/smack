@@ -19,22 +19,26 @@ package org.jivesoftware.smackx.bytestreams.socks5;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.SmackException.NoResponseException;
+import org.jivesoftware.smack.SmackException.NotConnectedException;
+import org.jivesoftware.smack.SmackException.SmackMessageException;
 import org.jivesoftware.smack.XMPPException;
-import org.jivesoftware.smack.util.StringUtils;
+import org.jivesoftware.smack.util.Async;
+import org.jivesoftware.smack.util.CloseableUtil;
+
 import org.jivesoftware.smackx.bytestreams.socks5.packet.Bytestream.StreamHost;
 
 /**
@@ -74,20 +78,22 @@ public class Socks5Client {
      * @throws IOException if initializing the socket failed due to a network error
      * @throws TimeoutException if connecting to SOCKS5 proxy timed out
      * @throws InterruptedException if the current thread was interrupted while waiting
-     * @throws SmackException if the connection to the SOCKS5 proxy failed
-     * @throws XMPPException
+     * @throws XMPPException if an XMPP protocol error was received.
+     * @throws SmackMessageException if there was an error.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws NoResponseException if there was no response from the remote entity.
      */
     public Socket getSocket(int timeout) throws IOException, InterruptedException,
-                    TimeoutException, SmackException, XMPPException {
+                    TimeoutException, XMPPException, SmackMessageException, NotConnectedException, NoResponseException {
         // wrap connecting in future for timeout
         FutureTask<Socket> futureTask = new FutureTask<>(new Callable<Socket>() {
 
             @Override
-            public Socket call() throws IOException, SmackException {
+            public Socket call() throws IOException, SmackMessageException {
 
                 // initialize socket
                 Socket socket = new Socket();
-                SocketAddress socketAddress = new InetSocketAddress(streamHost.getAddress(),
+                SocketAddress socketAddress = new InetSocketAddress(streamHost.getAddress().asInetAddress(),
                                 streamHost.getPort());
                 socket.connect(socketAddress);
 
@@ -95,13 +101,9 @@ public class Socks5Client {
                 try {
                     establish(socket);
                 }
-                catch (SmackException e) {
+                catch (SmackMessageException e) {
                     if (!socket.isClosed()) {
-                        try {
-                            socket.close();
-                        } catch (IOException e2) {
-                            LOGGER.log(Level.WARNING, "Could not close SOCKS5 socket", e2);
-                        }
+                        CloseableUtil.maybeClose(socket, LOGGER);
                     }
                     throw e;
                 }
@@ -110,27 +112,14 @@ public class Socks5Client {
             }
 
         });
-        Thread executor = new Thread(futureTask);
-        executor.start();
+        Async.go(futureTask, "SOCKS5 client connecting to " + streamHost);
 
         // get connection to initiator with timeout
         try {
             return futureTask.get(timeout, TimeUnit.MILLISECONDS);
         }
         catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause != null) {
-                // case exceptions to comply with method signature
-                if (cause instanceof IOException) {
-                    throw (IOException) cause;
-                }
-                if (cause instanceof SmackException) {
-                    throw (SmackException) cause;
-                }
-            }
-
-            // throw generic Smack exception if unexpected exception was thrown
-            throw new SmackException("Error while connecting to SOCKS5 proxy", e);
+            throw new IOException("ExecutionException while SOCKS5 client attempting to connect to " + streamHost, e);
         }
 
     }
@@ -141,10 +130,10 @@ public class Socks5Client {
      * supported by the Socks5Client.
      *
      * @param socket connected to a SOCKS5 proxy
-     * @throws SmackException
-     * @throws IOException
+     * @throws IOException if an I/O error occurred.
+     * @throws SmackMessageException if there was an error.
      */
-    protected void establish(Socket socket) throws SmackException, IOException {
+    protected void establish(Socket socket) throws IOException, SmackMessageException {
 
         byte[] connectionRequest;
         byte[] connectionResponse;
@@ -170,7 +159,7 @@ public class Socks5Client {
 
         // check if server responded with correct version and no-authentication method
         if (response[0] != (byte) 0x05 || response[1] != (byte) 0x00) {
-            throw new SmackException("Remote SOCKS5 server responded with unexpected version: " + response[0] + ' ' + response[1] + ". Should be 0x05 0x00.");
+            throw new SmackException.SmackMessageException("Remote SOCKS5 server responded with unexpected version: " + response[0] + ' ' + response[1] + ". Should be 0x05 0x00.");
         }
 
         // request SOCKS5 connection with given address/digest
@@ -184,7 +173,7 @@ public class Socks5Client {
         // verify response
         connectionRequest[1] = (byte) 0x00; // set expected return status to 0
         if (!Arrays.equals(connectionRequest, connectionResponse)) {
-            throw new SmackException(
+            throw new SmackException.SmackMessageException(
                             "Connection request does not equal connection response. Response: "
                                             + Arrays.toString(connectionResponse) + ". Request: "
                                             + Arrays.toString(connectionRequest));
@@ -200,13 +189,7 @@ public class Socks5Client {
      * @return SOCKS5 connection request message
      */
     private byte[] createSocks5ConnectRequest() {
-        byte[] addr;
-        try {
-            addr = digest.getBytes(StringUtils.UTF8);
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
-        }
+        byte[] addr = digest.getBytes(StandardCharsets.UTF_8);
 
         byte[] data = new byte[7 + addr.length];
         data[0] = (byte) 0x05; // version (SOCKS5)

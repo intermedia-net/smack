@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2003-2007 Jive Software.
+ * Copyright 2003-2007 Jive Software, 2019 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 
 import org.junit.Test;
 
@@ -31,11 +31,9 @@ import org.junit.Test;
 public class StringUtilsTest  {
     @Test
     public void testEscapeForXml() {
-        String input = null;
-
         assertNull(StringUtils.escapeForXml(null));
 
-        input = "<b>";
+        String input = "<b>";
         assertCharSequenceEquals("&lt;b&gt;", StringUtils.escapeForXml(input));
 
         input = "\"";
@@ -74,27 +72,21 @@ public class StringUtilsTest  {
     }
 
     @Test
-    public void testEncodeHex() throws UnsupportedEncodingException {
+    public void testEncodeHex() {
         String input = "";
         String output = "";
-        assertEquals(new String(StringUtils.encodeHex(input.getBytes(StringUtils.UTF8))),
+        assertEquals(new String(StringUtils.encodeHex(input.getBytes(StandardCharsets.UTF_8))),
                 output);
 
         input = "foo bar 123";
         output = "666f6f2062617220313233";
-        assertEquals(new String(StringUtils.encodeHex(input.getBytes(StringUtils.UTF8))),
+        assertEquals(new String(StringUtils.encodeHex(input.getBytes(StandardCharsets.UTF_8))),
                 output);
     }
 
     @Test
     public void testRandomString() {
-        // Boundary test
-        String result = StringUtils.randomString(-1);
-        assertNull(result);
-
-        // Zero length string test
-        result = StringUtils.randomString(0);
-        assertNull(result);
+        String result;
 
         // Test various lengths - make sure the same length is returned
         result = StringUtils.randomString(4);
@@ -103,5 +95,30 @@ public class StringUtilsTest  {
         assertTrue(result.length() == 16);
         result = StringUtils.randomString(128);
         assertTrue(result.length() == 128);
+    }
+
+    @Test(expected = NegativeArraySizeException.class)
+    public void testNegativeArraySizeException() {
+        // Boundary test
+        StringUtils.randomString(-1);
+    }
+
+    @Test
+    public void testZeroLengthRandomString() {
+        // Zero length string test
+        String result = StringUtils.randomString(0);
+        assertEquals("", result);
+    }
+
+    @Test
+    public void testeDeleteXmlWhitespace() {
+        String noWhitespace = StringUtils.deleteXmlWhitespace(" foo\nbar ");
+        assertEquals("foobar", noWhitespace);
+
+        noWhitespace = StringUtils.deleteXmlWhitespace(" \tbaz\rbarz\t ");
+        assertEquals("bazbarz", noWhitespace);
+
+        noWhitespace = StringUtils.deleteXmlWhitespace("SNAFU");
+        assertEquals("SNAFU", noWhitespace);
     }
 }

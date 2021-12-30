@@ -16,9 +16,9 @@
  */
 package org.jivesoftware.smackx.pubsub;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class SimplePayloadTest {
 
@@ -29,6 +29,6 @@ public class SimplePayloadTest {
 
         assertEquals("element", simplePayload.getElementName());
         assertEquals("https://example.org", simplePayload.getNamespace());
-        assertEquals(xmlPayload, simplePayload.toXML(null));
+        assertEquals(xmlPayload, simplePayload.toXML().toString());
     }
 }

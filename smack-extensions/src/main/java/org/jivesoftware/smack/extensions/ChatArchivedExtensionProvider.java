@@ -1,15 +1,12 @@
-/**
- * ChatArchivedExtensionProvider
- * MobileCallScape
- *
- * Created by Alexey Taranov 04/26/2019
- * Copyright 2019 Intermedia. All rights reserved.
- */
 package org.jivesoftware.smack.extensions;
 
-import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import java.io.IOException;
 
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
+import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 public class ChatArchivedExtensionProvider extends ExtensionElementProvider<ChatArchivedExtension> {
 
@@ -17,10 +14,9 @@ public class ChatArchivedExtensionProvider extends ExtensionElementProvider<Chat
     static final String ATTR_TIMESTAMP = "timestamp";
 
     @Override
-    public ChatArchivedExtension parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public ChatArchivedExtension parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         final String id = parser.getAttributeValue("", ATTR_ID);
         final String timestamp = parser.getAttributeValue("", ATTR_TIMESTAMP);
         return new ChatArchivedExtension(id, timestamp);
     }
-
 }

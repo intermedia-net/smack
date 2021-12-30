@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2021 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,18 @@
  */
 package org.jivesoftware.smackx.jingle.provider;
 
+import java.io.IOException;
 import java.util.logging.Logger;
 
+import org.jivesoftware.smack.packet.IqData;
 import org.jivesoftware.smack.packet.StandardExtensionElement;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.parsing.StandardExtensionElementProvider;
-import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.provider.BaseIqProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.jingle.element.Jingle;
 import org.jivesoftware.smackx.jingle.element.JingleAction;
@@ -34,15 +40,14 @@ import org.jivesoftware.smackx.jingle.element.UnknownJingleContentDescription;
 import org.jivesoftware.smackx.jingle.element.UnknownJingleContentTransport;
 
 import org.jxmpp.jid.FullJid;
-import org.xmlpull.v1.XmlPullParser;
 
-public class JingleProvider extends IQProvider<Jingle> {
+public class JingleProvider extends BaseIqProvider<Jingle> {
 
     private static final Logger LOGGER = Logger.getLogger(JingleProvider.class.getName());
 
     @Override
-    public Jingle parse(XmlPullParser parser, int initialDepth) throws Exception {
-        Jingle.Builder builder = Jingle.getBuilder();
+    public Jingle parse(XmlPullParser parser, int initialDepth, IqData iqData, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
+        Jingle.Builder builder = Jingle.builder(iqData);
 
         String actionString = parser.getAttributeValue("", Jingle.ACTION_ATTRIBUTE_NAME);
         if (actionString != null) {
@@ -61,9 +66,9 @@ public class JingleProvider extends IQProvider<Jingle> {
 
 
         outerloop: while (true) {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 String tagName = parser.getName();
                 switch (tagName) {
                 case JingleContent.ELEMENT:
@@ -88,10 +93,14 @@ public class JingleProvider extends IQProvider<Jingle> {
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
+                break;
             }
         }
 
@@ -99,7 +108,7 @@ public class JingleProvider extends IQProvider<Jingle> {
     }
 
     public static JingleContent parseJingleContent(XmlPullParser parser, final int initialDepth)
-                    throws Exception {
+                    throws XmlPullParserException, IOException, SmackParsingException {
         JingleContent.Builder builder = JingleContent.getBuilder();
 
         String creatorString = parser.getAttributeValue("", JingleContent.CREATOR_ATTRIBUTE_NAME);
@@ -119,9 +128,9 @@ public class JingleProvider extends IQProvider<Jingle> {
         }
 
         outerloop: while (true) {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 String tagName = parser.getName();
                 String namespace = parser.getNamespace();
                 switch (tagName) {
@@ -156,10 +165,14 @@ public class JingleProvider extends IQProvider<Jingle> {
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
+                break;
             }
         }
 

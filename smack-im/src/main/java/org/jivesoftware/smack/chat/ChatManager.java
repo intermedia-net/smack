@@ -20,7 +20,6 @@ package org.jivesoftware.smack.chat;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -42,6 +41,7 @@ import org.jivesoftware.smack.filter.ThreadFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Message.Type;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.util.StringUtils;
 
 import org.jxmpp.jid.EntityBareJid;
 import org.jxmpp.jid.EntityJid;
@@ -103,7 +103,7 @@ public final class ChatManager extends Manager{
          * Will attempt to match on the JID in the from field, and then attempt the base JID if no match was found.
          * This is the most lenient matching.
          */
-        BARE_JID;
+        BARE_JID,
     }
 
     private final StanzaFilter packetFilter = new OrFilter(MessageTypeFilter.CHAT, new FlexibleStanzaTypeFilter<Message>() {
@@ -155,9 +155,7 @@ public final class ChatManager extends Manager{
                 Message message = (Message) packet;
                 Chat chat;
                 if (message.getThread() == null) {
-                    // CHECKSTYLE:OFF
-                	chat = getUserChat(message.getFrom());
-                    // CHECKSTYLE:ON
+                    chat = getUserChat(message.getFrom());
                 }
                 else {
                     chat = getThreadChat(message.getThread());
@@ -281,7 +279,7 @@ public final class ChatManager extends Manager{
      * Creates a new {@link Chat} based on the message. May returns null if no chat could be
      * created, e.g. because the message comes without from.
      *
-     * @param message
+     * @param message TODO javadoc me please
      * @return a Chat or null if none can be created
      */
     private Chat createChat(Message message) {
@@ -294,7 +292,7 @@ public final class ChatManager extends Manager{
 
         EntityJid userJID = from.asEntityJidIfPossible();
         if (userJID == null) {
-            LOGGER.warning("Message from JID without localpart: '" + message.toXML(null) + "'");
+            LOGGER.warning("Message from JID without localpart: '" + message.toXML() + "'");
             return null;
         }
         String threadID = message.getThread();
@@ -409,7 +407,7 @@ public final class ChatManager extends Manager{
      * @return the next id.
      */
     private static String nextID() {
-        return UUID.randomUUID().toString();
+        return StringUtils.secureUniqueRandomString();
     }
 
     public static void setDefaultMatchMode(MatchMode mode) {

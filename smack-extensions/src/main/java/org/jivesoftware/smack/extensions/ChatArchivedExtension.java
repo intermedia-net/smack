@@ -10,6 +10,7 @@ package org.jivesoftware.smack.extensions;
 import org.jivesoftware.smack.filter.StanzaExtensionFilter;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
 public class ChatArchivedExtension implements ExtensionElement {
@@ -48,7 +49,7 @@ public class ChatArchivedExtension implements ExtensionElement {
     }
 
     @Override
-    public CharSequence toXML(String enclosingNamespace) {
+    public CharSequence toXML(XmlEnvironment xmlEnvironment) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
         xml.attribute(ChatArchivedExtensionProvider.ATTR_ID, id);
         xml.optAttribute(ChatArchivedExtensionProvider.ATTR_TIMESTAMP, timestamp);
@@ -57,7 +58,7 @@ public class ChatArchivedExtension implements ExtensionElement {
     }
 
     public static ChatArchivedExtension from(Stanza message) {
-        return (ChatArchivedExtension) message.getExtension(ELEMENT, NAMESPACE);
+        return (ChatArchivedExtension) message.getExtensionElement(ELEMENT, NAMESPACE);
     }
 
     public static class ArchiveIdFilter extends StanzaExtensionFilter {

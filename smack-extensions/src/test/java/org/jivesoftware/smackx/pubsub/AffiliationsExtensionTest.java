@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,16 @@
  */
 package org.jivesoftware.smackx.pubsub;
 
-import static org.custommonkey.xmlunit.XMLAssert.assertXMLEqual;
+import static org.jivesoftware.smack.test.util.XmlAssertUtil.assertXmlSimilar;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.jivesoftware.smackx.pubsub.Affiliation.Type;
+import org.jivesoftware.smackx.pubsub.packet.PubSub;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.BareJid;
 import org.jxmpp.jid.JidTestUtil;
 import org.xml.sax.SAXException;
@@ -40,10 +41,10 @@ public class AffiliationsExtensionTest {
 
         AffiliationsExtension affiliationsExtension = new AffiliationsExtension(affiliationsList, "testNode");
 
-        CharSequence xml = affiliationsExtension.toXML(null);
+        CharSequence xml = affiliationsExtension.toXML(PubSub.NAMESPACE);
 
-        assertXMLEqual("<affiliations node='testNode'><affiliation xmlns='http://jabber.org/protocol/pubsub#owner' jid='one@exampleone.org' affiliation='member'/></affiliations>",
-                        xml.toString());
+        assertXmlSimilar("<affiliations node='testNode'><affiliation xmlns='http://jabber.org/protocol/pubsub#owner' jid='one@exampleone.org' affiliation='member'/></affiliations>",
+                        xml);
     }
 
 }

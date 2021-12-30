@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 package org.jivesoftware.smackx.httpfileupload;
 
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,9 +33,9 @@ import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 
 import org.igniterealtime.smack.inttest.AbstractSmackIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
 import org.igniterealtime.smack.inttest.TestNotPossibleException;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 
 public class HttpFileUploadIntegrationTest extends AbstractSmackIntegrationTest {
 
@@ -57,7 +57,9 @@ public class HttpFileUploadIntegrationTest extends AbstractSmackIntegrationTest 
                             + " does not accept files of size " + FILE_SIZE
                             + ". It only accepts files with  a maximum size of " + uploadService.getMaxFileSize());
         }
-        hfumOne.setTlsContext(environment.configuration.tlsContext);
+        if (environment.configuration.sslContextFactory != null) {
+            hfumOne.setTlsContext(environment.configuration.sslContextFactory.createSslContext());
+        }
     }
 
     @SmackIntegrationTest

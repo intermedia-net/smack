@@ -19,15 +19,16 @@ package org.jivesoftware.smackx.address.provider;
 
 import java.io.IOException;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.address.packet.MultipleAddresses;
 import org.jivesoftware.smackx.address.packet.MultipleAddresses.Type;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * The MultipleAddressesProvider parses {@link MultipleAddresses} packets.
@@ -38,13 +39,13 @@ public class MultipleAddressesProvider extends ExtensionElementProvider<Multiple
 
     @Override
     public MultipleAddresses parse(XmlPullParser parser,
-                    int initialDepth) throws XmlPullParserException,
+                    int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException,
                     IOException {
         MultipleAddresses multipleAddresses = new MultipleAddresses();
         outerloop: while (true) {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 String name = parser.getName();
                 switch (name) {
                 case MultipleAddresses.Address.ELEMENT:
@@ -60,10 +61,13 @@ public class MultipleAddressesProvider extends ExtensionElementProvider<Multiple
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }

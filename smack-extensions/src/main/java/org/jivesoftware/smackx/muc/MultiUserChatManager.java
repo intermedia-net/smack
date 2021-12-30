@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2014-2018 Florian Schmaus
+ * Copyright © 2014-2021 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,16 +19,18 @@ package org.jivesoftware.smackx.muc;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jivesoftware.smack.AbstractConnectionListener;
 import org.jivesoftware.smack.ConnectionCreationListener;
+import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.Manager;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
@@ -43,6 +45,7 @@ import org.jivesoftware.smack.filter.StanzaExtensionFilter;
 import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.filter.StanzaTypeFilter;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageBuilder;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.util.Async;
 import org.jivesoftware.smack.util.CleaningWeakReferenceMap;
@@ -51,15 +54,18 @@ import org.jivesoftware.smackx.disco.AbstractNodeInformationProvider;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 import org.jivesoftware.smackx.disco.packet.DiscoverItems;
+import org.jivesoftware.smackx.muc.MultiUserChatException.MucNotJoinedException;
 import org.jivesoftware.smackx.muc.MultiUserChatException.NotAMucServiceException;
 import org.jivesoftware.smackx.muc.packet.MUCInitialPresence;
 import org.jivesoftware.smackx.muc.packet.MUCUser;
 
 import org.jxmpp.jid.DomainBareJid;
 import org.jxmpp.jid.EntityBareJid;
+import org.jxmpp.jid.EntityFullJid;
 import org.jxmpp.jid.EntityJid;
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.parts.Resourcepart;
+import org.jxmpp.util.cache.ExpirationCache;
 
 /**
  * A manager for Multi-User Chat rooms.
@@ -117,7 +123,7 @@ public final class MultiUserChatManager extends Manager {
     /**
      * Get a instance of a multi user chat manager for the given connection.
      *
-     * @param connection
+     * @param connection TODO javadoc me please
      * @return a multi user chat manager.
      */
     public static synchronized MultiUserChatManager getInstanceFor(XMPPConnection connection) {
@@ -131,6 +137,11 @@ public final class MultiUserChatManager extends Manager {
 
     private static final StanzaFilter INVITATION_FILTER = new AndFilter(StanzaTypeFilter.MESSAGE, new StanzaExtensionFilter(new MUCUser()),
                     new NotFilter(MessageTypeFilter.ERROR));
+
+    private static final ExpirationCache<DomainBareJid, DiscoverInfo> KNOWN_MUC_SERVICES = new ExpirationCache<>(
+        100, 1000 * 60 * 60 * 24);
+
+    private static final Set<MucMessageInterceptor> DEFAULT_MESSAGE_INTERCEPTORS = new HashSet<>();
 
     private final Set<InvitationListener> invitationsListeners = new CopyOnWriteArraySet<InvitationListener>();
 
@@ -150,8 +161,13 @@ public final class MultiUserChatManager extends Manager {
 
     private AutoJoinFailedCallback autoJoinFailedCallback;
 
+    private AutoJoinSuccessCallback autoJoinSuccessCallback;
+
+    private final ServiceDiscoveryManager serviceDiscoveryManager;
+
     private MultiUserChatManager(XMPPConnection connection) {
         super(connection);
+        serviceDiscoveryManager = ServiceDiscoveryManager.getInstanceFor(connection);
         // Listens for all messages that include a MUCUser extension and fire the invitation
         // listeners if the message includes an invitation.
         StanzaListener invitationPacketListener = new StanzaListener() {
@@ -164,7 +180,7 @@ public final class MultiUserChatManager extends Manager {
                 if (mucUser.getInvite() != null) {
                     EntityBareJid mucJid = message.getFrom().asEntityBareJidIfPossible();
                     if (mucJid == null) {
-                        LOGGER.warning("Invite to non bare JID: '" + message.toXML(null) + "'");
+                        LOGGER.warning("Invite to non bare JID: '" + message.toXML() + "'");
                         return;
                     }
                     // Fire event for invitation listeners
@@ -182,7 +198,7 @@ public final class MultiUserChatManager extends Manager {
         };
         connection.addAsyncStanzaListener(invitationPacketListener, INVITATION_FILTER);
 
-        connection.addConnectionListener(new AbstractConnectionListener() {
+        connection.addConnectionListener(new ConnectionListener() {
             @Override
             public void authenticated(XMPPConnection connection, boolean resumed) {
                 if (resumed) return;
@@ -195,6 +211,7 @@ public final class MultiUserChatManager extends Manager {
                     @Override
                     public void run() {
                         final AutoJoinFailedCallback failedCallback = autoJoinFailedCallback;
+                        final AutoJoinSuccessCallback successCallback = autoJoinSuccessCallback;
                         for (EntityBareJid mucJid : mucs) {
                             MultiUserChat muc = getMultiUserChat(mucJid);
 
@@ -205,7 +222,8 @@ public final class MultiUserChatManager extends Manager {
 
                             try {
                                 muc.leave();
-                            } catch (NotConnectedException | InterruptedException e) {
+                            } catch (NotConnectedException | InterruptedException | MucNotJoinedException
+                                            | NoResponseException | XMPPErrorException e) {
                                 if (failedCallback != null) {
                                     failedCallback.autoJoinFailed(muc, e);
                                 } else {
@@ -215,6 +233,9 @@ public final class MultiUserChatManager extends Manager {
                             }
                             try {
                                 muc.join(nickname);
+                                if (successCallback != null) {
+                                    successCallback.autoJoinSuccess(muc, nickname);
+                                }
                             } catch (NotAMucServiceException | NoResponseException | XMPPErrorException
                                     | NotConnectedException | InterruptedException e) {
                                 if (failedCallback != null) {
@@ -257,6 +278,18 @@ public final class MultiUserChatManager extends Manager {
         return multiUserChat;
     }
 
+    public static boolean addDefaultMessageInterceptor(MucMessageInterceptor messageInterceptor) {
+        synchronized (DEFAULT_MESSAGE_INTERCEPTORS) {
+            return DEFAULT_MESSAGE_INTERCEPTORS.add(messageInterceptor);
+        }
+    }
+
+    public static boolean removeDefaultMessageInterceptor(MucMessageInterceptor messageInterceptor) {
+        synchronized (DEFAULT_MESSAGE_INTERCEPTORS) {
+            return DEFAULT_MESSAGE_INTERCEPTORS.remove(messageInterceptor);
+        }
+    }
+
     private MultiUserChat createNewMucAndAddToMap(EntityBareJid jid) {
         MultiUserChat multiUserChat = new MultiUserChat(connection(), jid, this);
         multiUserChats.put(jid, new WeakReference<MultiUserChat>(multiUserChat));
@@ -268,18 +301,21 @@ public final class MultiUserChatManager extends Manager {
      *
      * @param user the user to check. A fully qualified xmpp ID, e.g. jdoe@example.com.
      * @return a boolean indicating whether the specified user supports the MUC protocol.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public boolean isServiceEnabled(Jid user) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        return ServiceDiscoveryManager.getInstanceFor(connection()).supportsFeature(user, MUCInitialPresence.NAMESPACE);
+        return serviceDiscoveryManager.supportsFeature(user, MUCInitialPresence.NAMESPACE);
     }
 
     /**
      * Returns a Set of the rooms where the user has joined. The Iterator will contain Strings where each String
      * represents a room (e.g. room@muc.jabber.org).
+     *
+     * Note: In order to get a list of bookmarked (but not necessarily joined) conferences, use
+     * {@link org.jivesoftware.smackx.bookmarks.BookmarkManager#getBookmarkedConferences()}.
      *
      * @return a List of the rooms where the user has joined using a given connection.
      */
@@ -293,15 +329,15 @@ public final class MultiUserChatManager extends Manager {
      *
      * @param user the user to check. A fully qualified xmpp ID, e.g. jdoe@example.com.
      * @return a List of the rooms where the requested user has joined.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public List<EntityBareJid> getJoinedRooms(EntityJid user) throws NoResponseException, XMPPErrorException,
+    public List<EntityBareJid> getJoinedRooms(EntityFullJid user) throws NoResponseException, XMPPErrorException,
                     NotConnectedException, InterruptedException {
         // Send the disco packet to the user
-        DiscoverItems result = ServiceDiscoveryManager.getInstanceFor(connection()).discoverItems(user, DISCO_NODE);
+        DiscoverItems result = serviceDiscoveryManager.discoverItems(user, DISCO_NODE);
         List<DiscoverItems.Item> items = result.getItems();
         List<EntityBareJid> answer = new ArrayList<>(items.size());
         // Collect the entityID for each returned item
@@ -322,13 +358,13 @@ public final class MultiUserChatManager extends Manager {
      *
      * @param room the name of the room in the form "roomName@service" of which we want to discover its information.
      * @return the discovered information of a given room without actually having to join the room.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public RoomInfo getRoomInfo(EntityBareJid room) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        DiscoverInfo info = ServiceDiscoveryManager.getInstanceFor(connection()).discoverInfo(room);
+        DiscoverInfo info = serviceDiscoveryManager.discoverInfo(room);
         return new RoomInfo(info);
     }
 
@@ -336,24 +372,23 @@ public final class MultiUserChatManager extends Manager {
      * Returns a collection with the XMPP addresses of the Multi-User Chat services.
      *
      * @return a collection with the XMPP addresses of the Multi-User Chat services.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public List<DomainBareJid> getMucServiceDomains() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
-        ServiceDiscoveryManager sdm = ServiceDiscoveryManager.getInstanceFor(connection());
-        return sdm.findServices(MUCInitialPresence.NAMESPACE, false, false);
+        return serviceDiscoveryManager.findServices(MUCInitialPresence.NAMESPACE, false, false);
     }
 
     /**
      * Returns a collection with the XMPP addresses of the Multi-User Chat services.
      *
      * @return a collection with the XMPP addresses of the Multi-User Chat services.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @deprecated use {@link #getMucServiceDomains()} instead.
      */
     // TODO: Remove in Smack 4.5
@@ -367,41 +402,56 @@ public final class MultiUserChatManager extends Manager {
      *
      * @param domainBareJid the domain bare JID to check.
      * @return <code>true</code> if the provided JID provides a MUC service, <code>false</code> otherwise.
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @see <a href="http://xmpp.org/extensions/xep-0045.html#disco-service-features">XEP-45 § 6.2 Discovering the Features Supported by a MUC Service</a>
      * @since 4.2
      */
     public boolean providesMucService(DomainBareJid domainBareJid) throws NoResponseException,
                     XMPPErrorException, NotConnectedException, InterruptedException {
-        return ServiceDiscoveryManager.getInstanceFor(connection()).supportsFeature(domainBareJid,
-                        MUCInitialPresence.NAMESPACE);
+        return getMucServiceDiscoInfo(domainBareJid) != null;
+    }
+
+    DiscoverInfo getMucServiceDiscoInfo(DomainBareJid mucServiceAddress)
+                    throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
+        DiscoverInfo discoInfo = KNOWN_MUC_SERVICES.get(mucServiceAddress);
+        if (discoInfo != null) {
+            return discoInfo;
+        }
+
+        discoInfo = serviceDiscoveryManager.discoverInfo(mucServiceAddress);
+        if (!discoInfo.containsFeature(MUCInitialPresence.NAMESPACE)) {
+            return null;
+        }
+
+        KNOWN_MUC_SERVICES.put(mucServiceAddress, discoInfo);
+        return discoInfo;
     }
 
     /**
-     * Returns a List of HostedRooms where each HostedRoom has the XMPP address of the room and the room's name.
+     * Returns a Map of HostedRooms where each HostedRoom has the XMPP address of the room and the room's name.
      * Once discovered the rooms hosted by a chat service it is possible to discover more detailed room information or
      * join the room.
      *
      * @param serviceName the service that is hosting the rooms to discover.
-     * @return a collection of HostedRooms.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @throws NotAMucServiceException
+     * @return a map from the room's address to its HostedRoom information.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws NotAMucServiceException if the entity is not a MUC serivce.
+     * @since 4.3.1
      */
-    public List<HostedRoom> getHostedRooms(DomainBareJid serviceName) throws NoResponseException, XMPPErrorException,
-                    NotConnectedException, InterruptedException, NotAMucServiceException {
+    public List<HostedRoom> getRoomsHostedBy(DomainBareJid serviceName) throws NoResponseException, XMPPErrorException,
+            NotConnectedException, InterruptedException, NotAMucServiceException {
         if (!providesMucService(serviceName)) {
             throw new NotAMucServiceException(serviceName);
         }
-        ServiceDiscoveryManager discoManager = ServiceDiscoveryManager.getInstanceFor(connection());
-        DiscoverItems discoverItems = discoManager.discoverItems(serviceName);
+        DiscoverItems discoverItems = serviceDiscoveryManager.discoverItems(serviceName);
         List<DiscoverItems.Item> items = discoverItems.getItems();
-        List<HostedRoom> answer = new ArrayList<HostedRoom>(items.size());
+        List<HostedRoom> answer = new ArrayList<>(items.size());
         for (DiscoverItems.Item item : items) {
             answer.add(new HostedRoom(item));
         }
@@ -415,20 +465,22 @@ public final class MultiUserChatManager extends Manager {
      * @param room the room that sent the original invitation.
      * @param inviter the inviter of the declined invitation.
      * @param reason the reason why the invitee is declining the invitation.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void decline(EntityBareJid room, EntityBareJid inviter, String reason) throws NotConnectedException, InterruptedException {
-        Message message = new Message(room);
+        XMPPConnection connection = connection();
+
+        MessageBuilder messageBuilder = connection.getStanzaFactory().buildMessageStanza().to(room);
 
         // Create the MUCUser packet that will include the rejection
         MUCUser mucUser = new MUCUser();
         MUCUser.Decline decline = new MUCUser.Decline(reason, inviter);
         mucUser.setDecline(decline);
         // Add the MUCUser packet that includes the rejection
-        message.addExtension(mucUser);
+        messageBuilder.addExtension(mucUser);
 
-        connection().sendStanza(message);
+        connection.sendStanza(messageBuilder.build());
     }
 
     /**
@@ -461,7 +513,7 @@ public final class MultiUserChatManager extends Manager {
 
     /**
      * Set a callback invoked by this manager when automatic join on reconnect failed. If failedCallback is not
-     * <code>null</code>,then automatic rejoin get also enabled.
+     * <code>null</code>, then automatic rejoin get also enabled.
      *
      * @param failedCallback the callback.
      */
@@ -472,11 +524,32 @@ public final class MultiUserChatManager extends Manager {
         }
     }
 
+    /**
+     * Set a callback invoked by this manager when automatic join on reconnect success.
+     * If successCallback is not <code>null</code>, automatic rejoin will also
+     * be enabled.
+     *
+     * @param successCallback the callback
+     */
+    public void setAutoJoinSuccessCallback(AutoJoinSuccessCallback successCallback) {
+        autoJoinSuccessCallback = successCallback;
+        if (successCallback != null) {
+            setAutoJoinOnReconnect(true);
+        }
+    }
+
+
     void addJoinedRoom(EntityBareJid room) {
         joinedRooms.add(room);
     }
 
     void removeJoinedRoom(EntityBareJid room) {
         joinedRooms.remove(room);
+    }
+
+    static CopyOnWriteArrayList<MucMessageInterceptor> getMessageInterceptors() {
+        synchronized (DEFAULT_MESSAGE_INTERCEPTORS) {
+            return new CopyOnWriteArrayList<>(DEFAULT_MESSAGE_INTERCEPTORS);
+        }
     }
 }

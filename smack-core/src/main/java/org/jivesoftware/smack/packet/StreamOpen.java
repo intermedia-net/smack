@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2014 Florian Schmaus
+ * Copyright © 2014-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96,11 +96,16 @@ public class StreamOpen implements Nonza {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(XmlEnvironment enclosingXmlEnvironment) {
         XmlStringBuilder xml = new XmlStringBuilder();
         xml.halfOpenElement(getElementName());
+
+        String namespace = CLIENT_NAMESPACE;
         // We always want to state 'xmlns' for stream open tags.
-        xml.attribute("xmlns", enclosingNamespace);
+        if (enclosingXmlEnvironment != null) {
+            namespace = enclosingXmlEnvironment.getEffectiveNamespaceOrUse(CLIENT_NAMESPACE);
+        }
+        xml.attribute("xmlns", namespace);
 
         xml.attribute("to", to);
         xml.attribute("xmlns:stream", "http://etherx.jabber.org/streams");
@@ -114,6 +119,6 @@ public class StreamOpen implements Nonza {
 
     public enum StreamContentNamespace {
         client,
-        server;
+        server,
     }
 }

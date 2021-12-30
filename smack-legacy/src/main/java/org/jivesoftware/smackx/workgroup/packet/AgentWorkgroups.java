@@ -24,12 +24,13 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Represents a request for getting the jid of the workgroups where an agent can work or could
@@ -105,19 +106,19 @@ public class AgentWorkgroups extends IQ {
     public static class Provider extends IQProvider<AgentWorkgroups> {
 
         @Override
-        public AgentWorkgroups parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException {
+        public AgentWorkgroups parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
             final Jid agentJID = ParserUtils.getJidAttribute(parser);
             List<String> workgroups = new ArrayList<>();
 
             boolean done = false;
             while (!done) {
-                int eventType = parser.next();
-                if (eventType == XmlPullParser.START_TAG) {
+                XmlPullParser.Event eventType = parser.next();
+                if (eventType == XmlPullParser.Event.START_ELEMENT) {
                     if (parser.getName().equals("workgroup")) {
                         workgroups.add(parser.getAttributeValue("", "jid"));
                     }
                 }
-                else if (eventType == XmlPullParser.END_TAG) {
+                else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                     if (parser.getName().equals("workgroups")) {
                         done = true;
                     }

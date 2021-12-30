@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2017 Grigory Fedorov, Florian Schmaus
+ * Copyright © 2017 Grigory Fedorov, 2017-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,17 +21,16 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.httpfileupload.HttpFileUploadManager;
 import org.jivesoftware.smackx.httpfileupload.UploadService;
 import org.jivesoftware.smackx.httpfileupload.element.Slot;
 import org.jivesoftware.smackx.httpfileupload.element.Slot_V0_2;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Provider for Slot.
@@ -42,7 +41,7 @@ import org.xmlpull.v1.XmlPullParserException;
 public class SlotProvider extends IQProvider<Slot> {
 
     @Override
-    public Slot parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException, SmackException {
+    public Slot parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         final String namespace = parser.getNamespace();
 
         final UploadService.Version version = HttpFileUploadManager.namespaceToVersion(namespace);
@@ -53,10 +52,10 @@ public class SlotProvider extends IQProvider<Slot> {
         PutElement_V0_4_Content putElementV04Content = null;
 
         outerloop: while (true) {
-            int event = parser.next();
+            XmlPullParser.Event event = parser.next();
 
             switch (event) {
-                case XmlPullParser.START_TAG:
+                case START_ELEMENT:
                     String name = parser.getName();
                     switch (name) {
                         case "put": {
@@ -89,10 +88,13 @@ public class SlotProvider extends IQProvider<Slot> {
                             break;
                     }
                     break;
-                case XmlPullParser.END_TAG:
+                case END_ELEMENT:
                     if (parser.getDepth() == initialDepth) {
                         break outerloop;
                     }
+                    break;
+                default:
+                    // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                     break;
             }
         }
@@ -115,9 +117,9 @@ public class SlotProvider extends IQProvider<Slot> {
 
         Map<String, String> headers = null;
         outerloop: while (true) {
-            int next = parser.next();
+            XmlPullParser.Event next = parser.next();
             switch (next) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 String name = parser.getName();
                 switch (name) {
                 case "header":
@@ -132,10 +134,13 @@ public class SlotProvider extends IQProvider<Slot> {
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }

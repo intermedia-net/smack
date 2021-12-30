@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2003-2007 Jive Software.
+ * Copyright 2003-2007 Jive Software, 2019-2021 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,15 +19,25 @@ package org.jivesoftware.smackx.xdata;
 
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 
-import org.jivesoftware.smack.packet.NamedElement;
+import javax.xml.namespace.QName;
+
+import org.jivesoftware.smack.packet.FullyQualifiedElement;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.util.CollectionUtil;
+import org.jivesoftware.smack.util.EqualsUtil;
+import org.jivesoftware.smack.util.HashCode;
+import org.jivesoftware.smack.util.MultiMap;
+import org.jivesoftware.smack.util.Objects;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
-import org.jivesoftware.smackx.xdatavalidation.packet.ValidateElement;
+import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 import org.jxmpp.util.XmppDateTime;
 
@@ -35,12 +45,20 @@ import org.jxmpp.util.XmppDateTime;
  * Represents a field of a form. The field could be used to represent a question to complete,
  * a completed question or a data returned from a search. The exact interpretation of the field
  * depends on the context where the field is used.
+ * <p>
+ * Fields have a name, which is stored in the 'var' attribute of the field's XML representation.
+ * Field instances of all types, except of type "fixed" must have a name.
+ * </p>
  *
  * @author Gaston Dombiak
  */
-public class FormField implements NamedElement {
+public abstract class FormField implements FullyQualifiedElement {
 
     public static final String ELEMENT = "field";
+
+    public static final String NAMESPACE = DataForm.NAMESPACE;
+
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
     /**
      * The constant String "FORM_TYPE".
@@ -139,33 +157,64 @@ public class FormField implements NamedElement {
         }
     }
 
-    private final String variable;
-
-    private String description;
-    private boolean required = false;
-    private String label;
-    private Type type;
-    private final List<Option> options = new ArrayList<>();
-    private final List<CharSequence> values = new ArrayList<>();
-    private ValidateElement validateElement;
-
     /**
-     * Creates a new FormField with the variable name that uniquely identifies the field
-     * in the context of the form.
-     *
-     * @param variable the variable name of the question.
+     * The field's name. Put as value in the 'var' attribute of &lt;field/&gt;.
      */
-    public FormField(String variable) {
-        this.variable = StringUtils.requireNotNullOrEmpty(variable, "Variable must not be null or empty");
+    private final String fieldName;
+
+    private final String label;
+
+    private final Type type;
+
+    private final List<FormFieldChildElement> formFieldChildElements;
+
+    private final MultiMap<QName, FormFieldChildElement> formFieldChildElementsMap;
+
+    /*
+     * The following four fields are cache values which are represented as child elements of </form> and hence also
+     * appear in formFieldChildElements.
+     */
+    private final String description;
+    private final boolean required;
+
+    private MultiMap<QName, FormFieldChildElement> createChildElementsMap() {
+        MultiMap<QName, FormFieldChildElement> formFieldChildElementsMap = new MultiMap<>(formFieldChildElements.size());
+        for (FormFieldChildElement formFieldChildElement : formFieldChildElements) {
+            formFieldChildElementsMap.put(formFieldChildElement.getQName(), formFieldChildElement);
+        }
+        return formFieldChildElementsMap.asUnmodifiableMultiMap();
     }
 
-    /**
-     * Creates a new FormField of type FIXED. The fields of type FIXED do not define a variable
-     * name.
-     */
-    public FormField() {
-        this.variable = null;
-        this.type = Type.fixed;
+    protected FormField(Builder<?, ?> builder) {
+        fieldName = builder.fieldName;
+        label = builder.label;
+        type = builder.type;
+        if (builder.formFieldChildElements != null) {
+            formFieldChildElements = Collections.unmodifiableList(builder.formFieldChildElements);
+        } else {
+            formFieldChildElements = Collections.emptyList();
+        }
+
+        if (fieldName == null && type != Type.fixed) {
+            throw new IllegalArgumentException("The variable can only be null if the form is of type fixed");
+        }
+
+        String description = null;
+        boolean requiredElementAsChild = false;
+        ArrayList<CharSequence> values = new ArrayList<>(formFieldChildElements.size());
+        for (FormFieldChildElement formFieldChildElement : formFieldChildElements) {
+            if (formFieldChildElement instanceof Description) {
+                description = ((Description) formFieldChildElement).getDescription();
+            } else if (formFieldChildElement instanceof Required) {
+                requiredElementAsChild = true;
+            }
+        }
+        values.trimToSize();
+        this.description = description;
+
+        required = requiredElementAsChild;
+
+        formFieldChildElementsMap = createChildElementsMap();
     }
 
     /**
@@ -193,18 +242,6 @@ public class FormField implements NamedElement {
     }
 
     /**
-     * Returns a List of the available options that the user has in order to answer
-     * the question.
-     *
-     * @return List of the available options.
-     */
-    public List<Option> getOptions() {
-        synchronized (options) {
-            return Collections.unmodifiableList(new ArrayList<>(options));
-        }
-    }
-
-    /**
      * Returns true if the question must be answered in order to complete the questionnaire.
      *
      * @return true if the question must be answered in order to complete the questionnaire.
@@ -220,6 +257,9 @@ public class FormField implements NamedElement {
      * @see Type
      */
     public Type getType() {
+        if (type == null) {
+            return Type.text_single;
+        }
         return type;
     }
 
@@ -230,10 +270,29 @@ public class FormField implements NamedElement {
      *
      * @return a List of the default values or answered values of the question.
      */
-    public List<CharSequence> getValues() {
-        synchronized (values) {
-            return Collections.unmodifiableList(new ArrayList<>(values));
+    public List<? extends CharSequence> getValues() {
+        return getRawValueCharSequences();
+    }
+
+    public abstract List<Value> getRawValues();
+
+    private transient List<CharSequence> rawValueCharSequences;
+
+    public final List<CharSequence> getRawValueCharSequences() {
+        if (rawValueCharSequences == null) {
+            List<Value> rawValues = getRawValues();
+            rawValueCharSequences = new ArrayList<>(rawValues.size());
+            for (Value value : rawValues) {
+                rawValueCharSequences.add(value.value);
+            }
         }
+
+        return rawValueCharSequences;
+    }
+
+    public boolean hasValueSet() {
+        List<?> values = getValues();
+        return !values.isEmpty();
     }
 
     /**
@@ -245,7 +304,7 @@ public class FormField implements NamedElement {
      * @since 4.3
      */
     public List<String> getValuesAsString() {
-        List<CharSequence> valuesAsCharSequence = getValues();
+        List<? extends CharSequence> valuesAsCharSequence = getValues();
         List<String> res = new ArrayList<>(valuesAsCharSequence.size());
         for (CharSequence value : valuesAsCharSequence) {
             res.add(value.toString());
@@ -254,20 +313,18 @@ public class FormField implements NamedElement {
     }
 
     /**
-     * Returns the first value of this form fold or {@code null}.
+     * Returns the first value of this form field or {@code null}.
      *
      * @return the first value or {@code null}
      * @since 4.3
      */
     public String getFirstValue() {
-        CharSequence firstValue;
-        synchronized (values) {
-            firstValue = values.get(0);
-        }
-        if (firstValue == null) {
+        List<? extends CharSequence> values = getValues();
+        if (values.isEmpty()) {
             return null;
         }
-        return firstValue.toString();
+
+        return values.get(0).toString();
     }
 
     /**
@@ -286,143 +343,46 @@ public class FormField implements NamedElement {
     }
 
     /**
-     * Returns the variable name that the question is filling out.
+     * Returns the field's name, also known as the variable name in case this is an filled out answer form.
      * <p>
      * According to XEP-4 § 3.2 the variable name (the 'var' attribute)
      * "uniquely identifies the field in the context of the form" (if the field is not of type 'fixed', in which case
      * the field "MAY possess a 'var' attribute")
      * </p>
      *
-     * @return the variable name of the question.
+     * @return the field's name.
+     * @deprecated use {@link #getFieldName()} instead.
      */
+    // TODO: Remove in Smack 4.5
+    @Deprecated
     public String getVariable() {
-        return variable;
+        return getFieldName();
     }
 
     /**
-     * Get validate element.
-     *
-     * @return the validateElement
-     */
-    public ValidateElement getValidateElement() {
-        return validateElement;
-    }
-
-    /**
-     * Sets a description that provides extra clarification about the question. This information
-     * could be presented to the user either in tool-tip, help button, or as a section of text
-     * before the question.
+     * Returns the field's name, also known as the variable name in case this is an filled out answer form.
      * <p>
-     * If the question is of type FIXED then the description should remain empty.
+     * According to XEP-4 § 3.2 the variable name (the 'var' attribute)
+     * "uniquely identifies the field in the context of the form" (if the field is not of type 'fixed', in which case
+     * the field "MAY possess a 'var' attribute")
      * </p>
      *
-     * @param description provides extra clarification about the question.
+     * @return the field's name.
      */
-    public void setDescription(String description) {
-        this.description = description;
+    public String getFieldName() {
+        return fieldName;
     }
 
-    /**
-     * Sets the label of the question which should give enough information to the user to
-     * fill out the form.
-     *
-     * @param label the label of the question.
-     */
-    public void setLabel(String label) {
-        this.label = label;
+    public FormFieldChildElement getFormFieldChildElement(QName qname) {
+        return formFieldChildElementsMap.getFirst(qname);
     }
 
-    /**
-     * Sets if the question must be answered in order to complete the questionnaire.
-     *
-     * @param required if the question must be answered in order to complete the questionnaire.
-     */
-    public void setRequired(boolean required) {
-        this.required = required;
+    public List<FormFieldChildElement> getFormFieldChildElements(QName qname) {
+        return formFieldChildElementsMap.getAll(qname);
     }
 
-    /**
-     * Set validate element.
-     * @param validateElement the validateElement to set
-     */
-    public void setValidateElement(ValidateElement validateElement) {
-        validateElement.checkConsistency(this);
-        this.validateElement = validateElement;
-    }
-
-    /**
-     * Sets an indicative of the format for the data to answer.
-     * <p>
-     * This method will throw an IllegalArgumentException if type is 'fixed'. To create FormFields of type 'fixed' use
-     * {@link #FormField()} instead.
-     * </p>
-     *
-     * @param type an indicative of the format for the data to answer.
-     * @see Type
-     * @throws IllegalArgumentException if type is 'fixed'.
-     */
-    public void setType(Type type) {
-        if (type == Type.fixed) {
-            throw new IllegalArgumentException("Can not set type to fixed, use FormField constructor without arguments instead.");
-        }
-        this.type = type;
-    }
-
-    /**
-     * Adds a default value to the question if the question is part of a form to fill out.
-     * Otherwise, adds an answered value to the question.
-     *
-     * @param value a default value or an answered value of the question.
-     */
-    public void addValue(CharSequence value) {
-        synchronized (values) {
-            values.add(value);
-        }
-    }
-
-    /**
-     * Adds the given Date as XEP-0082 formated string by invoking {@link #addValue(CharSequence)} after the date
-     * instance was formated.
-     *
-     * @param date the date instance to add as XEP-0082 formated string.
-     * @since 4.3.0
-     */
-    public void addValue(Date date) {
-        String dateString = XmppDateTime.formatXEP0082Date(date);
-        addValue(dateString);
-    }
-
-    /**
-     * Adds a default values to the question if the question is part of a form to fill out.
-     * Otherwise, adds an answered values to the question.
-     *
-     * @param newValues default values or an answered values of the question.
-     */
-    public void addValues(List<? extends CharSequence> newValues) {
-        synchronized (values) {
-            values.addAll(newValues);
-        }
-    }
-
-    /**
-     * Removes all the values of the field.
-     */
-    protected void resetValues() {
-        synchronized (values) {
-            values.clear();
-        }
-    }
-
-    /**
-     * Adss an available options to the question that the user has in order to answer
-     * the question.
-     *
-     * @param option a new available option for the question.
-     */
-    public void addOption(Option option) {
-        synchronized (options) {
-            options.add(option);
-        }
+    public List<FormFieldChildElement> getFormFieldChildElements() {
+        return formFieldChildElements;
     }
 
     @Override
@@ -431,26 +391,60 @@ public class FormField implements NamedElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder buf = new XmlStringBuilder(this);
+    public String getNamespace() {
+        return NAMESPACE;
+    }
+
+    @Override
+    public QName getQName() {
+        return QNAME;
+    }
+
+    protected transient List<FullyQualifiedElement> extraXmlChildElements;
+
+    /**
+     * Populate @{link {@link #extraXmlChildElements}}. Note that this method may be overridden by subclasses.
+     */
+    protected void populateExtraXmlChildElements() {
+        List<Value> values = getRawValues();
+        // Note that we need to create a new ArrayList here, since subclasses may add to it by overriding
+        // populateExtraXmlChildElements.
+        extraXmlChildElements = new ArrayList<>(values.size());
+        extraXmlChildElements.addAll(values);
+    }
+
+    @Override
+    public final XmlStringBuilder toXML(XmlEnvironment enclosingNamespace) {
+        return toXML(enclosingNamespace, true);
+    }
+
+    public final XmlStringBuilder toXML(XmlEnvironment enclosingNamespace, boolean includeType) {
+        XmlStringBuilder buf = new XmlStringBuilder(this, enclosingNamespace);
         // Add attributes
         buf.optAttribute("label", getLabel());
-        buf.optAttribute("var", getVariable());
-        buf.optAttribute("type", getType());
-        buf.rightAngleBracket();
-        // Add elements
-        buf.optElement("desc", getDescription());
-        buf.condEmptyElement(isRequired(), "required");
-        // Loop through all the values and append them to the string buffer
-        for (CharSequence value : getValues()) {
-            buf.element("value", value);
+        buf.optAttribute("var", getFieldName());
+
+        if (includeType) {
+            // If no 'type' is specified, the default is "text-single";
+            buf.attribute("type", getType(), Type.text_single);
         }
-        // Loop through all the values and append them to the string buffer
-        for (Option option : getOptions()) {
-            buf.append(option.toXML(null));
+
+        if (extraXmlChildElements == null) {
+            // If extraXmlChildElements is null, see if they should be populated.
+            populateExtraXmlChildElements();
         }
-        buf.optElement(validateElement);
-        buf.closeElement(this);
+
+        if (formFieldChildElements.isEmpty()
+                        && (extraXmlChildElements == null || extraXmlChildElements.isEmpty())) {
+            buf.closeEmptyElement();
+        } else {
+            buf.rightAngleBracket();
+
+            buf.optAppend(extraXmlChildElements);
+            buf.append(formFieldChildElements);
+
+            buf.closeElement(this);
+        }
         return buf;
     }
 
@@ -465,31 +459,299 @@ public class FormField implements NamedElement {
 
         FormField other = (FormField) obj;
 
-        return toXML(null).equals(other.toXML(null));
+        return toXML().toString().equals(other.toXML().toString());
     }
 
     @Override
     public int hashCode() {
-        return toXML(null).hashCode();
+        return toXML().toString().hashCode();
+    }
+
+    public static BooleanFormField.Builder booleanBuilder(String fieldName) {
+        return new BooleanFormField.Builder(fieldName);
+    }
+
+    public static TextSingleFormField.Builder fixedBuilder() {
+        return fixedBuilder(null);
+    }
+
+    public static TextSingleFormField.Builder fixedBuilder(String fieldName) {
+        return new TextSingleFormField.Builder(fieldName, Type.fixed);
+    }
+
+    public static TextSingleFormField.Builder hiddenBuilder(String fieldName) {
+        return new TextSingleFormField.Builder(fieldName, Type.hidden);
+    }
+
+    public static JidMultiFormField.Builder jidMultiBuilder(String fieldName) {
+        return new JidMultiFormField.Builder(fieldName);
+    }
+
+    public static JidSingleFormField.Builder jidSingleBuilder(String fieldName) {
+        return new JidSingleFormField.Builder(fieldName);
+    }
+
+    public static ListMultiFormField.Builder listMultiBuilder(String fieldName) {
+        return new ListMultiFormField.Builder(fieldName);
+    }
+
+    public static ListSingleFormField.Builder listSingleBuilder(String fieldName) {
+        return new ListSingleFormField.Builder(fieldName);
+    }
+
+    public static TextMultiFormField.Builder textMultiBuilder(String fieldName) {
+        return new TextMultiFormField.Builder(fieldName);
+    }
+
+    public static TextSingleFormField.Builder textPrivateBuilder(String fieldName) {
+        return new TextSingleFormField.Builder(fieldName, Type.text_private);
+    }
+
+    public static TextSingleFormField.Builder textSingleBuilder(String fieldName) {
+        return new TextSingleFormField.Builder(fieldName, Type.text_single);
+    }
+
+    public static TextSingleFormField.Builder builder(String fieldName) {
+        return textSingleBuilder(fieldName);
+    }
+
+    public static TextSingleFormField buildHiddenFormType(String formType) {
+        return hiddenBuilder(FORM_TYPE).setValue(formType).build();
+    }
+
+    public <F extends FormField> F ifPossibleAs(Class<F> formFieldClass) {
+        if (formFieldClass.isInstance(this)) {
+            return formFieldClass.cast(this);
+        }
+        return null;
+    }
+
+    public <F extends FormField> F ifPossibleAsOrThrow(Class<F> formFieldClass) {
+        F field = ifPossibleAs(formFieldClass);
+        if (field == null) {
+            throw new IllegalArgumentException();
+        }
+        return field;
+    }
+
+    public TextSingleFormField asHiddenFormTypeFieldIfPossible() {
+        TextSingleFormField textSingleFormField = ifPossibleAs(TextSingleFormField.class);
+        if (textSingleFormField == null) {
+            return null;
+        }
+        if (getType() != Type.hidden) {
+            return null;
+        }
+        if (!getFieldName().equals(FORM_TYPE)) {
+            return null;
+        }
+        return textSingleFormField;
+    }
+
+    public abstract static class Builder<F extends FormField, B extends Builder<?, ?>> {
+        private final String fieldName;
+        private final Type type;
+
+        private String label;
+
+        private List<FormFieldChildElement> formFieldChildElements;
+
+        private boolean disallowType;
+        private boolean disallowFurtherFormFieldChildElements;
+
+        protected Builder(String fieldName, Type type) {
+            if (StringUtils.isNullOrEmpty(fieldName) && type != Type.fixed) {
+                throw new IllegalArgumentException("Fields of type " + type + " must have a field name set");
+            }
+            this.fieldName = fieldName;
+            this.type = type;
+        }
+
+        protected Builder(FormField formField) {
+            // TODO: Is this still correct?
+            fieldName = formField.fieldName;
+            label = formField.label;
+            type = formField.type;
+            // Create a new modifiable list.
+            formFieldChildElements = CollectionUtil.newListWith(formField.formFieldChildElements);
+        }
+
+        /**
+         * Sets a description that provides extra clarification about the question. This information
+         * could be presented to the user either in tool-tip, help button, or as a section of text
+         * before the question.
+         * <p>
+         * If the question is of type FIXED then the description should remain empty.
+         * </p>
+         *
+         * @param description provides extra clarification about the question.
+         * @return a reference to this builder.
+         */
+        public B setDescription(String description) {
+            Description descriptionElement = new Description(description);
+            setOnlyElement(descriptionElement);
+            return getThis();
+        }
+
+        /**
+         * Sets the label of the question which should give enough information to the user to
+         * fill out the form.
+         *
+         * @param label the label of the question.
+         * @return a reference to this builder.
+         */
+        public B setLabel(String label) {
+            this.label = Objects.requireNonNull(label, "label must not be null");
+            return getThis();
+        }
+
+        /**
+         * Sets if the question must be answered in order to complete the questionnaire.
+         *
+         * @return a reference to this builder.
+         */
+        public B setRequired() {
+            return setRequired(true);
+        }
+
+        /**
+         * Sets if the question must be answered in order to complete the questionnaire.
+         *
+         * @param required if the question must be answered in order to complete the questionnaire.
+         * @return a reference to this builder.
+         */
+        public B setRequired(boolean required) {
+            if (required) {
+                setOnlyElement(Required.INSTANCE);
+            }
+            return getThis();
+        }
+
+        public B addFormFieldChildElements(Collection<? extends FormFieldChildElement> formFieldChildElements) {
+            for (FormFieldChildElement formFieldChildElement : formFieldChildElements) {
+                addFormFieldChildElement(formFieldChildElement);
+            }
+            return getThis();
+        }
+
+        @SuppressWarnings("ModifyCollectionInEnhancedForLoop")
+        public B addFormFieldChildElement(FormFieldChildElement newFormFieldChildElement) {
+            if (disallowFurtherFormFieldChildElements) {
+                throw new IllegalArgumentException();
+            }
+
+            if (newFormFieldChildElement.requiresNoTypeSet() && type != null) {
+                throw new IllegalArgumentException("Elements of type " + newFormFieldChildElement.getClass()
+                                + " can only be added to form fields where no type is set");
+            }
+
+            ensureThatFormFieldChildElementsIsSet();
+
+            if (!formFieldChildElements.isEmpty() && newFormFieldChildElement.isExclusiveElement()) {
+                throw new IllegalArgumentException("Elements of type " + newFormFieldChildElement.getClass()
+                                + " must be the only child elements of a form field.");
+            }
+
+            disallowType = disallowType || newFormFieldChildElement.requiresNoTypeSet();
+            disallowFurtherFormFieldChildElements = newFormFieldChildElement.isExclusiveElement();
+
+            formFieldChildElements.add(newFormFieldChildElement);
+
+            for (FormFieldChildElement formFieldChildElement : formFieldChildElements) {
+                try {
+                    formFieldChildElement.checkConsistency(this);
+                } catch (IllegalArgumentException e) {
+                    // Remove the newly added form field child element if there it causes inconsistency.
+                    formFieldChildElements.remove(newFormFieldChildElement);
+                    throw e;
+                }
+            }
+
+            return getThis();
+        }
+
+        protected abstract void resetInternal();
+
+        public B reset() {
+            resetInternal();
+
+            if (formFieldChildElements == null) {
+                return getThis();
+            }
+
+            // TODO: Use Java' stream API once Smack's minimum Android SDK level is 24 or higher.
+            Iterator<FormFieldChildElement> it = formFieldChildElements.iterator();
+            while (it.hasNext()) {
+                FormFieldChildElement formFieldChildElement = it.next();
+                if (formFieldChildElement instanceof Value) {
+                    it.remove();
+                }
+            }
+
+            disallowType = disallowFurtherFormFieldChildElements = false;
+
+            return getThis();
+        }
+
+        public abstract F build();
+
+        public Type getType() {
+            return type;
+        }
+
+        private void ensureThatFormFieldChildElementsIsSet() {
+            if (formFieldChildElements == null) {
+                formFieldChildElements = new ArrayList<>(4);
+            }
+        }
+
+        private <E extends FormFieldChildElement> void setOnlyElement(E element) {
+            Class<?> elementClass = element.getClass();
+            ensureThatFormFieldChildElementsIsSet();
+            for (int i = 0; i < formFieldChildElements.size(); i++) {
+                if (formFieldChildElements.get(i).getClass().equals(elementClass)) {
+                    formFieldChildElements.set(i, element);
+                    return;
+                }
+            }
+
+            addFormFieldChildElement(element);
+        }
+
+        public abstract B getThis();
     }
 
     /**
-     * Represents the available option of a given FormField.
+     * Marker class for the standard, as per XEP-0004, child elements of form fields.
+     */
+    private abstract static class StandardFormFieldChildElement implements FormFieldChildElement {
+    }
+
+    /**
+     * Represents the available options of a {@link ListSingleFormField} and {@link ListMultiFormField}.
      *
      * @author Gaston Dombiak
      */
-    public static class Option implements NamedElement {
+    public static final class Option implements FullyQualifiedElement {
 
         public static final String ELEMENT = "option";
 
-        private final String value;
-        private String label;
+        public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
+        private final String label;
+
+        private final Value value;
 
         public Option(String value) {
-            this.value = value;
+            this(null, value);
         }
 
         public Option(String label, String value) {
+            this.label = label;
+            this.value = new Value(value);
+        }
+
+        public Option(String label, Value value) {
             this.label = label;
             this.value = value;
         }
@@ -508,8 +770,17 @@ public class FormField implements NamedElement {
          *
          * @return the value of the option.
          */
-        public String getValue() {
+        public Value getValue() {
             return value;
+        }
+
+        /**
+         * Returns the string representation of the value of the option.
+         *
+         * @return the value of the option.
+         */
+        public String getValueString() {
+            return value.value.toString();
         }
 
         @Override
@@ -523,14 +794,24 @@ public class FormField implements NamedElement {
         }
 
         @Override
-        public XmlStringBuilder toXML(String enclosingNamespace) {
+        public String getNamespace() {
+            return NAMESPACE;
+        }
+
+        @Override
+        public QName getQName() {
+            return QNAME;
+        }
+
+        @Override
+        public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder(this);
             // Add attribute
             xml.optAttribute("label", getLabel());
             xml.rightAngleBracket();
 
             // Add element
-            xml.element("value", getValue());
+            xml.element("value", getValueString());
 
             xml.closeElement(this);
             return xml;
@@ -538,33 +819,149 @@ public class FormField implements NamedElement {
 
         @Override
         public boolean equals(Object obj) {
-            if (obj == null)
-                return false;
-            if (obj == this)
-                return true;
-            if (obj.getClass() != getClass())
-                return false;
+            return EqualsUtil.equals(this, obj, (e, o) -> {
+                e.append(value, o.value)
+                 .append(label, o.label);
+            });
+        }
 
-            Option other = (Option) obj;
+        private final HashCode.Cache hashCodeCache = new HashCode.Cache();
 
-            if (!value.equals(other.value))
-                return false;
+        @Override
+        public int hashCode() {
+            return hashCodeCache.getHashCode(c ->
+                c.append(value)
+                 .append(label)
+            );
+        }
 
-            String thisLabel = label == null ? "" : label;
-            String otherLabel = other.label == null ? "" : other.label;
+    }
 
-            if (!thisLabel.equals(otherLabel))
-                return false;
+    public static class Description extends StandardFormFieldChildElement {
 
+        public static final String ELEMENT = "desc";
+
+        public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
+        private final String description;
+
+        public Description(String description) {
+            this.description = description;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        @Override
+        public String getElementName() {
+            return ELEMENT;
+        }
+
+        @Override
+        public String getNamespace() {
+            return NAMESPACE;
+        }
+
+        @Override
+        public QName getQName() {
+            return QNAME;
+        }
+
+        @Override
+        public XmlStringBuilder toXML(XmlEnvironment xmlEnvironment) {
+            XmlStringBuilder xml = new XmlStringBuilder(this, xmlEnvironment);
+            xml.rightAngleBracket();
+            xml.escape(description);
+            xml.closeElement(this);
+            return xml;
+        }
+    }
+
+    public static final class Required extends StandardFormFieldChildElement {
+
+        public static final Required INSTANCE = new Required();
+
+        public static final String ELEMENT = "required";
+
+        public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
+        private Required() {
+        }
+
+        @Override
+        public String getElementName() {
+            return ELEMENT;
+        }
+
+        @Override
+        public String getNamespace() {
+            return NAMESPACE;
+        }
+
+        @Override
+        public QName getQName() {
+            return QNAME;
+        }
+
+        @Override
+        public boolean mustBeOnlyOfHisKind() {
             return true;
         }
 
         @Override
+        public String toXML(XmlEnvironment xmlEnvironment) {
+            return '<' + ELEMENT + "/>";
+        }
+    }
+
+    public static class Value implements FullyQualifiedElement {
+
+        public static final String ELEMENT = "value";
+
+        public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
+        private final CharSequence value;
+
+        public Value(CharSequence value) {
+            this.value = value;
+        }
+
+        public CharSequence getValue() {
+            return value;
+        }
+
+        @Override
+        public String getElementName() {
+            return ELEMENT;
+        }
+
+        @Override
+        public String getNamespace() {
+            return NAMESPACE;
+        }
+
+        @Override
+        public QName getQName() {
+            return QNAME;
+        }
+
+        @Override
+        public XmlStringBuilder toXML(XmlEnvironment xmlEnvironment) {
+            XmlStringBuilder xml = new XmlStringBuilder(this, xmlEnvironment);
+            xml.rightAngleBracket();
+            xml.escape(value);
+            return xml.closeElement(this);
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return EqualsUtil.equals(this, other, (e, o) -> e.append(this.value, o.value));
+        }
+
+        @Override
         public int hashCode() {
-            int result = 1;
-            result = 37 * result + value.hashCode();
-            result = 37 * result + (label == null ? 0 : label.hashCode());
-            return result;
+            return value.hashCode();
         }
     }
 }

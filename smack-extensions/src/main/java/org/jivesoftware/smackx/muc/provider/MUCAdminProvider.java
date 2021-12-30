@@ -19,12 +19,12 @@ package org.jivesoftware.smackx.muc.provider;
 
 import java.io.IOException;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.muc.packet.MUCAdmin;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * The MUCAdminProvider parses MUCAdmin packets. (@see MUCAdmin)
@@ -34,18 +34,18 @@ import org.xmlpull.v1.XmlPullParserException;
 public class MUCAdminProvider extends IQProvider<MUCAdmin> {
 
     @Override
-    public MUCAdmin parse(XmlPullParser parser, int initialDepth)
+    public MUCAdmin parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
                     throws XmlPullParserException, IOException {
         MUCAdmin mucAdmin = new MUCAdmin();
         boolean done = false;
         while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (parser.getName().equals("item")) {
                     mucAdmin.addItem(MUCParserUtils.parseItem(parser));
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("query")) {
                     done = true;
                 }

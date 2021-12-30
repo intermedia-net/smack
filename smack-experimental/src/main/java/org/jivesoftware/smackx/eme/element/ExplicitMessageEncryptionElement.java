@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,15 @@
 package org.jivesoftware.smackx.eme.element;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import javax.xml.namespace.QName;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageBuilder;
+import org.jivesoftware.smack.packet.MessageView;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
@@ -31,6 +36,8 @@ public class ExplicitMessageEncryptionElement implements ExtensionElement {
     public static final String ELEMENT = "encryption";
 
     public static final String NAMESPACE = "urn:xmpp:eme:0";
+
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
     public enum ExplicitMessageEncryptionProtocol {
 
@@ -86,7 +93,7 @@ public class ExplicitMessageEncryptionElement implements ExtensionElement {
     }
 
     public ExplicitMessageEncryptionElement(String encryptionNamespace, String name) {
-        this.encryptionNamespace = StringUtils.requireNotNullOrEmpty(encryptionNamespace,
+        this.encryptionNamespace = StringUtils.requireNotNullNorEmpty(encryptionNamespace,
                         "encryptionNamespace must not be null");
         this.name = name;
     }
@@ -134,7 +141,7 @@ public class ExplicitMessageEncryptionElement implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
         xml.attribute("namespace", getEncryptionNamespace());
         xml.optAttribute("name", getName());
@@ -143,6 +150,50 @@ public class ExplicitMessageEncryptionElement implements ExtensionElement {
     }
 
     public static ExplicitMessageEncryptionElement from(Message message) {
-        return message.getExtension(ELEMENT, NAMESPACE);
+        return message.getExtension(ExplicitMessageEncryptionElement.class);
+    }
+
+    /**
+     * Return true, if the {@code message} already contains an EME element with the specified {@code protocolNamespace}.
+     *
+     * @param message message
+     * @param protocolNamespace namespace
+     * @return true if message has EME element for that namespace, otherwise false
+     */
+    public static boolean hasProtocol(MessageView message, String protocolNamespace) {
+        List<ExplicitMessageEncryptionElement> emeElements = message
+                .getExtensions(ExplicitMessageEncryptionElement.class);
+
+        for (ExplicitMessageEncryptionElement emeElement : emeElements) {
+            if (emeElement.getEncryptionNamespace().equals(protocolNamespace)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Return true, if the {@code message} already contains an EME element with the specified protocol namespace.
+     *
+     * @param message message
+     * @param protocol protocol
+     * @return true if message has EME element for that namespace, otherwise false
+     */
+    public static boolean hasProtocol(MessageView message, ExplicitMessageEncryptionProtocol protocol) {
+        return hasProtocol(message, protocol.namespace);
+    }
+
+    /**
+     * Add an EME element containing the specified {@code protocol} namespace to the message.
+     * In case there is already an element with that protocol, we do nothing.
+     *
+     * @param message a message builder.
+     * @param protocol encryption protocol
+     */
+    public static void set(MessageBuilder message, ExplicitMessageEncryptionProtocol protocol) {
+        if (!hasProtocol(message, protocol.namespace)) {
+            message.addExtension(new ExplicitMessageEncryptionElement(protocol));
+        }
     }
 }

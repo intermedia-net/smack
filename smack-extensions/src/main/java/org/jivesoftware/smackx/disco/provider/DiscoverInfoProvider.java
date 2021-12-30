@@ -17,73 +17,68 @@
 
 package org.jivesoftware.smackx.disco.provider;
 
-import org.jivesoftware.smack.provider.IQProvider;
+import java.io.IOException;
+
+import org.jivesoftware.smack.packet.IqData;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
+import org.jivesoftware.smack.provider.BaseIqProvider;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
-
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smackx.disco.packet.DiscoverInfoBuilder;
 
 /**
 * The DiscoverInfoProvider parses Service Discovery information packets.
 *
 * @author Gaston Dombiak
 */
-public class DiscoverInfoProvider extends IQProvider<DiscoverInfo> {
+public class DiscoverInfoProvider extends BaseIqProvider<DiscoverInfo> {
 
     @Override
-    public DiscoverInfo parse(XmlPullParser parser, int initialDepth)
-                    throws Exception {
-        DiscoverInfo discoverInfo = new DiscoverInfo();
-        boolean done = false;
-        DiscoverInfo.Identity identity;
-        String category = "";
-        String identityName = "";
-        String type = "";
-        String variable = "";
-        String lang = "";
-        discoverInfo.setNode(parser.getAttributeValue("", "node"));
-        while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+    public DiscoverInfo parse(XmlPullParser parser, int initialDepth, IqData iqData, XmlEnvironment xmlEnvironment)
+            throws XmlPullParserException, IOException, SmackParsingException {
+        DiscoverInfoBuilder discoverInfoBuilder = DiscoverInfo.builder(iqData);
+
+        String node = parser.getAttributeValue("node");
+        discoverInfoBuilder.setNode(node);
+
+        outerloop: while (true) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 final String name = parser.getName();
                 final String namespace = parser.getNamespace();
                 if (namespace.equals(DiscoverInfo.NAMESPACE)) {
                     switch (name) {
                     case "identity":
-                        // Initialize the variables from the parsed XML
-                        category = parser.getAttributeValue("", "category");
-                        identityName = parser.getAttributeValue("", "name");
-                        type = parser.getAttributeValue("", "type");
-                        lang = parser.getAttributeValue(parser.getNamespace("xml"), "lang");
+                        String category = parser.getAttributeValue("category");
+                        String identityName = parser.getAttributeValue("name");
+                        String type = parser.getAttributeValue("type");
+                        String lang = ParserUtils.getXmlLang(parser);
+                        DiscoverInfo.Identity identity = new DiscoverInfo.Identity(category, type, identityName, lang);
+                        discoverInfoBuilder.addIdentity(identity);
                         break;
                     case "feature":
-                        // Initialize the variables from the parsed XML
-                        variable = parser.getAttributeValue("", "var");
+                        String feature = parser.getAttributeValue("var");
+                        discoverInfoBuilder.addFeature(feature);
                         break;
                     }
                 }
                 // Otherwise, it must be a packet extension.
                 else {
-                    PacketParserUtils.addExtensionElement(discoverInfo, parser);
+                    PacketParserUtils.addExtensionElement(discoverInfoBuilder, parser, xmlEnvironment);
                 }
-            } else if (eventType == XmlPullParser.END_TAG) {
-                if (parser.getName().equals("identity")) {
-                    // Create a new identity and add it to the discovered info.
-                    identity = new DiscoverInfo.Identity(category, type, identityName, lang);
-                    discoverInfo.addIdentity(identity);
-                }
-                if (parser.getName().equals("feature")) {
-                    // Create a new feature and add it to the discovered info.
-                    boolean notADuplicateFeature = discoverInfo.addFeature(variable);
-                    assert (notADuplicateFeature);
-                }
-                if (parser.getName().equals("query")) {
-                    done = true;
+            } else if (eventType == XmlPullParser.Event.END_ELEMENT) {
+                if (parser.getDepth() == initialDepth) {
+                    break outerloop;
                 }
             }
         }
 
+        DiscoverInfo discoverInfo = discoverInfoBuilder.buildWithoutValidiation();
         return discoverInfo;
     }
 }

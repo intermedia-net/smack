@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2016 Florian Schmaus and Fernando Ramirez
+ * Copyright © 2016-2020 Florian Schmaus and Fernando Ramirez
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package org.jivesoftware.smackx.mam.element;
 
 import org.jivesoftware.smack.packet.IQ;
 
-import org.jivesoftware.smackx.xdata.FormField;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 /**
@@ -48,7 +47,7 @@ public class MamQueryIQ extends IQ {
     /**
      * MAM query IQ constructor.
      *
-     * @param queryId
+     * @param queryId TODO javadoc me please
      */
     public MamQueryIQ(String queryId) {
         this(queryId, null, null);
@@ -58,7 +57,7 @@ public class MamQueryIQ extends IQ {
     /**
      * MAM query IQ constructor.
      *
-     * @param form
+     * @param form TODO javadoc me please
      */
     public MamQueryIQ(DataForm form) {
         this(null, null, form);
@@ -67,8 +66,8 @@ public class MamQueryIQ extends IQ {
     /**
      * MAM query IQ constructor.
      *
-     * @param queryId
-     * @param form
+     * @param queryId TODO javadoc me please
+     * @param form TODO javadoc me please
      */
     public MamQueryIQ(String queryId, DataForm form) {
         this(queryId, null, form);
@@ -77,9 +76,9 @@ public class MamQueryIQ extends IQ {
     /**
      * MAM query IQ constructor.
      *
-     * @param queryId
-     * @param node
-     * @param dataForm
+     * @param queryId TODO javadoc me please
+     * @param node TODO javadoc me please
+     * @param dataForm TODO javadoc me please
      */
     public MamQueryIQ(String queryId, String node, DataForm dataForm) {
         super(ELEMENT, NAMESPACE);
@@ -88,11 +87,11 @@ public class MamQueryIQ extends IQ {
         this.dataForm = dataForm;
 
         if (dataForm != null) {
-            FormField field = dataForm.getHiddenFormTypeField();
-            if (field == null) {
+            String formType = dataForm.getFormType();
+            if (formType == null) {
                 throw new IllegalArgumentException("If a data form is given it must posses a hidden form type field");
             }
-            if (!field.getValues().get(0).equals(MamElements.NAMESPACE)) {
+            if (!formType.equals(MamElements.NAMESPACE)) {
                 throw new IllegalArgumentException(
                         "Value of the hidden form type field must be '" + MamElements.NAMESPACE + "'");
             }

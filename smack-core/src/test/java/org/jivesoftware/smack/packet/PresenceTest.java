@@ -16,14 +16,15 @@
  */
 package org.jivesoftware.smack.packet;
 
-import static org.custommonkey.xmlunit.XMLAssert.assertXMLEqual;
+import static org.jivesoftware.smack.test.util.XmlAssertUtil.assertXmlSimilar;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xml.sax.SAXException;
 
 public class PresenceTest {
@@ -40,10 +41,11 @@ public class PresenceTest {
                 .append("</presence>");
         String control = controlBuilder.toString();
 
-        Presence presenceTypeInConstructor = new Presence(type);
-        presenceTypeInConstructor.setStanzaId(null);
+        Presence presenceTypeInConstructor = StanzaBuilder.buildPresence()
+                        .ofType(type)
+                        .build();
         assertEquals(type, presenceTypeInConstructor.getType());
-        assertXMLEqual(control, presenceTypeInConstructor.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertXmlSimilar(control, presenceTypeInConstructor.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
 
         controlBuilder = new StringBuilder();
         controlBuilder.append("<presence")
@@ -53,25 +55,27 @@ public class PresenceTest {
                 .append("</presence>");
         control = controlBuilder.toString();
 
-        Presence presenceTypeSet = getNewPresence();
-        presenceTypeSet.setType(type2);
+        PresenceBuilder presenceTypeSet = getNewPresence();
+        presenceTypeSet.ofType(type2);
         assertEquals(type2, presenceTypeSet.getType());
-        assertXMLEqual(control, presenceTypeSet.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertXmlSimilar(control, presenceTypeSet.build().toXML(StreamOpen.CLIENT_NAMESPACE).toString());
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void setNullPresenceTypeTest() {
-        getNewPresence().setType(null);
+        assertThrows(IllegalArgumentException.class, () ->
+        getNewPresence().ofType(null)
+        );
     }
 
     @Test
     public void isPresenceAvailableTest() {
-        Presence presence = getNewPresence();
-        presence.setType(Presence.Type.available);
-        assertTrue(presence.isAvailable());
+        PresenceBuilder presence = getNewPresence();
+        presence.ofType(Presence.Type.available);
+        assertTrue(presence.build().isAvailable());
 
-        presence.setType(Presence.Type.unavailable);
-        assertFalse(presence.isAvailable());
+        presence.ofType(Presence.Type.unavailable);
+        assertFalse(presence.build().isAvailable());
     }
 
     @Test
@@ -86,11 +90,11 @@ public class PresenceTest {
                 .append("</presence>");
         String control = controlBuilder.toString();
 
-        Presence presence = getNewPresence();
+        PresenceBuilder presence = getNewPresence();
         presence.setStatus(status);
 
         assertEquals(status, presence.getStatus());
-        assertXMLEqual(control, presence.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertXmlSimilar(control, presence.build().toXML(StreamOpen.CLIENT_NAMESPACE).toString());
     }
 
     @Test
@@ -105,16 +109,18 @@ public class PresenceTest {
                 .append("</presence>");
         String control = controlBuilder.toString();
 
-        Presence presence = getNewPresence();
+        PresenceBuilder presence = getNewPresence();
         presence.setPriority(priority);
 
         assertEquals(priority, presence.getPriority());
-        assertXMLEqual(control, presence.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertXmlSimilar(control, presence.build().toXML(StreamOpen.CLIENT_NAMESPACE).toString());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void setIllegalPriorityTest() {
-        getNewPresence().setPriority(Integer.MIN_VALUE);
+        assertThrows(IllegalArgumentException.class, () ->
+        getNewPresence().setPriority(Integer.MIN_VALUE)
+        );
     }
 
     @Test
@@ -138,11 +144,14 @@ public class PresenceTest {
                 .append("</presence>");
         String control = controlBuilder.toString();
 
-        Presence presenceModeInConstructor = new Presence(Presence.Type.available, status, priority,
-                mode1);
-        presenceModeInConstructor.setStanzaId(null);
-        assertEquals(mode1, presenceModeInConstructor.getMode());
-        assertXMLEqual(control, presenceModeInConstructor.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        Presence presenceBuildWithBuilder = StanzaBuilder.buildPresence()
+                        .ofType(Presence.Type.available)
+                        .setStatus(status)
+                        .setPriority(priority)
+                        .setMode(mode1)
+                        .build();
+        assertEquals(mode1, presenceBuildWithBuilder.getMode());
+        assertXmlSimilar(control, presenceBuildWithBuilder.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
 
         controlBuilder = new StringBuilder();
         controlBuilder.append("<presence>")
@@ -152,20 +161,20 @@ public class PresenceTest {
                 .append("</presence>");
        control = controlBuilder.toString();
 
-        Presence presenceModeSet = getNewPresence();
+        PresenceBuilder presenceModeSet = getNewPresence();
         presenceModeSet.setMode(mode2);
         assertEquals(mode2, presenceModeSet.getMode());
-        assertXMLEqual(control, presenceModeSet.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertXmlSimilar(control, presenceModeSet.build().toXML(StreamOpen.CLIENT_NAMESPACE).toString());
     }
 
     @Test
     public void isModeAwayTest() {
-        Presence presence = getNewPresence();
+        PresenceBuilder presence = getNewPresence();
         presence.setMode(Presence.Mode.away);
-        assertTrue(presence.isAway());
+        assertTrue(presence.build().isAway());
 
         presence.setMode(Presence.Mode.chat);
-        assertFalse(presence.isAway());
+        assertFalse(presence.build().isAway());
     }
 
     @Test
@@ -180,15 +189,14 @@ public class PresenceTest {
                 .append("</presence>");
         String control = controlBuilder.toString();
 
-        Presence presence = getNewPresence();
+        PresenceBuilder presence = getNewPresence();
         presence.setLanguage(lang);
 
-        assertXMLEqual(control, presence.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertXmlSimilar(control, presence.build().toXML(StreamOpen.CLIENT_NAMESPACE).toString());
     }
 
-    private static Presence getNewPresence() {
-        Presence presence = new Presence(Presence.Type.available);
-        presence.setStanzaId(null);
+    private static PresenceBuilder getNewPresence() {
+        PresenceBuilder presence = StanzaBuilder.buildPresence().ofType(Presence.Type.available);
         return presence;
     }
 }

@@ -19,12 +19,11 @@ package org.jivesoftware.smackx.iot.data.element;
 import java.util.Collections;
 import java.util.List;
 
-import org.jivesoftware.smack.packet.NamedElement;
 import org.jivesoftware.smack.util.XmlStringBuilder;
 
 import org.jivesoftware.smackx.iot.element.NodeInfo;
 
-public class NodeElement implements NamedElement {
+public class NodeElement extends IoTDataExtensionElement {
 
     public static final String ELEMENT = "node";
 
@@ -50,8 +49,8 @@ public class NodeElement implements NamedElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = new XmlStringBuilder(this);
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
+        XmlStringBuilder xml = new XmlStringBuilder(this, enclosingNamespace);
         nodeInfo.appendTo(xml);
         xml.rightAngleBracket();
 

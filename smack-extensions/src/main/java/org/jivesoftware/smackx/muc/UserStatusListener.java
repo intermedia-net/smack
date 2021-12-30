@@ -17,11 +17,21 @@
 
 package org.jivesoftware.smackx.muc;
 
+import org.jivesoftware.smack.packet.Presence;
+
+import org.jivesoftware.smackx.muc.packet.MUCUser;
+
 import org.jxmpp.jid.Jid;
 
 /**
- * A listener that is fired anytime your participant's status in a room is changed, such as the
- * user being kicked, banned, or granted admin permissions or the room is destroyed.
+ * A listener that is fired anytime your participant's status in a room is changed, such as the user being kicked,
+ * banned, or granted admin permissions or the room is destroyed.
+ * <p>
+ * Note that the methods {@link #kicked(Jid, String)}, {@link #banned(Jid, String)} and
+ * {@link #roomDestroyed(MultiUserChat, String)} will be called before the generic {@link #removed(MUCUser, Presence)}
+ * callback will be invoked. The generic {@link #removed(MUCUser, Presence)} callback will be invoked every time the user
+ * was removed from the MUC involuntarily. It is hence the recommended callback to listen for and act upon.
+ * </p>
  *
  * @author Gaston Dombiak
  */
@@ -33,8 +43,10 @@ public interface UserStatusListener {
      *
      * @param actor the moderator that kicked your user from the room (e.g. user@host.org).
      * @param reason the reason provided by the actor to kick you from the room.
+     * @see #removed(MUCUser, Presence)
      */
-     void kicked(Jid actor, String reason);
+    default void kicked(Jid actor, String reason) {
+    }
 
     /**
      * Called when a moderator grants voice to your user. This means that you were a visitor in
@@ -42,7 +54,8 @@ public interface UserStatusListener {
      * all occupants.
      *
      */
-     void voiceGranted();
+    default void voiceGranted() {
+    }
 
     /**
      * Called when a moderator revokes voice from your user. This means that you were a
@@ -50,7 +63,8 @@ public interface UserStatusListener {
      * messages to the room occupants.
      *
      */
-     void voiceRevoked();
+    default void voiceRevoked() {
+    }
 
     /**
      * Called when an administrator or owner banned your user from the room. This means that you
@@ -58,22 +72,36 @@ public interface UserStatusListener {
      *
      * @param actor the administrator that banned your user (e.g. user@host.org).
      * @param reason the reason provided by the administrator to banned you.
+     * @see #removed(MUCUser, Presence)
      */
-     void banned(Jid actor, String reason);
+    default void banned(Jid actor, String reason) {
+    }
 
-    /**
+     /**
+      * Called when a user is involuntarily removed from the room.
+      *
+      * @param mucUser the optional muc#user extension element
+      * @param presence the carrier presence
+      * @since 4.4.0
+      */
+     default void removed(MUCUser mucUser, Presence presence) {
+     }
+
+     /**
      * Called when an administrator grants your user membership to the room. This means that you
      * will be able to join the members-only room.
      *
      */
-     void membershipGranted();
+    default void membershipGranted() {
+    }
 
     /**
      * Called when an administrator revokes your user membership to the room. This means that you
      * will not be able to join the members-only room.
      *
      */
-     void membershipRevoked();
+    default void membershipRevoked() {
+    }
 
     /**
      * Called when an administrator grants moderator privileges to your user. This means that you
@@ -81,7 +109,8 @@ public interface UserStatusListener {
      * subject plus all the partcipants privileges.
      *
      */
-     void moderatorGranted();
+    default void moderatorGranted() {
+    }
 
     /**
      * Called when an administrator revokes moderator privileges from your user. This means that
@@ -89,7 +118,8 @@ public interface UserStatusListener {
      * modify room's subject plus all the partcipants privileges.
      *
      */
-     void moderatorRevoked();
+    default void moderatorRevoked() {
+    }
 
     /**
      * Called when an owner grants to your user ownership on the room. This means that you
@@ -97,7 +127,8 @@ public interface UserStatusListener {
      * functions.
      *
      */
-     void ownershipGranted();
+    default void ownershipGranted() {
+    }
 
     /**
      * Called when an owner revokes from your user ownership on the room. This means that you
@@ -105,7 +136,8 @@ public interface UserStatusListener {
      * administrative functions.
      *
      */
-     void ownershipRevoked();
+    default void ownershipRevoked() {
+    }
 
     /**
      * Called when an owner grants administrator privileges to your user. This means that you
@@ -113,7 +145,8 @@ public interface UserStatusListener {
      * list.
      *
      */
-     void adminGranted();
+    default void adminGranted() {
+    }
 
     /**
      * Called when an owner revokes administrator privileges from your user. This means that you
@@ -121,14 +154,17 @@ public interface UserStatusListener {
      * moderator list.
      *
      */
-     void adminRevoked();
+    default void adminRevoked() {
+    }
 
     /**
      * Called when the room is destroyed.
      *
      * @param alternateMUC an alternate MultiUserChat, may be null.
      * @param reason the reason why the room was closed, may be null.
+     * @see #removed(MUCUser, Presence)
      */
-     void roomDestroyed(MultiUserChat alternateMUC, String reason);
+    default void roomDestroyed(MultiUserChat alternateMUC, String reason) {
+    }
 
 }

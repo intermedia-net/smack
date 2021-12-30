@@ -60,7 +60,6 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.text.BadLocationException;
 
-import org.jivesoftware.smack.AbstractConnectionListener;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.ReconnectionListener;
@@ -74,6 +73,7 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.packet.TopLevelStreamElement;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.util.ObservableReader;
 import org.jivesoftware.smack.util.ObservableWriter;
 import org.jivesoftware.smack.util.ReaderListener;
@@ -219,7 +219,7 @@ public class EnhancedDebugger extends SmackDebugger {
         addInformationPanel();
 
         // Create a thread that will listen for any connection closed event
-        connListener = new AbstractConnectionListener() {
+        connListener = new ConnectionListener() {
             @Override
             public void connectionClosed() {
                 SwingUtilities.invokeLater(new Runnable() {
@@ -256,11 +256,9 @@ public class EnhancedDebugger extends SmackDebugger {
                 new DefaultTableModel(
                         new Object[] {"Hide", "Timestamp", "", "", "Message", "Id", "Type", "To", "From"},
                         0) {
-                    // CHECKSTYLE:OFF
-        			private static final long serialVersionUID = 8136121224474217264L;
-					@Override
+                    private static final long serialVersionUID = 8136121224474217264L;
+                    @Override
                     public boolean isCellEditable(int rowIndex, int mColIndex) {
-                    // CHECKSTYLE:ON
                         return false;
                     }
 
@@ -688,11 +686,9 @@ public class EnhancedDebugger extends SmackDebugger {
                 new DefaultTableModel(new Object[][] { {"IQ", 0, 0}, {"Message", 0, 0},
                         {"Presence", 0, 0}, {"Other", 0, 0}, {"Total", 0, 0}},
                         new Object[] {"Type", "Received", "Sent"}) {
-                    // CHECKSTYLE:OFF
-        			private static final long serialVersionUID = -6793886085109589269L;
-					@Override
+                    private static final long serialVersionUID = -6793886085109589269L;
+                    @Override
                     public boolean isCellEditable(int rowIndex, int mColIndex) {
-                    // CHECKSTYLE:ON
                         return false;
                     }
                 };
@@ -709,21 +705,13 @@ public class EnhancedDebugger extends SmackDebugger {
     }
 
     @Override
-    public Reader newConnectionReader(Reader newReader) {
-        ((ObservableReader) reader).removeReaderListener(readerListener);
-        ObservableReader debugReader = new ObservableReader(newReader);
-        debugReader.addReaderListener(readerListener);
-        reader = debugReader;
-        return reader;
+    public final void outgoingStreamSink(CharSequence outgoingCharSequence) {
+        writerListener.write(outgoingCharSequence.toString());
     }
 
     @Override
-    public Writer newConnectionWriter(Writer newWriter) {
-        ((ObservableWriter) writer).removeWriterListener(writerListener);
-        ObservableWriter debugWriter = new ObservableWriter(newWriter);
-        debugWriter.addWriterListener(writerListener);
-        writer = debugWriter;
-        return writer;
+    public final void incomingStreamSink(CharSequence incomingCharSequence) {
+        readerListener.read(incomingCharSequence.toString());
     }
 
     @Override
@@ -818,7 +806,7 @@ public class EnhancedDebugger extends SmackDebugger {
 
                 messagesTable.addRow(
                         new Object[] {
-                                XmlUtil.prettyFormatXml(packet.toXML(null).toString()),
+                                XmlUtil.prettyFormatXml(packet.toXML().toString()),
                                 dateFormatter.format(new Date()),
                                 packetReceivedIcon,
                                 packetTypeIcon,
@@ -889,7 +877,7 @@ public class EnhancedDebugger extends SmackDebugger {
 
                 messagesTable.addRow(
                         new Object[] {
-                                XmlUtil.prettyFormatXml(packet.toXML(null).toString()),
+                                XmlUtil.prettyFormatXml(packet.toXML().toString()),
                                 dateFormatter.format(new Date()),
                                 packetSentIcon,
                                 packetTypeIcon,
@@ -946,15 +934,19 @@ public class EnhancedDebugger extends SmackDebugger {
         }
 
         @Override
-        public String toXML(String enclosingNamespace) {
+        public String toXML(XmlEnvironment enclosingNamespace) {
             return text;
         }
 
         @Override
         public String toString() {
-            return toXML(null);
+            return toXML((XmlEnvironment) null);
         }
 
+        @Override
+        public String getElementName() {
+            return null;
+        }
     }
 
     /**

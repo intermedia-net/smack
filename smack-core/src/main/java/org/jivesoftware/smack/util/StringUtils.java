@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2003-2007 Jive Software, 2016-2018 Florian Schmaus.
+ * Copyright 2003-2007 Jive Software, 2016-2021 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,16 @@
 
 package org.jivesoftware.smack.util;
 
-import java.io.UnsupportedEncodingException;
-import java.security.SecureRandom;
+import java.io.IOException;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
+import java.util.regex.Pattern;
 
 /**
  * A collection of utility methods for String objects.
@@ -30,7 +35,23 @@ public class StringUtils {
 
     public static final String MD5 = "MD5";
     public static final String SHA1 = "SHA-1";
+
+    /**
+     * Deprecated, do not use.
+     *
+     * @deprecated use StandardCharsets.UTF_8 instead.
+     */
+    // TODO: Remove in Smack 4.5.
+    @Deprecated
     public static final String UTF8 = "UTF-8";
+
+    /**
+     * Deprecated, do not use.
+     *
+     * @deprecated use StandardCharsets.US_ASCII instead.
+     */
+    // TODO: Remove in Smack 4.5.
+    @Deprecated
     public static final String USASCII = "US-ASCII";
 
     public static final String QUOTE_ENCODE = "&quot;";
@@ -93,7 +114,6 @@ public class StringUtils {
         forAttribute,
         forAttributeApos,
         forText,
-        ;
     }
 
     /**
@@ -245,34 +265,18 @@ public class StringUtils {
     }
 
     public static byte[] toUtf8Bytes(String string) {
-        try {
-            return string.getBytes(StringUtils.UTF8);
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("UTF-8 encoding not supported by platform", e);
-        }
+        return string.getBytes(StandardCharsets.UTF_8);
     }
 
     /**
-     * Pseudo-random number generator object for use with randomString().
-     * The Random class is not considered to be cryptographically secure, so
-     * only use these random Strings for low to medium security applications.
+     * 24 upper case characters from the latin alphabet and numbers without '0' and 'O'.
      */
-    private static final ThreadLocal<Random> randGen = new ThreadLocal<Random>() {
-        @Override
-        protected Random initialValue() {
-            return new Random();
-        }
-    };
+    public static final String UNAMBIGUOUS_NUMBERS_AND_LETTERS_STRING = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
 
     /**
-     * Array of numbers and letters of mixed case. Numbers appear in the list
-     * twice so that there is a more equal chance that a number will be picked.
-     * We can use the array to get a random number or letter by picking a random
-     * array index.
+     * 24 upper case characters from the latin alphabet and numbers without '0' and 'O'.
      */
-    private static final char[] numbersAndLetters = ("0123456789abcdefghijklmnopqrstuvwxyz" +
-                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ").toCharArray();
+    private static final char[] UNAMBIGUOUS_NUMBERS_AND_LETTERS = UNAMBIGUOUS_NUMBERS_AND_LETTERS_STRING.toCharArray();
 
     /**
      * Returns a random String of numbers and letters (lower and upper case)
@@ -288,41 +292,92 @@ public class StringUtils {
      * @return a random String of numbers and letters of the specified length.
      */
     public static String insecureRandomString(int length) {
-        return randomString(length, randGen.get());
+        return randomString(length, RandomUtil.RANDOM.get());
     }
 
-    private static final ThreadLocal<SecureRandom> SECURE_RANDOM = new ThreadLocal<SecureRandom>() {
-        @Override
-        protected SecureRandom initialValue() {
-            return new SecureRandom();
+    public static String secureOnlineAttackSafeRandomString() {
+        // 34^10 = 2.06e15 possible combinations. Which is enough to protect against online brute force attacks.
+        // See also https://www.grc.com/haystack.htm
+        final int REQUIRED_LENGTH = 10;
+
+        return randomString(RandomUtil.SECURE_RANDOM.get(), UNAMBIGUOUS_NUMBERS_AND_LETTERS, REQUIRED_LENGTH);
+    }
+
+    public static String secureUniqueRandomString() {
+        // 34^13 = 8.11e19 possible combinations, which is > 2^64.
+        final int REQUIRED_LENGTH = 13;
+
+        return randomString(RandomUtil.SECURE_RANDOM.get(), UNAMBIGUOUS_NUMBERS_AND_LETTERS, REQUIRED_LENGTH);
+    }
+
+    /**
+     * Generate a secure random string with is human readable. The resulting string consists of 24 upper case characters
+     * from the Latin alphabet and numbers without '0' and 'O', grouped into 4-characters chunks, e.g.
+     * "TWNK-KD5Y-MT3T-E1GS-DRDB-KVTW". The characters are randomly selected by a cryptographically secure pseudorandom
+     * number generator (CSPRNG).
+     * <p>
+     * The string can be used a backup "code" for secrets, and is in fact the same as the one backup code specified in
+     * XEP-0373 and the one used by the <a href="https://github.com/open-keychain/open-keychain/wiki/Backups">Backup
+     * Format v2 of OpenKeychain</a>.
+     * </p>
+     *
+     * @see <a href="https://xmpp.org/extensions/xep-0373.html#backup-encryption"> XEP-0373 §5.4 Encrypting the Secret
+     *      Key Backup</a>
+     * @return a human readable secure random string.
+     */
+    public static String secureOfflineAttackSafeRandomString() {
+        // 34^24 = 2^122.10 possible combinations. Which is enough to protect against offline brute force attacks.
+        // See also https://www.grc.com/haystack.htm
+        final int REQUIRED_LENGTH = 24;
+
+        return randomString(RandomUtil.SECURE_RANDOM.get(), UNAMBIGUOUS_NUMBERS_AND_LETTERS, REQUIRED_LENGTH);
+    }
+
+    private static final int RANDOM_STRING_CHUNK_SIZE = 4;
+
+    private static String randomString(Random random, char[] alphabet, int numRandomChars) {
+        // The buffer most hold the size of the requested number of random chars and the chunk separators ('-').
+        int bufferSize = numRandomChars + ((numRandomChars - 1) / RANDOM_STRING_CHUNK_SIZE);
+        CharBuffer charBuffer = CharBuffer.allocate(bufferSize);
+
+        try {
+            randomString(charBuffer, random, alphabet, numRandomChars);
+        } catch (IOException e) {
+            // This should never happen if we calcuate the buffer size correctly.
+            throw new AssertionError(e);
         }
-    };
+
+        return charBuffer.flip().toString();
+    }
+
+    private static void randomString(Appendable appendable, Random random, char[] alphabet, int numRandomChars)
+                    throws IOException {
+        for (int randomCharNum = 1; randomCharNum <= numRandomChars; randomCharNum++) {
+            int randomIndex = random.nextInt(alphabet.length);
+            char randomChar = alphabet[randomIndex];
+            appendable.append(randomChar);
+
+            if (randomCharNum % RANDOM_STRING_CHUNK_SIZE == 0 && randomCharNum < numRandomChars) {
+                appendable.append('-');
+            }
+        }
+    }
 
     public static String randomString(final int length) {
-        return randomString(length, SECURE_RANDOM.get());
+        return randomString(length, RandomUtil.SECURE_RANDOM.get());
     }
 
-    private static String randomString(final int length, Random random) {
-        if (length < 1) {
-            return null;
+    public static String randomString(final int length, Random random) {
+        if (length == 0) {
+            return "";
         }
 
-        byte[] randomBytes = new byte[length];
-        random.nextBytes(randomBytes);
         char[] randomChars = new char[length];
         for (int i = 0; i < length; i++) {
-            randomChars[i] = getPrintableChar(randomBytes[i]);
+            int index = random.nextInt(UNAMBIGUOUS_NUMBERS_AND_LETTERS.length);
+            randomChars[i] = UNAMBIGUOUS_NUMBERS_AND_LETTERS[index];
         }
         return new String(randomChars);
-    }
-
-    private static char getPrintableChar(byte indexByte) {
-        assert (numbersAndLetters.length < Byte.MAX_VALUE * 2);
-
-        // Convert indexByte as it where an unsigned byte by promoting it to int
-        // and masking it with 0xff. Yields results from 0 - 254.
-        int index = indexByte & 0xff;
-        return numbersAndLetters[index % numbersAndLetters.length];
     }
 
     /**
@@ -343,7 +398,7 @@ public class StringUtils {
     /**
      * Returns true if the given CharSequence is null or empty.
      *
-     * @param cs
+     * @param cs TODO javadoc me please
      * @return true if the given CharSequence is null or empty
      */
     public static boolean isNullOrEmpty(CharSequence cs) {
@@ -380,10 +435,17 @@ public class StringUtils {
         return true;
     }
 
+    public static boolean isNullOrNotEmpty(CharSequence cs) {
+        if (cs == null) {
+            return true;
+        }
+        return !cs.toString().isEmpty();
+    }
+
     /**
      * Returns true if the given CharSequence is empty.
      *
-     * @param cs
+     * @param cs TODO javadoc me please
      * @return true if the given CharSequence is empty
      */
     public static boolean isEmpty(CharSequence cs) {
@@ -409,14 +471,32 @@ public class StringUtils {
      */
     public static StringBuilder toStringBuilder(Collection<? extends Object> collection, String delimiter) {
         StringBuilder sb = new StringBuilder(collection.size() * 20);
-        for (Iterator<? extends Object> it = collection.iterator(); it.hasNext();) {
-            Object cs = it.next();
-            sb.append(cs);
+        appendTo(collection, delimiter, sb);
+        return sb;
+    }
+
+    public static void appendTo(Collection<? extends Object> collection, StringBuilder sb) {
+        appendTo(collection, ", ", sb);
+    }
+
+    public static <O extends Object> void appendTo(Collection<O> collection, StringBuilder sb,
+                    Consumer<O> appendFunction) {
+        appendTo(collection, ", ", sb, appendFunction);
+    }
+
+    public static void appendTo(Collection<? extends Object> collection, String delimiter, StringBuilder sb) {
+        appendTo(collection, delimiter, sb, o -> sb.append(o));
+    }
+
+    public static <O extends Object> void appendTo(Collection<O> collection, String delimiter, StringBuilder sb,
+                    Consumer<O> appendFunction) {
+        for (Iterator<O> it = collection.iterator(); it.hasNext();) {
+            O cs = it.next();
+            appendFunction.accept(cs);
             if (it.hasNext()) {
                 sb.append(delimiter);
             }
         }
-        return sb;
     }
 
     public static String returnIfNotEmptyTrimmed(String string) {
@@ -444,7 +524,29 @@ public class StringUtils {
         return csOne.toString().compareTo(csTwo.toString());
     }
 
+    /**
+     * Require a {@link CharSequence} to be neither null, nor empty.
+     *
+     * @deprecated use {@link #requireNotNullNorEmpty(CharSequence, String)} instead.
+     * @param cs CharSequence
+     * @param message error message
+     * @param <CS> CharSequence type
+     * @return cs TODO javadoc me please
+     */
+    @Deprecated
     public static <CS extends CharSequence> CS requireNotNullOrEmpty(CS cs, String message) {
+        return requireNotNullNorEmpty(cs, message);
+    }
+
+    /**
+     * Require a {@link CharSequence} to be neither null, nor empty.
+     *
+     * @param cs CharSequence
+     * @param message error message
+     * @param <CS> CharSequence type
+     * @return cs TODO javadoc me please
+     */
+    public static <CS extends CharSequence> CS requireNotNullNorEmpty(CS cs, String message) {
         if (isNullOrEmpty(cs)) {
             throw new IllegalArgumentException(message);
         }
@@ -455,7 +557,7 @@ public class StringUtils {
         if (cs == null) {
             return null;
         }
-        if (cs.toString().isEmpty()) {
+        if (isEmpty(cs)) {
             throw new IllegalArgumentException(message);
         }
         return cs;
@@ -472,5 +574,45 @@ public class StringUtils {
             return null;
         }
         return cs.toString();
+    }
+
+    /**
+     * Defined by XML 1.0 § 2.3 as:
+     *  S      ::=      (#x20 | #x9 | #xD | #xA)+
+     *
+     * @see <a href="https://www.w3.org/TR/xml/#sec-white-space">XML 1.0 § 2.3</a>
+     */
+    private static final Pattern XML_WHITESPACE = Pattern.compile("[\t\n\r ]");
+
+    public static String deleteXmlWhitespace(String string) {
+        return XML_WHITESPACE.matcher(string).replaceAll("");
+    }
+
+    public static Appendable appendHeading(Appendable appendable, String heading) throws IOException {
+        return appendHeading(appendable, heading, '-');
+    }
+
+    public static Appendable appendHeading(Appendable appendable, String heading, char underlineChar) throws IOException {
+        appendable.append(heading).append('\n');
+        for (int i = 0; i < heading.length(); i++) {
+            appendable.append(underlineChar);
+        }
+        return appendable.append('\n');
+    }
+
+    public static final String PORTABLE_NEWLINE_REGEX = "\\r?\\n";
+
+    public static List<String> splitLinesPortable(String input) {
+        String[] lines = input.split(PORTABLE_NEWLINE_REGEX);
+        return Arrays.asList(lines);
+    }
+
+    public static List<String> toStrings(Collection<? extends CharSequence> charSequences) {
+        List<String> res = new ArrayList<>(charSequences.size());
+        for (CharSequence cs : charSequences) {
+            String string = cs.toString();
+            res.add(string);
+        }
+        return res;
     }
 }

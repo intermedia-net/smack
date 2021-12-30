@@ -16,20 +16,20 @@
  */
 package org.jivesoftware.smackx.geoloc.packet;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.net.URI;
 import java.util.Calendar;
 import java.util.TimeZone;
 
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.util.PacketParserUtils;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.time.packet.Time;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.util.XmppDateTime;
 
 /**
@@ -37,7 +37,7 @@ import org.jxmpp.util.XmppDateTime;
  *
  * @author Ishan Khanna
  */
-public class GeoLocationTest extends InitExtensions {
+public class GeoLocationTest extends SmackTestSuite {
 
     @Test
     public void negativeTimezoneTest() {
@@ -117,11 +117,11 @@ public class GeoLocationTest extends InitExtensions {
         Message messageWithGeoLocation = PacketParserUtils.parseStanza(geoLocationMessageString);
         assertNotNull(messageWithGeoLocation);
 
-        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.ELEMENT,
-                        GeoLocation.NAMESPACE);
+        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.class);
         assertNotNull(geoLocation);
-        assertNotNull(geoLocation.toXML(null));
+        assertNotNull(geoLocation.toXML());
 
+        @SuppressWarnings("deprecation")
         GeoLocation constructedGeoLocation = GeoLocation.builder().setAccuracy(23d).setAlt(1000d).setAltAccuracy(10d).setArea("Delhi").setBearing(
                         10d).setBuilding("Small Building").setCountry("India").setCountryCode("IN").setDescription(
                         "My Description").setError(90d).setFloor("top").setLat(25.098345d).setLocality("awesome").setLon(
@@ -129,7 +129,7 @@ public class GeoLocationTest extends InitExtensions {
                         "Wall Street").setText("Unit Testing GeoLocation").setTimestamp(
                         XmppDateTime.parseDate("2004-02-19")).setTzo("+5:30").setUri(new URI("http://xmpp.org")).build();
 
-        assertEquals(constructedGeoLocation.toXML(null).toString(), geoLocation.toXML(null).toString());
+        assertEquals(constructedGeoLocation.toXML().toString(), geoLocation.toXML().toString());
 
     }
 

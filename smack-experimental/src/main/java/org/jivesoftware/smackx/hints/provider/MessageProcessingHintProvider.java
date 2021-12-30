@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
  */
 package org.jivesoftware.smackx.hints.provider;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.hints.element.MessageProcessingHint;
-
-import org.xmlpull.v1.XmlPullParser;
 
 public abstract class MessageProcessingHintProvider<H extends MessageProcessingHint> extends ExtensionElementProvider<H> {
 
     @Override
-    public H parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public H parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) {
         return getHint();
     }
 

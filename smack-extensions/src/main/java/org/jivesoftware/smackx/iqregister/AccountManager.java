@@ -70,7 +70,7 @@ public final class AccountManager extends Manager {
     /**
      * The default value used by new account managers for <code>allowSensitiveOperationOverInsecureConnection</code>.
      *
-     * @param allow
+     * @param allow TODO javadoc me please
      * @see #sensitiveOperationOverInsecureConnection(boolean)
      * @since 4.1
      */
@@ -87,7 +87,7 @@ public final class AccountManager extends Manager {
      * unencrypted) connections.
      * </p>
      *
-     * @param allow
+     * @param allow TODO javadoc me please
      * @since 4.1
      */
     public void sensitiveOperationOverInsecureConnection(boolean allow) {
@@ -131,10 +131,10 @@ public final class AccountManager extends Manager {
      * behavior is to only create new accounts before having logged in to a server.
      *
      * @return true if the server support creating new accounts.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public boolean supportsAccountCreation() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         // TODO: Replace this body with isSupported() and possible deprecate this method.
@@ -176,10 +176,10 @@ public final class AccountManager extends Manager {
      * the user's email address.
      *
      * @return the required account attributes.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public Set<String> getAccountAttributes() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException  {
         if (info == null) {
@@ -194,16 +194,16 @@ public final class AccountManager extends Manager {
     }
 
     /**
-     * Returns the value of a given account attribute or <tt>null</tt> if the account
+     * Returns the value of a given account attribute or <code>null</code> if the account
      * attribute wasn't found.
      *
      * @param name the name of the account attribute to return its value.
-     * @return the value of the account attribute or <tt>null</tt> if an account
+     * @return the value of the account attribute or <code>null</code> if an account
      * attribute wasn't found for the requested name.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public String getAccountAttribute(String name) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException  {
         if (info == null) {
@@ -213,15 +213,15 @@ public final class AccountManager extends Manager {
     }
 
     /**
-     * Returns the instructions for creating a new account, or <tt>null</tt> if there
+     * Returns the instructions for creating a new account, or <code>null</code> if there
      * are no instructions. If present, instructions should be displayed to the end-user
      * that will complete the registration process.
      *
-     * @return the account creation instructions, or <tt>null</tt> if there are none.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @return the account creation instructions, or <code>null</code> if there are none.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public String getAccountInstructions() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException  {
         if (info == null) {
@@ -240,10 +240,10 @@ public final class AccountManager extends Manager {
      *
      * @param username the username.
      * @param password the password.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void createAccount(Localpart username, String password) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException  {
         // Create a map for all the required attributes, but give them blank values.
@@ -264,8 +264,8 @@ public final class AccountManager extends Manager {
      * @param attributes the account attributes.
      * @throws XMPPErrorException if an error occurs creating the account.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      * @see #getAccountAttributes()
      */
     public void createAccount(Localpart username, String password, Map<String, String> attributes)
@@ -298,8 +298,8 @@ public final class AccountManager extends Manager {
      * @throws IllegalStateException if not currently logged-in to the server.
      * @throws XMPPErrorException if an error occurs when changing the password.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void changePassword(String newPassword) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         if (!connection().isSecureConnection() && !allowSensitiveOperationOverInsecureConnection) {
@@ -307,7 +307,7 @@ public final class AccountManager extends Manager {
         }
         Map<String, String> map = new HashMap<>();
         map.put("username",  connection().getUser().getLocalpart().toString());
-        map.put("password",newPassword);
+        map.put("password", newPassword);
         Registration reg = new Registration(map);
         reg.setType(IQ.Type.set);
         reg.setTo(connection().getXMPPServiceDomain());
@@ -322,8 +322,8 @@ public final class AccountManager extends Manager {
      * @throws IllegalStateException if not currently logged-in to the server.
      * @throws XMPPErrorException if an error occurs when deleting the account.
      * @throws NoResponseException if there was no response from the server.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void deleteAccount() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         Map<String, String> attributes = new HashMap<>();
@@ -339,8 +339,7 @@ public final class AccountManager extends Manager {
                     throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         XMPPConnection connection = connection();
 
-        ExtensionElement extensionElement = connection.getFeature(Registration.Feature.ELEMENT,
-                        Registration.Feature.NAMESPACE);
+        ExtensionElement extensionElement = connection.getFeature(Registration.Feature.class);
         if (extensionElement != null) {
             return true;
         }
@@ -356,10 +355,10 @@ public final class AccountManager extends Manager {
 
     /**
      * Gets the account registration info from the server.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      *
      * @throws XMPPException if an error occurs.
      * @throws SmackException if there was no response from the server.

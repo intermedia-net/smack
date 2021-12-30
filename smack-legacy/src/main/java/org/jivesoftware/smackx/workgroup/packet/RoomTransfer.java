@@ -22,11 +22,11 @@ import java.io.IOException;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.IQ.IQChildElementXmlStringBuilder;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.XmlStringBuilder;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  * Stanza extension for {@link org.jivesoftware.smackx.workgroup.agent.TransferRequest}.
@@ -108,8 +108,8 @@ public class RoomTransfer implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder xml = getIQChildElementBuilder(new IQChildElementXmlStringBuilder(this));
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
+        XmlStringBuilder xml = getIQChildElementBuilder(new IQChildElementXmlStringBuilder(this, enclosingNamespace));
         xml.closeElement(this);
         return xml;
     }
@@ -165,16 +165,15 @@ public class RoomTransfer implements ExtensionElement {
 
         @Override
         public RoomTransfer parse(XmlPullParser parser,
-                        int initialDepth) throws XmlPullParserException,
+                        int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException,
                         IOException {
             final RoomTransfer invitation = new RoomTransfer();
             invitation.type = RoomTransfer.Type.valueOf(parser.getAttributeValue("", "type"));
 
-            boolean done = false;
-            while (!done) {
+            outerloop: while (true) {
                 parser.next();
-                String elementName = parser.getName();
-                if (parser.getEventType() == XmlPullParser.START_TAG) {
+                if (parser.getEventType() == XmlPullParser.Event.START_ELEMENT) {
+                    String elementName = parser.getName();
                     if ("session".equals(elementName)) {
                         invitation.sessionID = parser.getAttributeValue("", "id");
                     }
@@ -191,8 +190,8 @@ public class RoomTransfer implements ExtensionElement {
                         invitation.room = parser.nextText();
                     }
                 }
-                else if (parser.getEventType() == XmlPullParser.END_TAG && ELEMENT_NAME.equals(elementName)) {
-                    done = true;
+                else if (parser.getEventType() == XmlPullParser.Event.END_ELEMENT && parser.getDepth() == initialDepth) {
+                    break outerloop;
                 }
             }
             return invitation;

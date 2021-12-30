@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2016 Florian Schmaus
+ * Copyright 2016-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,29 +16,31 @@
  */
 package org.jivesoftware.smackx.iot.discovery.provider;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.iot.discovery.element.IoTRegister;
 import org.jivesoftware.smackx.iot.discovery.element.Tag;
 import org.jivesoftware.smackx.iot.element.NodeInfo;
 import org.jivesoftware.smackx.iot.parser.NodeInfoParser;
 
-import org.xmlpull.v1.XmlPullParser;
-
 public class IoTRegisterProvider extends IQProvider<IoTRegister> {
 
     @Override
-    public IoTRegister parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public IoTRegister parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         boolean selfOwned = ParserUtils.getBooleanAttribute(parser, "selfOwned", false);
         NodeInfo nodeInfo = NodeInfoParser.parse(parser);
         List<Tag> tags = new ArrayList<>();
         while (parser.getDepth() != initialDepth) {
-            int event = parser.next();
-            if (event != XmlPullParser.START_TAG) {
+            XmlPullParser.Event event = parser.next();
+            if (event != XmlPullParser.Event.START_ELEMENT) {
                 continue;
             }
             final String element = parser.getName();

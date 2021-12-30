@@ -16,17 +16,23 @@
  */
 package org.jivesoftware.smackx.sid.provider;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
-import org.jivesoftware.smackx.sid.element.OriginIdElement;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smackx.sid.element.OriginIdElement;
+import org.jivesoftware.smackx.sid.element.StableAndUniqueIdElement;
 
 public class OriginIdProvider extends ExtensionElementProvider<OriginIdElement> {
 
-    public static final OriginIdProvider TEST_INSTANCE = new OriginIdProvider();
+    public static final OriginIdProvider INSTANCE = new OriginIdProvider();
+
+    // TODO: Remove in Smack 4.4.
+    @Deprecated
+    public static final OriginIdProvider TEST_INSTANCE = INSTANCE;
 
     @Override
-    public OriginIdElement parse(XmlPullParser parser, int initialDepth) throws Exception {
-        return new OriginIdElement(parser.getAttributeValue(null, OriginIdElement.ATTR_ID));
+    public OriginIdElement parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) {
+        return new OriginIdElement(parser.getAttributeValue(null, StableAndUniqueIdElement.ATTR_ID));
     }
 }

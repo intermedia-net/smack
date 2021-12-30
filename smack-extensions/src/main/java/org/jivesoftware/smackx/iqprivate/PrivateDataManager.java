@@ -18,28 +18,29 @@
 package org.jivesoftware.smackx.iqprivate;
 
 import java.io.IOException;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.Manager;
-import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.SmackConfiguration;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.StanzaError.Condition;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.iqprivate.packet.DefaultPrivateData;
 import org.jivesoftware.smackx.iqprivate.packet.PrivateData;
 import org.jivesoftware.smackx.iqprivate.packet.PrivateDataIQ;
 import org.jivesoftware.smackx.iqprivate.provider.PrivateDataProvider;
-
-import org.jxmpp.util.XmppStringUtils;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Manages private data, which is a mechanism to allow users to store arbitrary XML
@@ -77,7 +78,7 @@ public final class PrivateDataManager extends Manager {
     /**
      * Map of provider instances.
      */
-    private static final Map<String, PrivateDataProvider> privateDataProviders = new Hashtable<>();
+    private static final Map<QName, PrivateDataProvider> privateDataProviders = new HashMap<>();
 
     /**
      * Returns the private data provider registered to the specified XML element name and namespace.
@@ -102,7 +103,7 @@ public final class PrivateDataManager extends Manager {
      * @return the PrivateData provider.
      */
     public static PrivateDataProvider getPrivateDataProvider(String elementName, String namespace) {
-        String key = XmppStringUtils.generateKey(elementName, namespace);
+        QName key = new QName(namespace, elementName);
         return privateDataProviders.get(key);
     }
 
@@ -116,7 +117,7 @@ public final class PrivateDataManager extends Manager {
      */
     public static void addPrivateDataProvider(String elementName, String namespace,
             PrivateDataProvider provider) {
-        String key = XmppStringUtils.generateKey(elementName, namespace);
+        QName key = new QName(namespace, elementName);
         privateDataProviders.put(key, provider);
     }
 
@@ -127,7 +128,7 @@ public final class PrivateDataManager extends Manager {
      * @param namespace The XML namespace.
      */
     public static void removePrivateDataProvider(String elementName, String namespace) {
-        String key = XmppStringUtils.generateKey(elementName, namespace);
+        QName key = new QName(namespace, elementName);
         privateDataProviders.remove(key);
     }
 
@@ -153,10 +154,10 @@ public final class PrivateDataManager extends Manager {
      * @param elementName the element name.
      * @param namespace the namespace.
      * @return the private data.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public PrivateData getPrivateData(final String elementName, final String namespace) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         // Create an IQ packet to get the private data.
@@ -173,10 +174,10 @@ public final class PrivateDataManager extends Manager {
      * element name and namespace, then the new private data will overwrite the old value.
      *
      * @param privateData the private data.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void setPrivateData(final PrivateData privateData) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         // Create an IQ packet to set the private data.
@@ -193,7 +194,7 @@ public final class PrivateDataManager extends Manager {
 
         @Override
         public String getNamespace() {
-            return "https://igniterealtime.org/projects/smack/";
+            return SmackConfiguration.SMACK_URL_STRING;
         }
 
         @Override
@@ -206,10 +207,10 @@ public final class PrivateDataManager extends Manager {
      * Check if the service supports private data.
      *
      * @return true if the service supports private data, false otherwise.
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
-     * @throws XMPPErrorException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws XMPPErrorException if there was an XMPP error returned.
      * @since 4.2
      */
     public boolean isSupported() throws NoResponseException, NotConnectedException,
@@ -236,13 +237,13 @@ public final class PrivateDataManager extends Manager {
     public static class PrivateDataIQProvider extends IQProvider<PrivateDataIQ> {
 
         @Override
-        public PrivateDataIQ parse(XmlPullParser parser, int initialDepth)
-                        throws XmlPullParserException, IOException, SmackException {
+        public PrivateDataIQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
+                        throws XmlPullParserException, IOException {
             PrivateData privateData = null;
             boolean done = false;
             while (!done) {
-                int eventType = parser.next();
-                if (eventType == XmlPullParser.START_TAG) {
+                XmlPullParser.Event eventType = parser.next();
+                if (eventType == XmlPullParser.Event.START_ELEMENT) {
                     String elementName = parser.getName();
                     String namespace = parser.getNamespace();
                     // See if any objects are registered to handle this private data type.
@@ -256,23 +257,20 @@ public final class PrivateDataManager extends Manager {
                         DefaultPrivateData data = new DefaultPrivateData(elementName, namespace);
                         boolean finished = false;
                         while (!finished) {
-                            int event = parser.next();
-                            if (event == XmlPullParser.START_TAG) {
+                            XmlPullParser.Event event = parser.next();
+                            if (event == XmlPullParser.Event.START_ELEMENT) {
                                 String name = parser.getName();
-                                // If an empty element, set the value with the empty string.
-                                if (parser.isEmptyElementTag()) {
-                                    data.setValue(name,"");
+                                event = parser.next();
+                                if (event == XmlPullParser.Event.TEXT_CHARACTERS) {
+                                    String value = parser.getText();
+                                    data.setValue(name, value);
                                 }
-                                // Otherwise, get the the element text.
-                                else {
-                                    event = parser.next();
-                                    if (event == XmlPullParser.TEXT) {
-                                        String value = parser.getText();
-                                        data.setValue(name, value);
-                                    }
+                                else if (event == XmlPullParser.Event.END_ELEMENT) {
+                                    // If an empty element, set the value with the empty string.
+                                    data.setValue(name, "");
                                 }
                             }
-                            else if (event == XmlPullParser.END_TAG) {
+                            else if (event == XmlPullParser.Event.END_ELEMENT) {
                                 if (parser.getName().equals(elementName)) {
                                     finished = true;
                                 }
@@ -281,7 +279,7 @@ public final class PrivateDataManager extends Manager {
                         privateData = data;
                     }
                 }
-                else if (eventType == XmlPullParser.END_TAG) {
+                else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                     if (parser.getName().equals("query")) {
                         done = true;
                     }

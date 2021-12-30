@@ -19,6 +19,8 @@ package org.jivesoftware.smackx.muc.packet;
 
 import java.util.Date;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.NamedElement;
 import org.jivesoftware.smack.packet.Stanza;
@@ -42,6 +44,7 @@ public class MUCInitialPresence implements ExtensionElement {
 
     public static final String ELEMENT = "x";
     public static final String NAMESPACE = "http://jabber.org/protocol/muc";
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
 
     // TODO make those fields final once deprecated setter methods have been removed.
     private String password;
@@ -84,7 +87,7 @@ public class MUCInitialPresence implements ExtensionElement {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
+    public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
         xml.rightAngleBracket();
         xml.optElement("password", getPassword());
@@ -140,7 +143,7 @@ public class MUCInitialPresence implements ExtensionElement {
     /**
      * Retrieve the MUCInitialPresence PacketExtension from packet, if any.
      *
-     * @param packet
+     * @param packet TODO javadoc me please
      * @return the MUCInitialPresence PacketExtension or {@code null}
      * @deprecated use {@link #from(Stanza)} instead
      */
@@ -152,11 +155,11 @@ public class MUCInitialPresence implements ExtensionElement {
     /**
      * Retrieve the MUCInitialPresence PacketExtension from packet, if any.
      *
-     * @param packet
+     * @param packet TODO javadoc me please
      * @return the MUCInitialPresence PacketExtension or {@code null}
      */
     public static MUCInitialPresence from(Stanza packet) {
-        return packet.getExtension(ELEMENT, NAMESPACE);
+        return packet.getExtension(MUCInitialPresence.class);
     }
 
     /**
@@ -169,22 +172,10 @@ public class MUCInitialPresence implements ExtensionElement {
 
         public static final String ELEMENT = "history";
 
-        // TODO make those fields final once the deprecated setter methods have been removed.
-        private int maxChars;
-        private int maxStanzas;
-        private int seconds;
-        private Date since;
-
-        /**
-         * Deprecated constructor.
-         * @deprecated use {@link #History(int, int, int, Date)} instead.
-         */
-        @Deprecated
-        public History() {
-            this.maxChars = -1;
-            this.maxStanzas = -1;
-            this.seconds = -1;
-        }
+        private final int maxChars;
+        private final int maxStanzas;
+        private final int seconds;
+        private final Date since;
 
         public History(int maxChars, int maxStanzas, int seconds, Date since) {
             if (maxChars < 0 && maxStanzas < 0 && seconds < 0 && since == null) {
@@ -236,57 +227,8 @@ public class MUCInitialPresence implements ExtensionElement {
             return since;
         }
 
-        /**
-         * Sets the total number of characters to receive in the history.
-         *
-         * @param maxChars the total number of characters to receive in the history.
-         * @deprecated use {@link #History(int, int, int, Date)} instead.
-         */
-        @Deprecated
-        public void setMaxChars(int maxChars) {
-            this.maxChars = maxChars;
-        }
-
-        /**
-         * Sets the total number of messages to receive in the history.
-         *
-         * @param maxStanzas the total number of messages to receive in the history.
-         * @deprecated use {@link #History(int, int, int, Date)} instead.
-         */
-        @Deprecated
-        public void setMaxStanzas(int maxStanzas) {
-            this.maxStanzas = maxStanzas;
-        }
-
-        /**
-         * Sets the number of seconds to use to filter the messages received during that time.
-         * In other words, only the messages received in the last "X" seconds will be included in
-         * the history.
-         *
-         * @param seconds the number of seconds to use to filter the messages received during
-         * that time.
-         * @deprecated use {@link #History(int, int, int, Date)} instead.
-         */
-        @Deprecated
-        public void setSeconds(int seconds) {
-            this.seconds = seconds;
-        }
-
-        /**
-         * Sets the since date to use to filter the messages received during that time.
-         * In other words, only the messages received since the datetime specified will be
-         * included in the history.
-         *
-         * @param since the since date to use to filter the messages received during that time.
-         * @deprecated use {@link #History(int, int, int, Date)} instead.
-         */
-        @Deprecated
-        public void setSince(Date since) {
-            this.since = since;
-        }
-
         @Override
-        public XmlStringBuilder toXML(String enclosingNamespace) {
+        public XmlStringBuilder toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             XmlStringBuilder xml = new XmlStringBuilder(this);
             xml.optIntAttribute("maxchars", getMaxChars());
             xml.optIntAttribute("maxstanzas", getMaxStanzas());

@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@
  */
 package org.jivesoftware.smackx.jingle.element;
 
-import org.jivesoftware.smack.packet.NamedElement;
+import org.jivesoftware.smack.packet.FullyQualifiedElement;
 
 /**
  * An element found usually in Jingle 'transport' elements.
  *
  */
-public abstract class JingleContentTransportCandidate implements NamedElement {
+public abstract class JingleContentTransportCandidate implements FullyQualifiedElement {
 
     public static final String ELEMENT = "candidate";
 

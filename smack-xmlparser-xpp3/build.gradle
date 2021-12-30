@@ -1,0 +1,28 @@
+// Note that this is also declared in the main build.gradle for
+// subprojects, but since evaluationDependsOnChildren is enabled we
+// need to declare it here too to have bundle{bnd{...}} available
+apply plugin: 'biz.aQute.bnd.builder'
+
+description = """\
+Smack XML parser using XPP3."""
+
+ext {
+	xpp3Version = "1.1.4c"
+}
+
+dependencies {
+	api "xpp3:xpp3_min:$xpp3Version"
+	implementation "xpp3:xpp3:$xpp3Version"
+	api project(':smack-xmlparser')
+	//testCompile project(path: ":smack-xmlparser", configuration: "testRuntime")
+}
+
+jar {
+	bundle {
+		bnd(
+				// see http://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.loader.html
+				'Require-Capability': 'osgi.extender;filter:="(osgi.extender=osgi.serviceloader.registrar)"',
+				'Provide-Capability': "osgi.serviceloader;osgi.serviceloader=org.jivesoftware.smack.xml.XmlPullParserFactory;register:=org.jivesoftware.smack.xml.xpp3.Xpp3XmlPullParserFactory",
+		)
+	}
+}

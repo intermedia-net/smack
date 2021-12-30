@@ -25,14 +25,15 @@ import org.jivesoftware.smack.packet.IQ;
 
 import org.jivesoftware.smackx.search.ReportedData;
 import org.jivesoftware.smackx.workgroup.packet.TranscriptSearch;
-import org.jivesoftware.smackx.xdata.Form;
+import org.jivesoftware.smackx.xdata.form.FillableForm;
+import org.jivesoftware.smackx.xdata.form.Form;
 
 import org.jxmpp.jid.DomainBareJid;
 
 /**
  * A TranscriptSearchManager helps to retrieve the form to use for searching transcripts
  * {@link #getSearchForm(DomainBareJid)} or to submit a search form and return the results of
- * the search {@link #submitSearch(DomainBareJid, Form)}.
+ * the search {@link #submitSearch(DomainBareJid, FillableForm)}.
  *
  * @author Gaston Dombiak
  */
@@ -50,10 +51,10 @@ public class TranscriptSearchManager {
      *
      * @param serviceJID the address of the workgroup service.
      * @return the Form to use for searching transcripts.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public Form getSearchForm(DomainBareJid serviceJID) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException  {
         TranscriptSearch search = new TranscriptSearch();
@@ -62,7 +63,7 @@ public class TranscriptSearchManager {
 
         TranscriptSearch response = connection.createStanzaCollectorAndSend(
                         search).nextResultOrThrow();
-        return Form.getFormFrom(response);
+        return Form.from(response);
     }
 
     /**
@@ -73,16 +74,16 @@ public class TranscriptSearchManager {
      * @param serviceJID    the address of the workgroup service.
      * @param completedForm the filled out search form.
      * @return the result of the transcript search.
-     * @throws XMPPErrorException
-     * @throws NoResponseException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public ReportedData submitSearch(DomainBareJid serviceJID, Form completedForm) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
+    public ReportedData submitSearch(DomainBareJid serviceJID, FillableForm completedForm) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         TranscriptSearch search = new TranscriptSearch();
         search.setType(IQ.Type.get);
         search.setTo(serviceJID);
-        search.addExtension(completedForm.getDataFormToSend());
+        search.addExtension(completedForm.getDataFormToSubmit());
 
         TranscriptSearch response = connection.createStanzaCollectorAndSend(
                         search).nextResultOrThrow();

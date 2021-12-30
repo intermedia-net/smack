@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2014-2016 Florian Schmaus
+ * Copyright 2014-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,14 @@
  */
 package org.jivesoftware.smack.util;
 
-import java.security.KeyManagementException;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
@@ -27,13 +31,12 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
-import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
@@ -42,12 +45,28 @@ import org.jivesoftware.smack.SmackException.SecurityNotPossibleException;
 
 public class TLSUtils {
 
+    private static final Logger LOGGER = Logger.getLogger(TLSUtils.class.getName());
+
     public static final String SSL = "SSL";
     public static final String TLS = "TLS";
     public static final String PROTO_SSL3 = SSL + "v3";
     public static final String PROTO_TLSV1 = TLS + "v1";
     public static final String PROTO_TLSV1_1 = TLS + "v1.1";
     public static final String PROTO_TLSV1_2 = TLS + "v1.2";
+    public static final String PROTO_TLSV1_3 = TLS + "v1.3";
+
+    /**
+     * Enable the recommended TLS protocols.
+     *
+     * @param builder the configuration builder to apply this setting to
+     * @param <B> Type of the ConnectionConfiguration builder.
+     *
+     * @return the given builder
+     */
+    public static <B extends ConnectionConfiguration.Builder<B, ?>> B setEnabledTlsProtocolsToRecommended(B builder) {
+        builder.setEnabledSSLProtocols(new String[] { PROTO_TLSV1_3, PROTO_TLSV1_2 });
+        return builder;
+    }
 
     /**
      * Enable only TLS. Connections created with the given ConnectionConfiguration will only support TLS.
@@ -63,8 +82,11 @@ public class TLSUtils {
      * @param <B> Type of the ConnectionConfiguration builder.
      *
      * @return the given builder
+     * @deprecated use {@link #setEnabledTlsProtocolsToRecommended(org.jivesoftware.smack.ConnectionConfiguration.Builder)} instead.
      */
-    public static <B extends ConnectionConfiguration.Builder<B,?>> B setTLSOnly(B builder) {
+    // TODO: Remove in Smack 4.5.
+    @Deprecated
+    public static <B extends ConnectionConfiguration.Builder<B, ?>> B setTLSOnly(B builder) {
         builder.setEnabledSSLProtocols(new String[] { PROTO_TLSV1_2,  PROTO_TLSV1_1, PROTO_TLSV1 });
         return builder;
     }
@@ -83,8 +105,11 @@ public class TLSUtils {
      * @param <B> Type of the ConnectionConfiguration builder.
      *
      * @return the given builder
+     * @deprecated use {@link #setEnabledTlsProtocolsToRecommended(org.jivesoftware.smack.ConnectionConfiguration.Builder)} instead.
      */
-    public static <B extends ConnectionConfiguration.Builder<B,?>> B setSSLv3AndTLSOnly(B builder) {
+    // TODO: Remove in Smack 4.5.
+    @Deprecated
+    public static <B extends ConnectionConfiguration.Builder<B, ?>> B setSSLv3AndTLSOnly(B builder) {
         builder.setEnabledSSLProtocols(new String[] { PROTO_TLSV1_2,  PROTO_TLSV1_1, PROTO_TLSV1, PROTO_SSL3 });
         return builder;
     }
@@ -99,24 +124,12 @@ public class TLSUtils {
      *
      * @param builder a connection configuration builder.
      * @param <B> Type of the ConnectionConfiguration builder.
-     * @throws NoSuchAlgorithmException
-     * @throws KeyManagementException
      * @return the given builder.
      */
-    public static <B extends ConnectionConfiguration.Builder<B,?>> B acceptAllCertificates(B builder) throws NoSuchAlgorithmException, KeyManagementException {
-        SSLContext context = SSLContext.getInstance(TLS);
-        context.init(null, new TrustManager[] { new AcceptAllTrustManager() }, new SecureRandom());
-        builder.setCustomSSLContext(context);
+    public static <B extends ConnectionConfiguration.Builder<B, ?>> B acceptAllCertificates(B builder) {
+        builder.setCustomX509TrustManager(new AcceptAllTrustManager());
         return builder;
     }
-
-    private static final HostnameVerifier DOES_NOT_VERIFY_VERIFIER = new HostnameVerifier() {
-        @Override
-        public boolean verify(String hostname, SSLSession session) {
-            // This verifier doesn't verify the hostname, it always returns true.
-            return true;
-        }
-    };
 
     /**
      * Disable the hostname verification of TLS certificates.
@@ -130,8 +143,10 @@ public class TLSUtils {
      * @param <B> Type of the ConnectionConfiguration builder.
      * @return the given builder.
      */
-    public static <B extends ConnectionConfiguration.Builder<B,?>> B disableHostnameVerificationForTlsCertificates(B builder) {
-        builder.setHostnameVerifier(DOES_NOT_VERIFY_VERIFIER);
+    public static <B extends ConnectionConfiguration.Builder<B, ?>> B disableHostnameVerificationForTlsCertificates(B builder) {
+        builder.setHostnameVerifier((hostname, session) -> {
+            return true;
+        });
         return builder;
     }
 
@@ -184,9 +199,9 @@ public class TLSUtils {
      *
      * @param sslSession the SSL/TLS session from which the data should be retrieved.
      * @return the channel binding data.
-     * @throws SSLPeerUnverifiedException
-     * @throws CertificateEncodingException
-     * @throws NoSuchAlgorithmException
+     * @throws SSLPeerUnverifiedException if we TLS peer could not be verified.
+     * @throws CertificateEncodingException if there was an encoding error with the certificate.
+     * @throws NoSuchAlgorithmException if no such algorithm is available.
      * @see <a href="https://tools.ietf.org/html/rfc5929#section-4">RFC 5929 § 4.</a>
      */
     public static byte[] getChannelBindingTlsServerEndPoint(final SSLSession sslSession)
@@ -238,6 +253,70 @@ public class TLSUtils {
         @Override
         public X509Certificate[] getAcceptedIssuers() {
             return new X509Certificate[0];
+        }
+    }
+
+    private static final File DEFAULT_TRUSTSTORE_PATH;
+
+    static {
+        String javaHome = System.getProperty("java.home");
+        String defaultTruststorePath = javaHome + File.separator + "lib" + File.separator + "security" + File.separator + "cacerts";
+        DEFAULT_TRUSTSTORE_PATH = new File(defaultTruststorePath);
+    }
+
+    public static FileInputStream getDefaultTruststoreStreamIfPossible() {
+        try {
+            return new FileInputStream(DEFAULT_TRUSTSTORE_PATH);
+        } catch (FileNotFoundException e) {
+            LOGGER.log(Level.WARNING, "Could not open default truststore at " + DEFAULT_TRUSTSTORE_PATH, e);
+            return null;
+        }
+    }
+
+    enum DefaultTrustStoreType {
+        jks,
+        unknown,
+        no_default,
+    }
+
+    private static final int JKS_MAGIC = 0xfeedfeed;
+    private static final int JKS_VERSION_1 = 1;
+    private static final int JKS_VERSION_2 = 2;
+
+    public static DefaultTrustStoreType getDefaultTruststoreType() throws IOException {
+        try (InputStream inputStream = getDefaultTruststoreStreamIfPossible()) {
+            if (inputStream == null) {
+                return DefaultTrustStoreType.no_default;
+            }
+
+            DataInputStream dis = new DataInputStream(inputStream);
+            int magic = dis.readInt();
+            int version = dis.readInt();
+
+            if (magic == JKS_MAGIC && (version == JKS_VERSION_1 || version == JKS_VERSION_2)) {
+                return DefaultTrustStoreType.jks;
+            }
+        }
+
+        return DefaultTrustStoreType.unknown;
+    }
+
+    /**
+     * Tries to determine if the default truststore type is of type jks and sets the javax.net.ssl.trustStoreType system
+     * property to 'JKS' if so. This is meant as workaround in situations where the default truststore type is (still)
+     * 'jks' but we run on a newer JRE/JDK which uses PKCS#12 as type. See for example <a href="https://bugs.gentoo.org/712290">Gentoo bug #712290</a>.
+     */
+    public static void setDefaultTrustStoreTypeToJksIfRequired() {
+        DefaultTrustStoreType defaultTrustStoreType;
+        try {
+            defaultTrustStoreType = getDefaultTruststoreType();
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Could not set keystore type to jks if required", e);
+            return;
+        }
+
+        if (defaultTrustStoreType == DefaultTrustStoreType.jks) {
+            System.setProperty("javax.net.ssl.trustStoreType", "JKS");
         }
     }
 }

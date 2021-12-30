@@ -16,42 +16,35 @@
  */
 package org.jivesoftware.smackx.pubsub;
 
+import org.jivesoftware.smack.util.XmlStringBuilder;
+
+import org.jxmpp.jid.Jid;
+
 /**
  * Represents a request to subscribe to a node.
  *
  * @author Robin Collier
  */
 public class SubscribeExtension extends NodeExtension {
-    protected String jid;
+    protected final Jid jid;
 
-    public SubscribeExtension(String subscribeJid) {
+    public SubscribeExtension(Jid subscribeJid) {
         super(PubSubElementType.SUBSCRIBE);
         jid = subscribeJid;
     }
 
-    public SubscribeExtension(String subscribeJid, String nodeId) {
+    public SubscribeExtension(Jid subscribeJid, String nodeId) {
         super(PubSubElementType.SUBSCRIBE, nodeId);
         jid = subscribeJid;
     }
 
-    public String getJid() {
+    public Jid getJid() {
         return jid;
     }
 
     @Override
-    public String toXML(String enclosingNamespace) {
-        StringBuilder builder = new StringBuilder("<");
-        builder.append(getElementName());
-
-        if (getNode() != null) {
-            builder.append(" node='");
-            builder.append(getNode());
-            builder.append('\'');
-        }
-        builder.append(" jid='");
-        builder.append(getJid());
-        builder.append("'/>");
-
-        return builder.toString();
+    protected void addXml(XmlStringBuilder xml) {
+        xml.attribute("jid", getJid());
+        xml.closeEmptyElement();
     }
 }

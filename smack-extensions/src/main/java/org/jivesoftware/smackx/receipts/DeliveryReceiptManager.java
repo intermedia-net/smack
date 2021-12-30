@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2013-2014 Georg Lukas, 2015 Florian Schmaus
+ * Copyright 2013-2014 Georg Lukas, 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.filter.StanzaTypeFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.util.StringUtils;
 
@@ -74,8 +75,16 @@ import org.jxmpp.jid.Jid;
  */
 public final class DeliveryReceiptManager extends Manager {
 
-    private static final StanzaFilter MESSAGES_WITH_DELIVERY_RECEIPT_REQUEST = new AndFilter(StanzaTypeFilter.MESSAGE,
-                    new StanzaExtensionFilter(new DeliveryReceiptRequest()));
+    /**
+     * Filters all non-error messages with receipt requests.
+     * See <a href="https://xmpp.org/extensions/xep-0184.html#when">XEP-0184 § 5.</a> "A sender could request receipts
+     * on any non-error content message (chat, groupchat, headline, or normal)…"
+     */
+    private static final StanzaFilter NON_ERROR_GROUPCHAT_MESSAGES_WITH_DELIVERY_RECEIPT_REQUEST = new AndFilter(
+            StanzaTypeFilter.MESSAGE,
+            new StanzaExtensionFilter(new DeliveryReceiptRequest()),
+            new NotFilter(MessageTypeFilter.ERROR));
+
     private static final StanzaFilter MESSAGES_WITH_DELIVERY_RECEIPT = new AndFilter(StanzaTypeFilter.MESSAGE,
                     new StanzaExtensionFilter(DeliveryReceipt.ELEMENT, DeliveryReceipt.NAMESPACE));
 
@@ -175,7 +184,7 @@ public final class DeliveryReceiptManager extends Manager {
                 }
                 connection.sendStanza(ack);
             }
-        }, MESSAGES_WITH_DELIVERY_RECEIPT_REQUEST);
+        }, NON_ERROR_GROUPCHAT_MESSAGES_WITH_DELIVERY_RECEIPT_REQUEST);
     }
 
     /**
@@ -199,11 +208,11 @@ public final class DeliveryReceiptManager extends Manager {
     /**
      * Returns true if Delivery Receipts are supported by a given JID.
      *
-     * @param jid
+     * @param jid TODO javadoc me please
      * @return true if supported
      * @throws SmackException if there was no response from the server.
-     * @throws XMPPException
-     * @throws InterruptedException
+     * @throws XMPPException if an XMPP protocol error was received.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public boolean isSupported(Jid jid) throws SmackException, XMPPException, InterruptedException {
         return ServiceDiscoveryManager.getInstanceFor(connection()).supportsFeature(jid,
@@ -262,14 +271,6 @@ public final class DeliveryReceiptManager extends Manager {
                     );
                    // @formatter:on
 
-    private static final StanzaListener AUTO_ADD_DELIVERY_RECEIPT_REQUESTS_LISTENER = new StanzaListener() {
-        @Override
-        public void processStanza(Stanza packet) throws NotConnectedException {
-            Message message = (Message) packet;
-            DeliveryReceiptRequest.addTo(message);
-        }
-    };
-
     /**
      * Enables automatic requests of delivery receipts for outgoing messages of
      * {@link org.jivesoftware.smack.packet.Message.Type#normal}, {@link org.jivesoftware.smack.packet.Message.Type#chat} or {@link org.jivesoftware.smack.packet.Message.Type#headline}, and
@@ -279,8 +280,9 @@ public final class DeliveryReceiptManager extends Manager {
      * @see #dontAutoAddDeliveryReceiptRequests()
      */
     public void autoAddDeliveryReceiptRequests() {
-        connection().addStanzaInterceptor(AUTO_ADD_DELIVERY_RECEIPT_REQUESTS_LISTENER,
-                        MESSAGES_TO_REQUEST_RECEIPTS_FOR);
+        connection().addMessageInterceptor(DeliveryReceiptRequest::addTo, m -> {
+            return MESSAGES_TO_REQUEST_RECEIPTS_FOR.accept(m);
+        });
     }
 
     /**
@@ -290,7 +292,7 @@ public final class DeliveryReceiptManager extends Manager {
      * @see #autoAddDeliveryReceiptRequests()
      */
     public void dontAutoAddDeliveryReceiptRequests() {
-        connection().removeStanzaInterceptor(AUTO_ADD_DELIVERY_RECEIPT_REQUESTS_LISTENER);
+        connection().removeMessageInterceptor(DeliveryReceiptRequest::addTo);
     }
 
     /**
@@ -301,7 +303,7 @@ public final class DeliveryReceiptManager extends Manager {
      * @return true if a delivery receipt was requested
      */
     public static boolean hasDeliveryReceiptRequest(Message message) {
-        return (DeliveryReceiptRequest.from(message) != null);
+        return DeliveryReceiptRequest.from(message) != null;
     }
 
     /**
@@ -334,8 +336,11 @@ public final class DeliveryReceiptManager extends Manager {
         if (StringUtils.isNullOrEmpty(stanzaId)) {
             return null;
         }
-        Message message = new Message(messageWithReceiptRequest.getFrom(), messageWithReceiptRequest.getType());
-        message.addExtension(new DeliveryReceipt(stanzaId));
+        Message message = StanzaBuilder.buildMessage()
+                .ofType(messageWithReceiptRequest.getType())
+                .to(messageWithReceiptRequest.getFrom())
+                .addExtension(new DeliveryReceipt(stanzaId))
+                .build();
         return message;
     }
 }

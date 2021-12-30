@@ -24,7 +24,8 @@ import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.StanzaError;
 
 import org.jivesoftware.smackx.commands.packet.AdHocCommandData;
-import org.jivesoftware.smackx.xdata.Form;
+import org.jivesoftware.smackx.xdata.form.FillableForm;
+import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 import org.jxmpp.jid.Jid;
 
@@ -37,7 +38,7 @@ import org.jxmpp.jid.Jid;
  * list and the result is stored as a form in the command instance, i.e. the
  * <code>getForm</code> method retrieves a form with all the users.
  * <p>
- * Each command has a <tt>node</tt> that should be unique within a given JID.
+ * Each command has a <code>node</code> that should be unique within a given JID.
  * </p>
  * <p>
  * Commands may have zero or more stages. Each stage is usually used for
@@ -87,7 +88,7 @@ public abstract class AdHocCommand {
     }
 
     /**
-     * Returns the specific condition of the <code>error</code> or <tt>null</tt> if the
+     * Returns the specific condition of the <code>error</code> or <code>null</code> if the
      * error doesn't have any.
      *
      * @param error the error the get the specific condition from.
@@ -188,13 +189,8 @@ public abstract class AdHocCommand {
      * @return the form of the current stage to fill out or the result of the
      *         execution.
      */
-    public Form getForm() {
-        if (data.getForm() == null) {
-            return null;
-        }
-        else {
-            return new Form(data.getForm());
-        }
+    public DataForm getForm() {
+        return data.getForm();
     }
 
     /**
@@ -205,8 +201,8 @@ public abstract class AdHocCommand {
      * @param form the form of the current stage to fill out or the result of the
      *      execution.
      */
-    protected void setForm(Form form) {
-        data.setForm(form.getDataFormToSend());
+    protected void setForm(DataForm form) {
+        data.setForm(form);
     }
 
     /**
@@ -214,10 +210,10 @@ public abstract class AdHocCommand {
      * command. It is invoked on every command. If there is a problem executing
      * the command it throws an XMPPException.
      *
-     * @throws NoResponseException
+     * @throws NoResponseException if there was no response from the remote entity.
      * @throws XMPPErrorException if there is an error executing the command.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public abstract void execute() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException;
 
@@ -229,12 +225,12 @@ public abstract class AdHocCommand {
      * XMPPException.
      *
      * @param response the form answer of the previous stage.
-     * @throws NoResponseException
+     * @throws NoResponseException if there was no response from the remote entity.
      * @throws XMPPErrorException if there is a problem executing the command.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public abstract void next(Form response) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException;
+    public abstract void next(FillableForm response) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException;
 
     /**
      * Completes the command execution with the information provided in the
@@ -245,12 +241,12 @@ public abstract class AdHocCommand {
      *
      * @param response the form answer of the previous stage.
      *
-     * @throws NoResponseException
+     * @throws NoResponseException if there was no response from the remote entity.
      * @throws XMPPErrorException if there is a problem executing the command.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    public abstract void complete(Form response) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException;
+    public abstract void complete(FillableForm response) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException;
 
     /**
      * Goes to the previous stage. The requester is asking to re-send the
@@ -258,10 +254,10 @@ public abstract class AdHocCommand {
      * the previous one. If there is a problem executing the command it throws
      * an XMPPException.
      *
-     * @throws NoResponseException
+     * @throws NoResponseException if there was no response from the remote entity.
      * @throws XMPPErrorException if there is a problem executing the command.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public abstract void prev() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException;
 
@@ -270,10 +266,10 @@ public abstract class AdHocCommand {
      * the execution. If there is a problem executing the command it throws an
      * XMPPException.
      *
-     * @throws NoResponseException
+     * @throws NoResponseException if there was no response from the remote entity.
      * @throws XMPPErrorException if there is a problem executing the command.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public abstract void cancel() throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException;
 
@@ -369,7 +365,7 @@ public abstract class AdHocCommand {
      * The {@link Action#cancel cancel} action is always allowed. To define the
      * available actions use the <code>addActionAvailable</code> method.
      *
-     * @param action
+     * @param action TODO javadoc me please
      *            The action to check if it is available.
      * @return True if the action is available for the current stage.
      */

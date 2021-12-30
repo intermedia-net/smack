@@ -31,6 +31,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jivesoftware.smack.XMPPConnection;
+
 import org.jivesoftware.smackx.jingleold.JingleSession;
 
 import org.jxmpp.jid.Jid;
@@ -116,7 +117,7 @@ public abstract class TransportCandidate {
     /**
      * Set local IP to bind to this candidate.
      *
-     * @param localIp
+     * @param localIp TODO javadoc me please
      */
     public void setLocalIp(String localIp) {
         this.localIp = localIp;
@@ -134,7 +135,7 @@ public abstract class TransportCandidate {
     /**
      * Set the symmetric candidate for this candidate.
      *
-     * @param symmetric
+     * @param symmetric TODO javadoc me please
      */
     public void setSymmetric(TransportCandidate symmetric) {
         this.symmetric = symmetric;
@@ -170,7 +171,7 @@ public abstract class TransportCandidate {
     /**
      * Set the XMPPConnection use to send or receive this candidate.
      *
-     * @param connection
+     * @param connection TODO javadoc me please
      */
     public void setConnection(XMPPConnection connection) {
         this.connection = connection;
@@ -188,7 +189,7 @@ public abstract class TransportCandidate {
     /**
      * Set the jingle's sessionId that is using this candidate.
      *
-     * @param sessionId
+     * @param sessionId TODO javadoc me please
      */
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
@@ -309,7 +310,7 @@ public abstract class TransportCandidate {
         if (obj == null) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
+        if (!(obj instanceof TransportCandidate)) {
             return false;
         }
         final TransportCandidate other = (TransportCandidate) obj;
@@ -348,7 +349,10 @@ public abstract class TransportCandidate {
      * usable.
      *
      * Subclasses should provide better methods if they can...
+     *
+     * @param localCandidates a list of local candidates.
      */
+    @SuppressWarnings("UnusedVariable")
     public void check(final List<TransportCandidate> localCandidates) {
         // TODO candidate is being checked trigger
         // candidatesChecking.add(cand);
@@ -447,7 +451,7 @@ public abstract class TransportCandidate {
     /**
      * Type-safe enum for the transportElement protocol.
      */
-    public static class Protocol {
+    public static final class Protocol {
 
         public static final Protocol UDP = new Protocol("udp");
 
@@ -472,6 +476,9 @@ public abstract class TransportCandidate {
 
         /**
          * Returns the Protocol constant associated with the String value.
+         *
+         * @param value the input String.
+         * @return the protocol.
          */
         public static Protocol fromString(String value) {
             if (value == null) {
@@ -561,6 +568,9 @@ public abstract class TransportCandidate {
 
         /**
          * Returns the MediaChannel constant associated with the String value.
+         *
+         * @param value the input String.
+         * @return the channel.
          */
         public static Channel fromString(String value) {
             if (value == null) {
@@ -584,7 +594,7 @@ public abstract class TransportCandidate {
             if (obj == null) {
                 return false;
             }
-            if (getClass() != obj.getClass()) {
+            if (!(obj instanceof Channel)) {
                 return false;
             }
             final Channel other = (Channel) obj;
@@ -646,7 +656,7 @@ public abstract class TransportCandidate {
             this.id = session.getSid();
             this.candidate = candidate;
 
-            int keySplitIndex = ((int) Math.ceil(((float) id.length()) / 2));
+            int keySplitIndex = (int) Math.ceil(((float) id.length()) / 2);
 
             String local = id.substring(0, keySplitIndex) + ";" + localUser;
             String remote = id.substring(keySplitIndex) + ";" + remoteUser;
@@ -668,6 +678,7 @@ public abstract class TransportCandidate {
 
         }
 
+        @SuppressWarnings("UnusedVariable")
         @Override
         public void run() {
             try {

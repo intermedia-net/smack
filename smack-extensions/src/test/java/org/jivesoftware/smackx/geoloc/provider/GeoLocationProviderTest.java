@@ -16,22 +16,21 @@
  */
 package org.jivesoftware.smackx.geoloc.provider;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.net.URI;
 
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.util.PacketParserUtils;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.geoloc.packet.GeoLocation;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.util.XmppDateTime;
 
-public class GeoLocationProviderTest extends InitExtensions {
+public class GeoLocationProviderTest extends SmackTestSuite {
 
     @Test
     public void testGeoLocationProviderWithNoDatumSet() throws Exception {
@@ -69,8 +68,7 @@ public class GeoLocationProviderTest extends InitExtensions {
         Message messageWithGeoLocation = PacketParserUtils.parseStanza(geoLocationString);
         assertNotNull(messageWithGeoLocation);
 
-        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.ELEMENT,
-                        GeoLocation.NAMESPACE);
+        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.class);
         assertNotNull(geoLocation);
 
         assertEquals((Double) 23d, geoLocation.getAccuracy());
@@ -83,7 +81,9 @@ public class GeoLocationProviderTest extends InitExtensions {
         assertEquals("IN", geoLocation.getCountryCode());
         assertEquals("WGS84", geoLocation.getDatum());
         assertEquals("My Description", geoLocation.getDescription());
-        assertNull(geoLocation.getError());
+        @SuppressWarnings("deprecation")
+        Double error = geoLocation.getError();
+        assertEquals(90, error);
         assertEquals("top", geoLocation.getFloor());
         assertEquals((Double) 25.098345d, geoLocation.getLat());
         assertEquals("awesome", geoLocation.getLocality());
@@ -138,8 +138,7 @@ public class GeoLocationProviderTest extends InitExtensions {
         Message messageWithGeoLocation = PacketParserUtils.parseStanza(geoLocationString);
         assertNotNull(messageWithGeoLocation);
 
-        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.ELEMENT,
-                        GeoLocation.NAMESPACE);
+        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.class);
         assertNotNull(geoLocation);
 
         assertEquals((Double) 23d, geoLocation.getAccuracy());
@@ -152,7 +151,9 @@ public class GeoLocationProviderTest extends InitExtensions {
         assertEquals("IN", geoLocation.getCountryCode());
         assertEquals("Test Datum", geoLocation.getDatum());
         assertEquals("My Description", geoLocation.getDescription());
-        assertNull(geoLocation.getError());
+        @SuppressWarnings("deprecation")
+        Double error = geoLocation.getError();
+        assertEquals(90, error);
         assertEquals("top", geoLocation.getFloor());
         assertEquals((Double) 25.098345d, geoLocation.getLat());
         assertEquals("awesome", geoLocation.getLocality());
@@ -183,10 +184,11 @@ public class GeoLocationProviderTest extends InitExtensions {
 
         Message messageWithGeoLocation = PacketParserUtils.parseStanza(geoLocationString);
 
-        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.ELEMENT,
-                        GeoLocation.NAMESPACE);
+        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.class);
 
-        assertEquals((Double) 90d, geoLocation.getError());
+        @SuppressWarnings("deprecation")
+        Double error = geoLocation.getError();
+        assertEquals((Double) 90d, error);
     }
 
     @Test
@@ -203,8 +205,7 @@ public class GeoLocationProviderTest extends InitExtensions {
 
         Message messageWithGeoLocation = PacketParserUtils.parseStanza(geoLocationString);
 
-        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.ELEMENT,
-                        GeoLocation.NAMESPACE);
+        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.class);
 
         assertEquals((Double) 90d, geoLocation.getAccuracy());
     }
@@ -224,12 +225,12 @@ public class GeoLocationProviderTest extends InitExtensions {
 
         Message messageWithGeoLocation = PacketParserUtils.parseStanza(geoLocationString);
 
-        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.ELEMENT,
-                        GeoLocation.NAMESPACE);
+        GeoLocation geoLocation = messageWithGeoLocation.getExtension(GeoLocation.class);
 
         assertEquals((Double) 90d, geoLocation.getAccuracy());
-        assertNull(geoLocation.getError());
-
+        @SuppressWarnings("deprecation")
+        Double error = geoLocation.getError();
+        assertEquals(100, error);
     }
 
 }

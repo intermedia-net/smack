@@ -16,6 +16,7 @@
  */
 package org.jivesoftware.smackx.iqregister.provider;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -23,32 +24,33 @@ import java.util.Map;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.PacketParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.iqregister.packet.Registration;
-
-import org.xmlpull.v1.XmlPullParser;
 
 public class RegistrationProvider extends IQProvider<Registration> {
 
     @Override
-    public Registration parse(XmlPullParser parser, int initialDepth)
-                    throws Exception {
+    public Registration parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         String instruction = null;
         Map<String, String> fields = new HashMap<>();
         List<ExtensionElement> packetExtensions = new LinkedList<>();
         outerloop:
         while (true) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 // Any element that's in the jabber:iq:register namespace,
                 // attempt to parse it if it's in the form <name>value</name>.
                 if (parser.getNamespace().equals(Registration.NAMESPACE)) {
                     String name = parser.getName();
                     String value = "";
 
-                    if (parser.next() == XmlPullParser.TEXT) {
+                    if (parser.next() == XmlPullParser.Event.TEXT_CHARACTERS) {
                         value = parser.getText();
                     }
                     // Ignore instructions, but anything else should be added to the map.
@@ -61,10 +63,10 @@ public class RegistrationProvider extends IQProvider<Registration> {
                 }
                 // Otherwise, it must be a packet extension.
                 else {
-                    PacketParserUtils.addExtensionElement(packetExtensions, parser);
+                    PacketParserUtils.addExtensionElement(packetExtensions, parser, xmlEnvironment);
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals(IQ.QUERY_ELEMENT)) {
                     break outerloop;
                 }

@@ -17,14 +17,17 @@
 
 package org.jivesoftware.smackx.workgroup.packet;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.PacketParserUtils;
-
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  * An IQProvider for transcripts.
@@ -34,14 +37,14 @@ import org.xmlpull.v1.XmlPullParser;
 public class TranscriptProvider extends IQProvider<Transcript> {
 
     @Override
-    public Transcript parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public Transcript parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException {
         String sessionID = parser.getAttributeValue("", "sessionID");
         List<Stanza> packets = new ArrayList<>();
 
         boolean done = false;
         while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (parser.getName().equals("message")) {
                     packets.add(PacketParserUtils.parseMessage(parser));
                 }
@@ -49,7 +52,7 @@ public class TranscriptProvider extends IQProvider<Transcript> {
                     packets.add(PacketParserUtils.parsePresence(parser));
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("transcript")) {
                     done = true;
                 }

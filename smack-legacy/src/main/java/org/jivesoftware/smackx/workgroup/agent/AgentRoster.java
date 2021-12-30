@@ -34,6 +34,7 @@ import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.filter.StanzaTypeFilter;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.StanzaBuilder;
 
 import org.jivesoftware.smackx.workgroup.packet.AgentStatus;
 import org.jivesoftware.smackx.workgroup.packet.AgentStatusRequest;
@@ -70,8 +71,8 @@ public class AgentRoster {
      * Constructs a new AgentRoster.
      *
      * @param connection an XMPP connection.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     AgentRoster(XMPPConnection connection, EntityBareJid workgroupJID) throws NotConnectedException, InterruptedException {
         this.connection = connection;
@@ -93,8 +94,8 @@ public class AgentRoster {
      * Reloads the entire roster from the server. This is an asynchronous operation,
      * which means the method will return immediately, and the roster will be
      * reloaded at a later point when the server responds to the reload request.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public void reload() throws NotConnectedException, InterruptedException {
         AgentStatusRequest request = new AgentStatusRequest();
@@ -201,20 +202,22 @@ public class AgentRoster {
     }
 
     /**
-     * Returns the presence info for a particular agent, or <tt>null</tt> if the agent
+     * Returns the presence info for a particular agent, or <code>null</code> if the agent
      * is unavailable (offline) or if no presence information is available.<p>
      *
      * @param user a fully qualified xmpp JID. The address could be in any valid format (e.g.
      *             "domain/resource", "user@domain" or "user@domain/resource").
-     * @return the agent's current presence, or <tt>null</tt> if the agent is unavailable
+     * @return the agent's current presence, or <code>null</code> if the agent is unavailable
      *         or if no presence information is available..
      */
     public Presence getPresence(Jid user) {
         Jid key = getPresenceMapKey(user);
         Map<Resourcepart, Presence> userPresences = presenceMap.get(key);
         if (userPresences == null) {
-            Presence presence = new Presence(Presence.Type.unavailable);
-            presence.setFrom(user);
+            Presence presence = StanzaBuilder.buildPresence()
+                    .ofType(Presence.Type.unavailable)
+                    .from(user)
+                    .build();
             return presence;
         }
         else {
@@ -236,8 +239,7 @@ public class AgentRoster {
                 }
             }
             if (presence == null) {
-                presence = new Presence(Presence.Type.unavailable);
-                presence.setFrom(user);
+                presence = synthesizeUnvailablePresence(user);
                 return presence;
             }
             else {
@@ -289,6 +291,13 @@ public class AgentRoster {
         }
     }
 
+    private static Presence synthesizeUnvailablePresence(Jid from) {
+        return StanzaBuilder.buildPresence()
+                .ofType(Presence.Type.unavailable)
+                .from(from)
+                .build();
+    }
+
     /**
      * Listens for all presence packets and processes them.
      */
@@ -299,7 +308,7 @@ public class AgentRoster {
             EntityFullJid from = presence.getFrom().asEntityFullJidIfPossible();
             if (from == null) {
                 // TODO Check if we need to ignore these presences or this is a server bug?
-                LOGGER.warning("Presence with non full JID from: " + presence.toXML(null));
+                LOGGER.warning("Presence with non full JID from: " + presence.toXML());
                 return;
             }
             Jid key = getPresenceMapKey(from);
@@ -308,7 +317,7 @@ public class AgentRoster {
             // for a particular user a map with the presence packets saved for each resource.
             if (presence.getType() == Presence.Type.available) {
                 // Ignore the presence packet unless it has an agent status extension.
-                AgentStatus agentStatus = presence.getExtension(
+                AgentStatus agentStatus = (AgentStatus) presence.getExtensionElement(
                         AgentStatus.ELEMENT_NAME, AgentStatus.NAMESPACE);
                 if (agentStatus == null) {
                     return;

@@ -138,24 +138,11 @@ public class Subscription extends NodeExtension {
     }
 
     @Override
-    public XmlStringBuilder toXML(String enclosingNamespace) {
-        XmlStringBuilder builder = new XmlStringBuilder(this);
-        builder.attribute("jid", jid);
-
-        builder.optAttribute("node", getNode());
-        builder.optAttribute("subid", id);
-        builder.optAttribute("subscription", state.toString());
-
-        builder.closeEmptyElement();
-        return builder;
-    }
-
-    private static void appendAttribute(StringBuilder builder, String att, String value) {
-        builder.append(' ');
-        builder.append(att);
-        builder.append("='");
-        builder.append(value);
-        builder.append('\'');
+    protected void addXml(XmlStringBuilder xml) {
+        xml.attribute("jid", jid);
+        xml.optAttribute("subid", id);
+        xml.optAttribute("subscription", state);
+        xml.closeEmptyElement();
     }
 
 }

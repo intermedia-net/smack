@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2014-2018 Florian Schmaus
+ * Copyright © 2014-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,19 @@
 
 package org.jivesoftware.smack.provider;
 
-import org.jivesoftware.smack.packet.Element;
-import org.jivesoftware.smack.util.ParserUtils;
+import java.io.IOException;
 
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smack.packet.Element;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException;
+import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 /**
  * Smack provider are the parsers used to deserialize raw XMPP into the according Java {@link Element}s.
  * <p>
- * At any time when {@link #parse(XmlPullParser, int)} is invoked any type of exception can be thrown. If the parsed
+ * At any time when {@link #parse(XmlPullParser, int, XmlEnvironment)} is invoked any type of exception can be thrown. If the parsed
  * element does not follow the specification, for example by putting a string where only integers are allowed, then a
  * {@link org.jivesoftware.smack.SmackException} should be thrown.
  * </p>
@@ -33,19 +37,25 @@ import org.xmlpull.v1.XmlPullParser;
  * @author Florian Schmaus
  * @param <E> the type of the resulting element.
  */
-public abstract class Provider<E extends Element> {
+public abstract class Provider<E extends Element> extends AbstractProvider<E> {
 
-    public final E parse(XmlPullParser parser) throws Exception {
+    public final E parse(XmlPullParser parser) throws IOException, XmlPullParserException, SmackParsingException {
+        return parse(parser, null);
+    }
+
+    public final E parse(XmlPullParser parser, XmlEnvironment outerXmlEnvironment) throws IOException, XmlPullParserException, SmackParsingException {
         // XPP3 calling convention assert: Parser should be at start tag
         ParserUtils.assertAtStartTag(parser);
 
         final int initialDepth = parser.getDepth();
-        E e = parse(parser, initialDepth);
+        final XmlEnvironment xmlEnvironment = XmlEnvironment.from(parser, outerXmlEnvironment);
+
+        E e = parse(parser, initialDepth, xmlEnvironment);
 
         // XPP3 calling convention assert: Parser should be at end tag of the consumed/parsed element
         ParserUtils.forwardToEndTagOfDepth(parser, initialDepth);
         return e;
     }
 
-    public abstract E parse(XmlPullParser parser, int initialDepth) throws Exception;
+    public abstract E parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException, SmackParsingException;
 }

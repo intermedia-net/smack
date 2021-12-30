@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015-2016 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,19 @@
  */
 package org.jivesoftware.smack.roster;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
 import java.util.concurrent.TimeoutException;
 
-import org.jivesoftware.smack.SmackException.NoResponseException;
-import org.jivesoftware.smack.SmackException.NotConnectedException;
-import org.jivesoftware.smack.SmackException.NotLoggedInException;
-import org.jivesoftware.smack.XMPPConnection;
-import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.roster.packet.RosterPacket.ItemType;
 import org.jivesoftware.smack.util.StringUtils;
 
 import org.igniterealtime.smack.inttest.AbstractSmackIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
+import org.igniterealtime.smack.inttest.util.IntegrationTestRosterUtil;
 import org.igniterealtime.smack.inttest.util.SimpleResultSyncPoint;
 import org.jxmpp.jid.BareJid;
 import org.jxmpp.jid.Jid;
@@ -50,7 +46,7 @@ public class RosterIntegrationTest extends AbstractSmackIntegrationTest {
 
     @SmackIntegrationTest
     public void subscribeRequestListenerTest() throws TimeoutException, Exception {
-        ensureBothAccountsAreNotInEachOthersRoster(conOne, conTwo);
+        IntegrationTestRosterUtil.ensureBothAccountsAreNotInEachOthersRoster(conOne, conTwo);
 
         final SubscribeListener subscribeListener = new SubscribeListener() {
             @Override
@@ -103,7 +99,7 @@ public class RosterIntegrationTest extends AbstractSmackIntegrationTest {
         });
 
         try {
-            rosterOne.createEntry(conTwo.getUser().asBareJid(), conTwosRosterName, null);
+            rosterOne.createItemAndRequestSubscription(conTwo.getUser().asBareJid(), conTwosRosterName, null);
 
             assertTrue(addedAndSubscribed.waitForResult(2 * connection.getReplyTimeout()));
         }
@@ -112,64 +108,4 @@ public class RosterIntegrationTest extends AbstractSmackIntegrationTest {
         }
     }
 
-    public static void ensureBothAccountsAreNotInEachOthersRoster(XMPPConnection conOne, XMPPConnection conTwo) throws NotLoggedInException,
-                    NoResponseException, XMPPErrorException, NotConnectedException,
-                    InterruptedException {
-        notInRoster(conOne, conTwo);
-        notInRoster(conTwo, conOne);
-    }
-
-    private static void notInRoster(XMPPConnection c1, XMPPConnection c2) throws NotLoggedInException,
-                    NoResponseException, XMPPErrorException, NotConnectedException,
-                    InterruptedException {
-        Roster roster = Roster.getInstanceFor(c1);
-        RosterEntry c2Entry = roster.getEntry(c2.getUser().asBareJid());
-        if (c2Entry == null) {
-            return;
-        }
-        roster.removeEntry(c2Entry);
-    }
-
-    public static void ensureBothAccountsAreSubscribedToEachOther(XMPPConnection conOne, XMPPConnection conTwo, long timeout) throws TimeoutException, Exception {
-        ensureSubscribedTo(conOne, conTwo, timeout);
-        ensureSubscribedTo(conTwo, conOne, timeout);
-    }
-
-    private static void ensureSubscribedTo(final XMPPConnection conOne, final XMPPConnection conTwo, long timeout) throws TimeoutException, Exception {
-        Roster rosterOne = Roster.getInstanceFor(conOne);
-        Roster rosterTwo = Roster.getInstanceFor(conTwo);
-
-        if (rosterOne.isSubscribedToMyPresence(conTwo.getUser())) {
-            return;
-        }
-
-        final SubscribeListener subscribeListener = new SubscribeListener() {
-            @Override
-            public SubscribeAnswer processSubscribe(Jid from, Presence subscribeRequest) {
-                if (from.equals(conTwo.getUser().asBareJid())) {
-                    return SubscribeAnswer.Approve;
-                }
-                return SubscribeAnswer.Deny;
-            }
-        };
-        rosterOne.addSubscribeListener(subscribeListener);
-
-        final SimpleResultSyncPoint syncPoint = new SimpleResultSyncPoint();
-        rosterTwo.addPresenceEventListener(new AbstractPresenceEventListener() {
-            @Override
-            public void presenceSubscribed(BareJid address, Presence subscribedPresence) {
-                if (!address.equals(conOne.getUser().asBareJid())) {
-                    return;
-                }
-                syncPoint.signal();
-            }
-        });
-        rosterTwo.sendSubscriptionRequest(conOne.getUser().asBareJid());
-
-        try {
-            syncPoint.waitForResult(timeout);
-        } finally {
-            rosterOne.removeSubscribeListener(subscribeListener);
-        }
-    }
 }

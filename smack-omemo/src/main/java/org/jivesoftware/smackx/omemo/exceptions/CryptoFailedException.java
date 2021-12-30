@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Paul Schaub
+ * Copyright 2017 Paul Schaub, 2021 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +23,18 @@ package org.jivesoftware.smackx.omemo.exceptions;
  */
 public class CryptoFailedException extends Exception {
 
-    private static final long serialVersionUID = 3466888654338119924L;
+    private static final long serialVersionUID = 1;
+
+    public CryptoFailedException(String message, Exception wrappedException) {
+        super(message, wrappedException);
+    }
 
     public CryptoFailedException(String message) {
-        super(message);
+        this(message, null);
     }
 
     public CryptoFailedException(Exception e) {
-        super(e);
+        this("Crypto failed " + e.getMessage(), e);
     }
+
 }

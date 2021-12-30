@@ -16,82 +16,80 @@
  */
 package org.jivesoftware.smackx.omemo.provider;
 
-import static org.jivesoftware.smackx.omemo.element.OmemoElement.ENCRYPTED;
-import static org.jivesoftware.smackx.omemo.element.OmemoElement.HEADER;
-import static org.jivesoftware.smackx.omemo.element.OmemoElement.IV;
-import static org.jivesoftware.smackx.omemo.element.OmemoElement.KEY;
-import static org.jivesoftware.smackx.omemo.element.OmemoElement.PAYLOAD;
-import static org.jivesoftware.smackx.omemo.element.OmemoElement.PREKEY;
-import static org.jivesoftware.smackx.omemo.element.OmemoElement.RID;
-import static org.jivesoftware.smackx.omemo.element.OmemoElement.SID;
-import static org.xmlpull.v1.XmlPullParser.END_TAG;
-import static org.xmlpull.v1.XmlPullParser.START_TAG;
+import static org.jivesoftware.smackx.omemo.element.OmemoElement.ATTR_PAYLOAD;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.stringencoder.Base64;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
-import org.jivesoftware.smackx.omemo.element.OmemoVAxolotlElement;
-
-import org.xmlpull.v1.XmlPullParser;
+import org.jivesoftware.smackx.omemo.element.OmemoElement_VAxolotl;
+import org.jivesoftware.smackx.omemo.element.OmemoHeaderElement;
+import org.jivesoftware.smackx.omemo.element.OmemoHeaderElement_VAxolotl;
+import org.jivesoftware.smackx.omemo.element.OmemoKeyElement;
 
 /**
  * Smack ExtensionProvider that parses incoming OMEMO Message element into OmemoMessageElement objects.
  *
  * @author Paul Schaub
  */
-public class OmemoVAxolotlProvider extends ExtensionElementProvider<OmemoVAxolotlElement> {
+public class OmemoVAxolotlProvider extends ExtensionElementProvider<OmemoElement_VAxolotl> {
 
     @Override
-    public OmemoVAxolotlElement parse(XmlPullParser parser, int initialDepth) throws Exception {
-        boolean inEncrypted = true;
+    public OmemoElement_VAxolotl parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         int sid = -1;
-        ArrayList<OmemoVAxolotlElement.OmemoHeader.Key> keys = new ArrayList<>();
+        ArrayList<OmemoKeyElement> keys = new ArrayList<>();
         byte[] iv = null;
         byte[] payload = null;
 
-        while (inEncrypted) {
-            int tag = parser.next();
-            String name = parser.getName();
+        outerloop: while (true) {
+            XmlPullParser.Event tag = parser.next();
             switch (tag) {
-                case START_TAG:
+                case START_ELEMENT:
+                    String name = parser.getName();
                     switch (name) {
-                        case HEADER:
+                        case OmemoHeaderElement.ELEMENT:
                             for (int i = 0; i < parser.getAttributeCount(); i++) {
-                                if (parser.getAttributeName(i).equals(SID)) {
+                                if (parser.getAttributeName(i).equals(OmemoHeaderElement.ATTR_SID)) {
                                     sid = Integer.parseInt(parser.getAttributeValue(i));
                                 }
                             }
                             break;
-                        case KEY:
+                        case OmemoKeyElement.ELEMENT:
                             boolean prekey = false;
                             int rid = -1;
                             for (int i = 0; i < parser.getAttributeCount(); i++) {
-                                if (parser.getAttributeName(i).equals(PREKEY)) {
+                                if (parser.getAttributeName(i).equals(OmemoKeyElement.ATTR_PREKEY)) {
                                     prekey = Boolean.parseBoolean(parser.getAttributeValue(i));
-                                } else if (parser.getAttributeName(i).equals(RID)) {
+                                } else if (parser.getAttributeName(i).equals(OmemoKeyElement.ATTR_RID)) {
                                     rid = Integer.parseInt(parser.getAttributeValue(i));
                                 }
                             }
-                            keys.add(new OmemoVAxolotlElement.OmemoHeader.Key(Base64.decode(parser.nextText()), rid, prekey));
+                            keys.add(new OmemoKeyElement(Base64.decode(parser.nextText()), rid, prekey));
                             break;
-                        case IV:
+                        case OmemoHeaderElement.ATTR_IV:
                             iv = Base64.decode(parser.nextText());
                             break;
-                        case PAYLOAD:
+                        case ATTR_PAYLOAD:
                             payload = Base64.decode(parser.nextText());
                             break;
                     }
                     break;
-                case END_TAG:
-                    if (name.equals(ENCRYPTED)) {
-                        inEncrypted = false;
+                case END_ELEMENT:
+                    if (parser.getDepth() == initialDepth) {
+                        break outerloop;
                     }
+                    break;
+                default:
+                    // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                     break;
             }
         }
-        OmemoVAxolotlElement.OmemoHeader header = new OmemoVAxolotlElement.OmemoHeader(sid, keys, iv);
-        return new OmemoVAxolotlElement(header, payload);
+        OmemoHeaderElement_VAxolotl header = new OmemoHeaderElement_VAxolotl(sid, keys, iv);
+        return new OmemoElement_VAxolotl(header, payload);
     }
 }

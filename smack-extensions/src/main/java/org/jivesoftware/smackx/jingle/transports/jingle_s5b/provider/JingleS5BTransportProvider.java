@@ -24,17 +24,19 @@ import static org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements.Jing
 import static org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements.JingleS5BTransportCandidate.ATTR_PORT;
 import static org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements.JingleS5BTransportCandidate.ATTR_PRIORITY;
 import static org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements.JingleS5BTransportCandidate.ATTR_TYPE;
-import static org.xmlpull.v1.XmlPullParser.END_TAG;
-import static org.xmlpull.v1.XmlPullParser.START_TAG;
 
-import org.jivesoftware.smackx.jingle.element.JingleContentTransport;
+import java.io.IOException;
+
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
+
+import org.jivesoftware.smackx.jingle.element.JingleContentTransportCandidate;
 import org.jivesoftware.smackx.jingle.provider.JingleContentTransportProvider;
 import org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements.JingleS5BTransport;
 import org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements.JingleS5BTransportCandidate;
 import org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements.JingleS5BTransportInfo;
 import org.jivesoftware.smackx.jingle.transports.jingle_s5b.elements.JingleS5BTransportInfo.JingleS5BCandidateTransportInfo;
-
-import org.xmlpull.v1.XmlPullParser;
 
 /**
  * Provider for JingleSocks5BytestreamTransport elements.
@@ -42,7 +44,7 @@ import org.xmlpull.v1.XmlPullParser;
 public class JingleS5BTransportProvider extends JingleContentTransportProvider<JingleS5BTransport> {
 
     @Override
-    public JingleS5BTransport parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public JingleS5BTransport parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         JingleS5BTransport.Builder builder = JingleS5BTransport.getBuilder();
 
         String streamId = parser.getAttributeValue(null, JingleS5BTransport.ATTR_SID);
@@ -58,13 +60,13 @@ public class JingleS5BTransportProvider extends JingleContentTransportProvider<J
 
         JingleS5BTransportCandidate.Builder cb;
         outerloop: while (true) {
-            int tag = parser.nextTag();
-            String name = parser.getName();
+            XmlPullParser.TagEvent tag = parser.nextTag();
             switch (tag) {
-                case START_TAG: {
+                case START_ELEMENT: {
+                    String name = parser.getName();
                     switch (name) {
 
-                        case JingleS5BTransportCandidate.ELEMENT:
+                        case JingleContentTransportCandidate.ELEMENT:
                             cb = JingleS5BTransportCandidate.getBuilder();
                             cb.setCandidateId(parser.getAttributeValue(null, ATTR_CID));
                             cb.setHost(parser.getAttributeValue(null, ATTR_HOST));
@@ -106,12 +108,12 @@ public class JingleS5BTransportProvider extends JingleContentTransportProvider<J
                 }
                 break;
 
-                case END_TAG: {
-                    switch (name) {
-                        case JingleContentTransport.ELEMENT:
+                case END_ELEMENT: {
+                    if (parser.getDepth() == initialDepth) {
                             break outerloop;
                     }
                 }
+                    break;
             }
         }
         return builder.build();

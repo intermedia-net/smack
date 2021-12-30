@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
  */
 package org.jivesoftware.smackx.chatstates.provider;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
 
 import org.jivesoftware.smackx.chatstates.ChatState;
 import org.jivesoftware.smackx.chatstates.packet.ChatStateExtension;
 
-import org.xmlpull.v1.XmlPullParser;
-
 public class ChatStateExtensionProvider extends ExtensionElementProvider<ChatStateExtension> {
 
     @Override
-    public ChatStateExtension parse(XmlPullParser parser, int initialDepth) throws Exception {
+    public ChatStateExtension parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) {
         String chatStateString = parser.getName();
         ChatState state = ChatState.valueOf(chatStateString);
 

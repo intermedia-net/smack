@@ -16,16 +16,18 @@
  */
 package org.jivesoftware.smackx.bob;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.nio.charset.StandardCharsets;
+
 import org.jivesoftware.smack.packet.IQ.Type;
 import org.jivesoftware.smack.packet.StreamOpen;
 import org.jivesoftware.smack.test.util.SmackTestSuite;
 import org.jivesoftware.smack.util.PacketParserUtils;
-import org.jivesoftware.smack.util.StringUtils;
 
 import org.jivesoftware.smackx.bob.element.BoBIQ;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.impl.JidCreate;
 
 public class BoBIQTest extends SmackTestSuite {
@@ -39,34 +41,34 @@ public class BoBIQTest extends SmackTestSuite {
 
     @Test
     public void checkBoBIQRequest() throws Exception {
-        BoBHash bobHash = new BoBHash("8f35fef110ffc5df08d579a50083ff9308fb6242", "sha1");
+        ContentId bobHash = new ContentId("8f35fef110ffc5df08d579a50083ff9308fb6242", "sha1");
 
         BoBIQ createdBoBIQ = new BoBIQ(bobHash);
         createdBoBIQ.setStanzaId("sarasa");
         createdBoBIQ.setTo(JidCreate.from("ladymacbeth@shakespeare.lit/castle"));
         createdBoBIQ.setType(Type.get);
 
-        Assert.assertEquals(sampleBoBIQRequest, createdBoBIQ.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertEquals(sampleBoBIQRequest, createdBoBIQ.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
     }
 
     @Test
     public void checkBoBIQResponse() throws Exception {
         BoBIQ bobIQ = PacketParserUtils.parseStanza(sampleBoBIQResponse);
 
-        BoBHash bobHash = new BoBHash("8f35fef110ffc5df08d579a50083ff9308fb6242", "sha1");
-        BoBData bobData = new BoBData("image/png", "sarasade2354j2".getBytes(StringUtils.UTF8), 86400);
+        ContentId bobHash = new ContentId("8f35fef110ffc5df08d579a50083ff9308fb6242", "sha1");
+        BoBData bobData = new BoBData("image/png", "sarasade2354j2".getBytes(StandardCharsets.UTF_8), 86400);
 
         BoBIQ createdBoBIQ = new BoBIQ(bobHash, bobData);
         createdBoBIQ.setStanzaId("sarasa");
         createdBoBIQ.setTo(JidCreate.from("doctor@shakespeare.lit/pda"));
         createdBoBIQ.setType(Type.result);
 
-        Assert.assertEquals(bobIQ.getBoBHash().getHash(), createdBoBIQ.getBoBHash().getHash());
-        Assert.assertEquals(bobIQ.getBoBHash().getHashType(), createdBoBIQ.getBoBHash().getHashType());
-        Assert.assertEquals(bobIQ.getBoBData().getMaxAge(), createdBoBIQ.getBoBData().getMaxAge());
-        Assert.assertEquals(bobIQ.getBoBData().getType(), createdBoBIQ.getBoBData().getType());
-        Assert.assertEquals(bobIQ.getBoBData().getContentBase64Encoded(), createdBoBIQ.getBoBData().getContentBase64Encoded());
-        Assert.assertEquals(bobIQ.toXML(StreamOpen.CLIENT_NAMESPACE).toString(), createdBoBIQ.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
+        assertEquals(bobIQ.getContentId().getHash(), createdBoBIQ.getContentId().getHash());
+        assertEquals(bobIQ.getContentId().getHashType(), createdBoBIQ.getContentId().getHashType());
+        assertEquals(bobIQ.getBoBData().getMaxAge(), createdBoBIQ.getBoBData().getMaxAge());
+        assertEquals(bobIQ.getBoBData().getType(), createdBoBIQ.getBoBData().getType());
+        assertEquals(bobIQ.getBoBData().getContentBase64Encoded(), createdBoBIQ.getBoBData().getContentBase64Encoded());
+        assertEquals(bobIQ.toXML(StreamOpen.CLIENT_NAMESPACE).toString(), createdBoBIQ.toXML(StreamOpen.CLIENT_NAMESPACE).toString());
     }
 
 }

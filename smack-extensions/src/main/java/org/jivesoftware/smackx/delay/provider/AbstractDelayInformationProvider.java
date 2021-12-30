@@ -1,6 +1,6 @@
 /**
  *
- * Copyright © 2014 Florian Schmaus
+ * Copyright © 2014-2019 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,50 +17,42 @@
 package org.jivesoftware.smackx.delay.provider;
 
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.Date;
 
-import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.packet.XmlEnvironment;
+import org.jivesoftware.smack.parsing.SmackParsingException.SmackTextParseException;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.delay.packet.DelayInformation;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 public abstract class AbstractDelayInformationProvider extends ExtensionElementProvider<DelayInformation> {
 
     @Override
     public final DelayInformation parse(XmlPullParser parser,
-                    int initialDepth) throws XmlPullParserException,
-                    IOException, SmackException {
-        String stampString = (parser.getAttributeValue("", "stamp"));
+                    int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException,
+                    IOException, SmackTextParseException {
+        String stampString = parser.getAttributeValue("", "stamp");
         String from = parser.getAttributeValue("", "from");
-        String reason = null;
-        if (!parser.isEmptyElementTag()) {
-            int event = parser.next();
-            switch (event) {
-            case XmlPullParser.TEXT:
-                reason = parser.getText();
-                parser.next();
-                break;
-            case XmlPullParser.END_TAG:
-                reason = "";
-                break;
-            default:
-                throw new IllegalStateException("Unexpected event: " + event);
-            }
-        } else {
+        final String reason;
+        XmlPullParser.Event event = parser.next();
+        switch (event) {
+        case TEXT_CHARACTERS:
+            reason = parser.getText();
             parser.next();
+            break;
+        case END_ELEMENT:
+            reason = null;
+            break;
+        default:
+            // TODO: Should be SmackParseException.
+            throw new IOException("Unexpected event: " + event);
         }
-        Date stamp;
-        try {
-            stamp = parseDate(stampString);
-        } catch (ParseException e) {
-            throw new SmackException(e);
-        }
+
+        Date stamp = parseDate(stampString);
         return new DelayInformation(stamp, from, reason);
     }
 
-    protected abstract Date parseDate(String string) throws ParseException;
+    protected abstract Date parseDate(String string) throws SmackTextParseException;
 }

@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017-2018 Florian Schmaus.
+ * Copyright 2017-2019 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import org.jivesoftware.smack.filter.StanzaExtensionFilter;
 import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.filter.ToTypeFilter;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageView;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.roster.AbstractRosterListener;
@@ -139,22 +140,20 @@ public final class ChatManager extends Manager {
             }
         }, new OrFilter(INCOMING_SMS_FILTER, INCOMING_MESSAGE_FILTER, INCOMING_MMS_FILTER));
 
-        connection.addStanzaInterceptor(new StanzaListener() {
-            @Override
-            public void processStanza(Stanza stanza) {
-                Message message = (Message) stanza;
-                if (!ChatManager.this.shouldAcceptMessage(message)) {
-                    return;
-                }
-
-                final EntityBareJid to = message.getTo().asEntityBareJidOrThrow();
-                final Chat chat = ChatManager.this.chatWith(to);
-
-                for (OutgoingChatMessageListener listener : outgoingListeners) {
-                    listener.newOutgoingMessage(to, message, chat);
-                }
+        connection.addMessageInterceptor(messageBuilder -> {
+            if (!shouldAcceptMessage(messageBuilder)) {
+                return;
             }
-        }, OUTGOING_MESSAGE_FILTER);
+
+            final EntityBareJid to = messageBuilder.getTo().asEntityBareJidOrThrow();
+            final Chat chat = chatWith(to);
+
+            for (OutgoingChatMessageListener listener : outgoingListeners) {
+                listener.newOutgoingMessage(to, messageBuilder, chat);
+            }
+        }, m -> {
+            return OUTGOING_MESSAGE_FILTER.accept(m);
+        });
 
         Roster roster = Roster.getInstanceFor(connection);
         roster.addRosterListener(new AbstractRosterListener() {
@@ -178,7 +177,7 @@ public final class ChatManager extends Manager {
                 }
 
                 final EntityFullJid fullFrom = from.asEntityFullJidIfPossible();
-                if (!chat.lockedResource.equals(fullFrom)) {
+                if (chat.lockedResource.equals(fullFrom)) {
                     return;
                 }
 
@@ -196,8 +195,8 @@ public final class ChatManager extends Manager {
         });
     }
 
-    private boolean shouldAcceptMessage(Message message) {
-        if (!message.getBodies().isEmpty()) {
+    private boolean shouldAcceptMessage(MessageView message) {
+        if (message.hasExtension(Message.Body.QNAME)) {
             return true;
         }
 
@@ -279,7 +278,7 @@ public final class ChatManager extends Manager {
     /**
      * Also notify about messages containing XHTML-IM.
      *
-     * @param xhtmlIm
+     * @param xhtmlIm TODO javadoc me please
      */
     public void setXhmtlImEnabled(boolean xhtmlIm) {
         this.xhtmlIm = xhtmlIm;

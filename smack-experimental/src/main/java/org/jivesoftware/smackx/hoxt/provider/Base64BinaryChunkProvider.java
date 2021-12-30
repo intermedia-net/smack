@@ -18,12 +18,12 @@ package org.jivesoftware.smackx.hoxt.provider;
 
 import java.io.IOException;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.hoxt.packet.Base64BinaryChunk;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Stanza provider for base64 binary chunks.
@@ -34,7 +34,7 @@ import org.xmlpull.v1.XmlPullParserException;
 public class Base64BinaryChunkProvider extends ExtensionElementProvider<Base64BinaryChunk> {
 
     @Override
-    public Base64BinaryChunk parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException {
+    public Base64BinaryChunk parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         String streamId = parser.getAttributeValue("", Base64BinaryChunk.ATTRIBUTE_STREAM_ID);
         String nrString = parser.getAttributeValue("", Base64BinaryChunk.ATTRIBUTE_NR);
         String lastString = parser.getAttributeValue("", Base64BinaryChunk.ATTRIBUTE_LAST);
@@ -49,15 +49,15 @@ public class Base64BinaryChunkProvider extends ExtensionElementProvider<Base64Bi
         boolean done = false;
 
         while (!done) {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
 
-            if (eventType == XmlPullParser.END_TAG) {
+            if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals(Base64BinaryChunk.ELEMENT_CHUNK)) {
                     done = true;
                 } else {
                     throw new IllegalArgumentException("unexpected end tag of: " + parser.getName());
                 }
-            } else if (eventType == XmlPullParser.TEXT) {
+            } else if (eventType == XmlPullParser.Event.TEXT_CHARACTERS) {
                 text = parser.getText();
             } else {
                 throw new IllegalArgumentException("unexpected eventType: " + eventType);

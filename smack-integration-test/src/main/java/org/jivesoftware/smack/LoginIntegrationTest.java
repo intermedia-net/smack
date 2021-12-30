@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
  */
 package org.jivesoftware.smack;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.security.KeyManagementException;
@@ -25,13 +25,12 @@ import java.security.NoSuchAlgorithmException;
 
 import org.jivesoftware.smack.sasl.SASLError;
 import org.jivesoftware.smack.sasl.SASLErrorException;
-import org.jivesoftware.smack.tcp.XMPPTCPConnection;
-import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
+import org.jivesoftware.smack.sasl.packet.SaslNonza;
 import org.jivesoftware.smack.util.StringUtils;
 
 import org.igniterealtime.smack.inttest.AbstractSmackLowLevelIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 
 public class LoginIntegrationTest extends AbstractSmackLowLevelIntegrationTest {
 
@@ -43,29 +42,30 @@ public class LoginIntegrationTest extends AbstractSmackLowLevelIntegrationTest {
      * Check that the server is returning the correct error when trying to login using an invalid
      * (i.e. non-existent) user.
      *
-     * @throws InterruptedException
-     * @throws XMPPException
-     * @throws IOException
-     * @throws SmackException
-     * @throws NoSuchAlgorithmException
-     * @throws KeyManagementException
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws XMPPException if an XMPP protocol error was received.
+     * @throws IOException if an I/O error occurred.
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws NoSuchAlgorithmException if no such algorithm is available.
+     * @throws KeyManagementException if there was a key mangement error.
      */
     @SmackIntegrationTest
     public void testInvalidLogin() throws SmackException, IOException, XMPPException,
                     InterruptedException, KeyManagementException, NoSuchAlgorithmException {
         final String nonExistentUserString = StringUtils.insecureRandomString(24);
-        XMPPTCPConnectionConfiguration conf = getConnectionConfiguration().setUsernameAndPassword(
-                        nonExistentUserString, "invalidPassword").build();
+        final String invalidPassword = "invalidPassword";
 
-        XMPPTCPConnection connection = new XMPPTCPConnection(conf);
+        AbstractXMPPConnection connection = getUnconnectedConnection();
         connection.connect();
 
         try {
-            connection.login();
-            fail("Exception expected");
-        }
-        catch (SASLErrorException e) {
-            assertEquals(SASLError.not_authorized, e.getSASLFailure().getSASLError());
+            SASLErrorException saslErrorException = assertThrows(SASLErrorException.class,
+                            () -> connection.login(nonExistentUserString, invalidPassword));
+
+            SaslNonza.SASLFailure saslFailure = saslErrorException.getSASLFailure();
+            assertEquals(SASLError.not_authorized, saslFailure.getSASLError());
+        } finally {
+            connection.disconnect();
         }
     }
 

@@ -149,6 +149,8 @@ public final class IoTDiscoveryManager extends Manager {
 
         connection.registerIQRequestHandler(new AbstractIqRequestHandler(IoTDisowned.ELEMENT, IoTDisowned.NAMESPACE,
                         IQ.Type.set, Mode.sync) {
+
+            @SuppressWarnings("ObjectToString")
             @Override
             public IQ handleIQRequest(IQ iqRequest) {
                 if (!isRegistry(iqRequest.getFrom())) {
@@ -209,10 +211,10 @@ public final class IoTDiscoveryManager extends Manager {
      * Try to find an XMPP IoT registry.
      *
      * @return the JID of a Thing Registry if one could be found, <code>null</code> otherwise.
-     * @throws InterruptedException
-     * @throws NotConnectedException
-     * @throws XMPPErrorException
-     * @throws NoResponseException
+     * @throws InterruptedException if the calling thread was interrupted.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NoResponseException if there was no response from the remote entity.
      * @see <a href="http://xmpp.org/extensions/xep-0347.html#findingregistry">XEP-0347 § 3.5 Finding Thing Registry</a>
      */
     public Jid findRegistry()
@@ -281,10 +283,10 @@ public final class IoTDiscoveryManager extends Manager {
      * @param metaTags a collection of meta tags used to identify the thing.
      * @param publicThing if this is a public thing.
      * @return a {@link IoTClaimed} if successful.
-     * @throws NoResponseException
-     * @throws XMPPErrorException
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NoResponseException if there was no response from the remote entity.
+     * @throws XMPPErrorException if there was an XMPP error returned.
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public IoTClaimed claimThing(Jid registry, Collection<Tag> metaTags, boolean publicThing) throws NoResponseException, XMPPErrorException, NotConnectedException, InterruptedException {
         interactWithRegistry(registry);

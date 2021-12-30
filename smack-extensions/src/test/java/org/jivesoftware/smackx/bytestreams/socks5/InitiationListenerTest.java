@@ -16,7 +16,7 @@
  */
 package org.jivesoftware.smackx.bytestreams.socks5;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -25,19 +25,19 @@ import static org.mockito.Mockito.verify;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.StanzaError;
+import org.jivesoftware.smack.test.util.Whitebox;
 
 import org.jivesoftware.smackx.bytestreams.BytestreamRequest;
 import org.jivesoftware.smackx.bytestreams.socks5.packet.Bytestream;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.DomainBareJid;
 import org.jxmpp.jid.EntityFullJid;
 import org.jxmpp.jid.JidTestUtil;
 import org.jxmpp.jid.impl.JidCreate;
 import org.mockito.ArgumentCaptor;
-import org.powermock.reflect.Whitebox;
 
 /**
  * Test for the InitiationListener class.
@@ -50,7 +50,6 @@ public class InitiationListenerTest {
 
     private static final EntityFullJid initiatorJID = JidTestUtil.DUMMY_AT_EXAMPLE_ORG_SLASH_DUMMYRESOURCE;
     private static final EntityFullJid targetJID = JidTestUtil.FULL_JID_1_RESOURCE_1;
-    private static final DomainBareJid xmppServer = JidTestUtil.DOMAIN_BARE_JID_1;
     private static final DomainBareJid proxyJID = JidTestUtil.MUC_EXAMPLE_ORG;
     private static final String proxyAddress = "127.0.0.1";
     private static final String sessionID = "session_id";
@@ -63,7 +62,7 @@ public class InitiationListenerTest {
     /**
      * Initialize fields used in the tests.
      */
-    @Before
+    @BeforeEach
     public void setup() {
 
         // mock connection
@@ -76,7 +75,7 @@ public class InitiationListenerTest {
         byteStreamManager = Socks5BytestreamManager.getBytestreamManager(connection);
 
         // get the InitiationListener from Socks5ByteStreamManager
-        initiationListener = Whitebox.getInternalState(byteStreamManager, InitiationListener.class);
+        initiationListener = Whitebox.getInternalState(byteStreamManager, "initiationListener", InitiationListener.class);
 
         // create a SOCKS5 Bytestream initiation packet
         initBytestream = Socks5PacketUtils.createBytestreamInitiation(initiatorJID, targetJID,
@@ -227,7 +226,6 @@ public class InitiationListenerTest {
      */
     @Test
     public void shouldInvokeAllRequestsListenerIfUserListenerExists() throws Exception {
-
         // add listener for all request
         Socks5BytestreamListener allRequestsListener = mock(Socks5BytestreamListener.class);
         byteStreamManager.addIncomingBytestreamListener(allRequestsListener);
@@ -241,15 +239,11 @@ public class InitiationListenerTest {
         initiationListener.handleIQRequest(initBytestream);
 
         ArgumentCaptor<BytestreamRequest> byteStreamRequest = ArgumentCaptor.forClass(BytestreamRequest.class);
-
         // assert all requests listener is called
-        byteStreamRequest = ArgumentCaptor.forClass(BytestreamRequest.class);
         verify(allRequestsListener, timeout(TIMEOUT)).incomingBytestreamRequest(byteStreamRequest.capture());
 
         // assert user request listener is not called
         verify(userRequestsListener, never()).incomingBytestreamRequest(byteStreamRequest.capture());
-
-
     }
 
     /**

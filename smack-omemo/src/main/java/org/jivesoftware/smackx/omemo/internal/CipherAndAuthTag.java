@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Paul Schaub
+ * Copyright 2017 Paul Schaub, 2019-2021 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,14 @@
  */
 package org.jivesoftware.smackx.omemo.internal;
 
-import static org.jivesoftware.smackx.omemo.util.OmemoConstants.Crypto.CIPHERMODE;
-import static org.jivesoftware.smackx.omemo.util.OmemoConstants.Crypto.KEYTYPE;
-import static org.jivesoftware.smackx.omemo.util.OmemoConstants.Crypto.PROVIDER;
-
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 
-import javax.crypto.Cipher;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-
-import org.jivesoftware.smackx.omemo.exceptions.CryptoFailedException;
 
 /**
  * Encapsulate Cipher and AuthTag.
@@ -38,28 +32,19 @@ import org.jivesoftware.smackx.omemo.exceptions.CryptoFailedException;
  */
 public class CipherAndAuthTag {
     private final byte[] key, iv, authTag;
+    private final boolean wasPreKey;
 
-    public CipherAndAuthTag(byte[] key, byte[] iv, byte[] authTag) throws CryptoFailedException {
+    public CipherAndAuthTag(byte[] key, byte[] iv, byte[] authTag, boolean wasPreKey) {
         this.authTag = authTag;
         this.key = key;
         this.iv = iv;
+        this.wasPreKey = wasPreKey;
     }
 
-    public Cipher getCipher() throws CryptoFailedException {
-
-        Cipher cipher;
-        try {
-            cipher = Cipher.getInstance(CIPHERMODE, PROVIDER);
-            SecretKeySpec keySpec = new SecretKeySpec(key, KEYTYPE);
-            IvParameterSpec ivSpec = new IvParameterSpec(iv);
-            cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
-        } catch (NoSuchAlgorithmException | java.security.InvalidKeyException |
-                InvalidAlgorithmParameterException |
-                NoSuchPaddingException | NoSuchProviderException e) {
-            throw new CryptoFailedException(e);
-        }
-
-        return cipher;
+    public String decrypt(byte[] ciphertext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException,
+                    NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException {
+        byte[] plaintext = OmemoAesCipher.decryptAesGcmNoPadding(ciphertext, key, iv);
+        return new String(plaintext, StandardCharsets.UTF_8);
     }
 
     public byte[] getAuthTag() {
@@ -81,5 +66,9 @@ public class CipherAndAuthTag {
             return iv.clone();
         }
         return null;
+    }
+
+    public boolean wasPreKeyEncrypted() {
+        return wasPreKey;
     }
 }

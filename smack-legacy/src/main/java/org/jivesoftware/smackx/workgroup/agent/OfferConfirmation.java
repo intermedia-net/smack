@@ -23,11 +23,12 @@ import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.SimpleIQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 
 public class OfferConfirmation extends SimpleIQ {
@@ -63,29 +64,20 @@ public class OfferConfirmation extends SimpleIQ {
     public static class Provider extends IQProvider<OfferConfirmation> {
 
         @Override
-        public OfferConfirmation parse(XmlPullParser parser, int initialDepth)
+        public OfferConfirmation parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
                         throws XmlPullParserException, IOException {
             final OfferConfirmation confirmation = new OfferConfirmation();
 
             boolean done = false;
             while (!done) {
                 parser.next();
-                String elementName = parser.getName();
-                if (parser.getEventType() == XmlPullParser.START_TAG && "user-jid".equals(elementName)) {
-                    try {
-                        confirmation.setUserJID(parser.nextText());
-                    }
-                    catch (NumberFormatException nfe) {
-                    }
+                if (parser.getEventType() == XmlPullParser.Event.START_ELEMENT && "user-jid".equals(parser.getName())) {
+                    confirmation.setUserJID(parser.nextText());
                 }
-                else if (parser.getEventType() == XmlPullParser.START_TAG && "session-id".equals(elementName)) {
-                    try {
-                        confirmation.setSessionID(Long.valueOf(parser.nextText()));
-                    }
-                    catch (NumberFormatException nfe) {
-                    }
+                else if (parser.getEventType() == XmlPullParser.Event.START_ELEMENT && "session-id".equals(parser.getName())) {
+                    confirmation.setSessionID(Long.valueOf(parser.nextText()));
                 }
-                else if (parser.getEventType() == XmlPullParser.END_TAG && "offer-confirmation".equals(elementName)) {
+                else if (parser.getEventType() == XmlPullParser.Event.END_ELEMENT && "offer-confirmation".equals(parser.getName())) {
                     done = true;
                 }
             }

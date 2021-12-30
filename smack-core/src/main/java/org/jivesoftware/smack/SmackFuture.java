@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017-2018 Florian Schmaus
+ * Copyright 2017-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,30 @@
  */
 package org.jivesoftware.smack;
 
+import java.io.IOException;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.util.Collection;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.net.SocketFactory;
 
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.util.CallbackRecipient;
+import org.jivesoftware.smack.util.Consumer;
 import org.jivesoftware.smack.util.ExceptionCallback;
 import org.jivesoftware.smack.util.SuccessCallback;
 
 public abstract class SmackFuture<V, E extends Exception> implements Future<V>, CallbackRecipient<V, E> {
+
+    private static final Logger LOGGER = Logger.getLogger(SmackFuture.class.getName());
 
     private boolean cancelled;
 
@@ -38,6 +50,8 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
     private SuccessCallback<V> successCallback;
 
     private ExceptionCallback<E> exceptionCallback;
+
+    private Consumer<SmackFuture<V, E>> completionCallback;
 
     @Override
     public final synchronized boolean cancel(boolean mayInterruptIfRunning) {
@@ -78,8 +92,13 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
         return this;
     }
 
+    public void onCompletion(Consumer<SmackFuture<V, E>> completionCallback) {
+        this.completionCallback = completionCallback;
+        maybeInvokeCallbacks();
+    }
+
     private V getOrThrowExecutionException() throws ExecutionException {
-        assert (result != null || exception != null || cancelled);
+        assert result != null || exception != null || cancelled;
         if (result != null) {
             return result;
         }
@@ -87,14 +106,14 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
             throw new ExecutionException(exception);
         }
 
-        assert (cancelled);
+        assert cancelled;
         throw new CancellationException();
     }
 
     @Override
     public final synchronized V get() throws InterruptedException, ExecutionException {
         while (result == null && exception == null && !cancelled) {
-            wait();
+            futureWait();
         }
 
         return getOrThrowExecutionException();
@@ -102,7 +121,7 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
 
     public final synchronized V getOrThrow() throws E, InterruptedException {
         while (result == null && exception == null && !cancelled) {
-            wait();
+            futureWait();
         }
 
         if (exception != null) {
@@ -124,7 +143,7 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
         while (result != null && exception != null) {
             final long waitTimeRemaining = deadline - System.currentTimeMillis();
             if (waitTimeRemaining > 0) {
-                wait(waitTimeRemaining);
+                futureWait(waitTimeRemaining);
             }
         }
 
@@ -139,9 +158,17 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
         return getOrThrowExecutionException();
     }
 
+    public V getIfAvailable() {
+        return result;
+    }
+
     protected final synchronized void maybeInvokeCallbacks() {
         if (cancelled) {
             return;
+        }
+
+        if ((result != null || exception != null) && completionCallback != null) {
+            completionCallback.accept(this);
         }
 
         if (result != null && successCallback != null) {
@@ -162,6 +189,15 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
         }
     }
 
+    protected final void futureWait() throws InterruptedException {
+        futureWait(0);
+    }
+
+    @SuppressWarnings("WaitNotInLoop")
+    protected void futureWait(long timeout) throws InterruptedException {
+        wait(timeout);
+    }
+
     public static class InternalSmackFuture<V, E extends Exception> extends SmackFuture<V, E> {
         public final synchronized void setResult(V result) {
             this.result = result;
@@ -175,6 +211,64 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
             this.notifyAll();
 
             maybeInvokeCallbacks();
+        }
+    }
+
+    public static class SocketFuture extends InternalSmackFuture<Socket, IOException> {
+        private final Socket socket;
+
+        private final Object wasInterruptedLock = new Object();
+
+        private boolean wasInterrupted;
+
+        public SocketFuture(SocketFactory socketFactory) throws IOException {
+            socket = socketFactory.createSocket();
+        }
+
+        @Override
+        protected void futureWait(long timeout) throws InterruptedException {
+            try {
+                super.futureWait(timeout);
+            } catch (InterruptedException interruptedException) {
+                synchronized (wasInterruptedLock) {
+                    wasInterrupted = true;
+                    if (!socket.isClosed()) {
+                        closeSocket();
+                    }
+                }
+                throw interruptedException;
+            }
+        }
+
+        public void connectAsync(final SocketAddress socketAddress, final int timeout) {
+            AbstractXMPPConnection.asyncGo(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        socket.connect(socketAddress, timeout);
+                    }
+                    catch (IOException e) {
+                        setException(e);
+                        return;
+                    }
+                    synchronized (wasInterruptedLock) {
+                        if (wasInterrupted) {
+                            closeSocket();
+                            return;
+                        }
+                    }
+                    setResult(socket);
+                }
+            });
+        }
+
+        private void closeSocket() {
+            try {
+                socket.close();
+            }
+            catch (IOException ioException) {
+                LOGGER.log(Level.WARNING, "Could not close socket", ioException);
+            }
         }
     }
 
@@ -216,7 +310,7 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
      * A simple version of InternalSmackFuture which implements isNonFatalException(E) as always returning
      * <code>false</code> method.
      *
-     * @param <V>
+     * @param <V> the return value of the future.
      */
     public abstract static class SimpleInternalProcessStanzaSmackFuture<V, E extends Exception>
                     extends InternalProcessStanzaSmackFuture<V, E> {
@@ -232,4 +326,12 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
         return future;
     }
 
+    public static boolean await(Collection<? extends SmackFuture<?, ?>> futures, long timeout, TimeUnit unit) throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(futures.size());
+        for (SmackFuture<?, ?> future : futures) {
+            future.onCompletion(f -> latch.countDown());
+        }
+
+        return latch.await(timeout, unit);
+    }
 }

@@ -20,15 +20,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.mam.element.MamPrefsIQ;
 import org.jivesoftware.smackx.mam.element.MamPrefsIQ.DefaultBehavior;
 
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.impl.JidCreate;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * MAM Preferences IQ Provider class.
@@ -41,7 +42,7 @@ import org.xmlpull.v1.XmlPullParserException;
 public class MamPrefsIQProvider extends IQProvider<MamPrefsIQ> {
 
     @Override
-    public MamPrefsIQ parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException {
+    public MamPrefsIQ parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         String iqType = parser.getAttributeValue("", "type");
         String defaultBehaviorString = parser.getAttributeValue("", "default");
         DefaultBehavior defaultBehavior = null;
@@ -57,10 +58,10 @@ public class MamPrefsIQProvider extends IQProvider<MamPrefsIQ> {
         List<Jid> neverJids = null;
 
         outerloop: while (true) {
-            final int eventType = parser.next();
-            final String name = parser.getName();
+            final XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
+                final String name = parser.getName();
                 switch (name) {
                 case "always":
                     alwaysJids = iterateJids(parser);
@@ -70,10 +71,13 @@ public class MamPrefsIQProvider extends IQProvider<MamPrefsIQ> {
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }
@@ -87,10 +91,10 @@ public class MamPrefsIQProvider extends IQProvider<MamPrefsIQ> {
         int initialDepth = parser.getDepth();
 
         outerloop: while (true) {
-            final int eventType = parser.next();
-            final String name = parser.getName();
+            final XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
+                final String name = parser.getName();
                 switch (name) {
                 case "jid":
                     parser.next();
@@ -98,10 +102,13 @@ public class MamPrefsIQProvider extends IQProvider<MamPrefsIQ> {
                     break;
                 }
                 break;
-            case  XmlPullParser.END_TAG:
+            case  END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }

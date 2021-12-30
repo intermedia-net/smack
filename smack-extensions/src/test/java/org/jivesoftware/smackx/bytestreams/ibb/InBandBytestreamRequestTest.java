@@ -16,8 +16,8 @@
  */
 package org.jivesoftware.smackx.bytestreams.ibb;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -25,12 +25,12 @@ import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.StanzaError;
+import org.jivesoftware.smack.test.util.SmackTestSuite;
 
-import org.jivesoftware.smackx.InitExtensions;
 import org.jivesoftware.smackx.bytestreams.ibb.packet.Open;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.JidTestUtil;
 import org.mockito.ArgumentCaptor;
@@ -40,7 +40,7 @@ import org.mockito.ArgumentCaptor;
  *
  * @author Henning Staib
  */
-public class InBandBytestreamRequestTest extends InitExtensions {
+public class InBandBytestreamRequestTest extends SmackTestSuite {
 
     private static final Jid initiatorJID = JidTestUtil.DUMMY_AT_EXAMPLE_ORG_SLASH_DUMMYRESOURCE;
     private static final Jid targetJID = JidTestUtil.FULL_JID_1_RESOURCE_1;
@@ -53,7 +53,7 @@ public class InBandBytestreamRequestTest extends InitExtensions {
     /**
      * Initialize fields used in the tests.
      */
-    @Before
+    @BeforeEach
     public void setup() {
 
         // mock connection
@@ -71,8 +71,8 @@ public class InBandBytestreamRequestTest extends InitExtensions {
 
     /**
      * Test reject() method.
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     @Test
     public void shouldReplyWithErrorIfRequestIsRejected() throws NotConnectedException, InterruptedException {

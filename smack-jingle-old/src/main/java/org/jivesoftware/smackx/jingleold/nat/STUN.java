@@ -27,15 +27,19 @@ import org.jivesoftware.smack.StanzaCollector;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.SimpleIQ;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.provider.ProviderManager;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 import org.jivesoftware.smackx.disco.packet.DiscoverItems;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
+import org.jxmpp.jid.DomainBareJid;
+import org.jxmpp.jid.impl.JidCreate;
+import org.jxmpp.stringprep.XmppStringprepException;
 
 /**
  * STUN IQ Stanza used to request and retrieve a STUN server and port to make p2p connections easier. STUN is usually used by Jingle Media Transmission between two parties that are behind NAT.
@@ -101,7 +105,7 @@ public class STUN extends SimpleIQ {
     /**
      * Set Public Ip returned from the XMPP server
      *
-     * @param publicIp
+     * @param publicIp TODO javadoc me please
      */
     private void setPublicIp(String publicIp) {
         this.publicIp = publicIp;
@@ -116,17 +120,17 @@ public class STUN extends SimpleIQ {
     public static class Provider extends IQProvider<STUN> {
 
         @Override
-        public STUN parse(XmlPullParser parser, int initialDepth)
-                        throws SmackException, XmlPullParserException,
+        public STUN parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
+                        throws XmlPullParserException,
                         IOException {
 
             boolean done = false;
 
-            int eventType;
+            XmlPullParser.Event eventType;
             String elementName;
 
             if (!parser.getNamespace().equals(NAMESPACE))
-                throw new SmackException("Not a STUN packet");
+                throw new IOException("Not a STUN packet");
 
             STUN iq = new STUN();
 
@@ -135,7 +139,7 @@ public class STUN extends SimpleIQ {
                 eventType = parser.next();
                 elementName = parser.getName();
 
-                if (eventType == XmlPullParser.START_TAG) {
+                if (eventType == XmlPullParser.Event.START_ELEMENT) {
                     if (elementName.equals("server")) {
                         String host = null;
                         String port = null;
@@ -158,7 +162,7 @@ public class STUN extends SimpleIQ {
                             iq.setPublicIp(host);
                     }
                 }
-                else if (eventType == XmlPullParser.END_TAG) {
+                else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                     if (parser.getName().equals(ELEMENT_NAME)) {
                         done = true;
                     }
@@ -172,12 +176,11 @@ public class STUN extends SimpleIQ {
      * Get a new STUN Server Address and port from the server.
      * If a error occurs or the server don't support STUN Service, null is returned.
      *
-     * @param connection
+     * @param connection TODO javadoc me please
      * @return the STUN server address
-     * @throws NotConnectedException
-     * @throws InterruptedException
+     * @throws NotConnectedException if the XMPP connection is not connected.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
-    @SuppressWarnings("deprecation")
     public static STUN getSTUNServer(XMPPConnection connection) throws NotConnectedException, InterruptedException {
 
         if (!connection.isConnected()) {
@@ -185,7 +188,13 @@ public class STUN extends SimpleIQ {
         }
 
         STUN stunPacket = new STUN();
-        stunPacket.setTo(DOMAIN + "." + connection.getXMPPServiceDomain());
+        DomainBareJid jid;
+        try {
+            jid = JidCreate.domainBareFrom(DOMAIN + "." + connection.getXMPPServiceDomain());
+        } catch (XmppStringprepException e) {
+            throw new AssertionError(e);
+        }
+        stunPacket.setTo(jid);
 
         StanzaCollector collector = connection.createStanzaCollectorAndSend(stunPacket);
 
@@ -202,9 +211,9 @@ public class STUN extends SimpleIQ {
      *
      * @param connection the connection
      * @return true if the server support STUN
-     * @throws SmackException
-     * @throws XMPPException
-     * @throws InterruptedException
+     * @throws SmackException if Smack detected an exceptional situation.
+     * @throws XMPPException if an XMPP protocol error was received.
+     * @throws InterruptedException if the calling thread was interrupted.
      */
     public static boolean serviceAvailable(XMPPConnection connection) throws XMPPException, SmackException, InterruptedException {
 

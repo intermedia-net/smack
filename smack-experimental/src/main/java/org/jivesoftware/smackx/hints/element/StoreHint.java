@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus
+ * Copyright 2017-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@
  */
 package org.jivesoftware.smackx.hints.element;
 
-import org.jivesoftware.smack.packet.Message;
+import javax.xml.namespace.QName;
+
+import org.jivesoftware.smack.packet.MessageBuilder;
+import org.jivesoftware.smack.packet.MessageView;
 
 /**
  * A "store" hint. Messages with this hint should be stored in permanent stores or archives.
@@ -29,6 +32,8 @@ public final class StoreHint extends MessageProcessingHint {
 
     public static final String ELEMENT = "store";
 
+    public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
     private StoreHint() {
     }
 
@@ -38,7 +43,7 @@ public final class StoreHint extends MessageProcessingHint {
     }
 
     @Override
-    public String toXML(String enclosingNamespace) {
+    public String toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
         return '<' + ELEMENT + " xmlns='" + NAMESPACE + "'/>";
     }
 
@@ -47,15 +52,15 @@ public final class StoreHint extends MessageProcessingHint {
         return MessageProcessingHintType.store;
     }
 
-    public static StoreHint from(Message message) {
-        return message.getExtension(ELEMENT, NAMESPACE);
+    public static StoreHint from(MessageView message) {
+        return message.getExtension(StoreHint.class);
     }
 
-    public static boolean hasHint(Message message) {
+    public static boolean hasHint(MessageView message) {
         return from(message) != null;
     }
 
-    public static void set(Message message) {
+    public static void set(MessageBuilder message) {
         message.overrideExtension(INSTANCE);
     }
 }

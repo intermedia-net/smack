@@ -18,14 +18,13 @@ package org.jivesoftware.smackx.jingleold.provider;
 
 import java.io.IOException;
 
-import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.jingleold.media.PayloadType;
 import org.jivesoftware.smackx.jingleold.packet.JingleDescription;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Parser for a Jingle description.
@@ -37,7 +36,7 @@ public abstract class JingleDescriptionProvider extends ExtensionElementProvider
     /**
      * Parse a iq/jingle/description/payload-type element.
      *
-     * @param parser
+     * @param parser TODO javadoc me please
      *            the input to parse
      * @return a payload type element
      */
@@ -64,31 +63,29 @@ public abstract class JingleDescriptionProvider extends ExtensionElementProvider
     /**
      * Parse a iq/jingle/description element.
      *
-     * @param parser
+     * @param parser TODO javadoc me please
      *            the input to parse
      * @return a description element
-     * @throws SmackException
-     * @throws IOException
-     * @throws XmlPullParserException
+     * @throws IOException if an I/O error occurred.
+     * @throws XmlPullParserException if an error in the XML parser occurred.
      */
     @Override
-    public JingleDescription parse(XmlPullParser parser, int initialDepth) throws SmackException, XmlPullParserException, IOException {
-        boolean done = false;
+    public JingleDescription parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         JingleDescription desc = getInstance();
 
-        while (!done) {
-            int eventType = parser.next();
-            String name = parser.getName();
-
-            if (eventType == XmlPullParser.START_TAG) {
+        outerloop: while (true) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
+                String name = parser.getName();
                 if (name.equals(PayloadType.NODENAME)) {
                     desc.addPayloadType(parsePayload(parser));
                 } else {
-                    throw new SmackException("Unknow element \"" + name + "\" in content.");
+                    // TODO: Should be SmackParseException.
+                    throw new IOException("Unknow element \"" + name + "\" in content.");
                 }
-            } else if (eventType == XmlPullParser.END_TAG) {
-                if (name.equals(JingleDescription.NODENAME)) {
-                    done = true;
+            } else if (eventType == XmlPullParser.Event.END_ELEMENT) {
+                if (parser.getDepth() == initialDepth) {
+                    break outerloop;
                 }
             }
         }
@@ -98,6 +95,8 @@ public abstract class JingleDescriptionProvider extends ExtensionElementProvider
     /**
      * Return a new instance of this class. Subclasses must overwrite this
      * method.
+     *
+     * @return the jingle description.
      */
     protected abstract JingleDescription getInstance();
 

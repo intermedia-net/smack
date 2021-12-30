@@ -25,12 +25,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jxmpp.jid.Jid;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * An IQProvider for transcripts summaries.
@@ -46,19 +47,19 @@ public class TranscriptsProvider extends IQProvider<Transcripts> {
     }
 
     @Override
-    public Transcripts parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException {
+    public Transcripts parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         Jid userID = ParserUtils.getJidAttribute(parser, "userID");
         List<Transcripts.TranscriptSummary> summaries = new ArrayList<>();
 
         boolean done = false;
         while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (parser.getName().equals("transcript")) {
                     summaries.add(parseSummary(parser));
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("transcripts")) {
                     done = true;
                 }
@@ -68,8 +69,8 @@ public class TranscriptsProvider extends IQProvider<Transcripts> {
         return new Transcripts(userID, summaries);
     }
 
-    private Transcripts.TranscriptSummary parseSummary(XmlPullParser parser) throws IOException,
-            XmlPullParserException {
+    private static Transcripts.TranscriptSummary parseSummary(XmlPullParser parser)
+                    throws IOException, XmlPullParserException {
         String sessionID =  parser.getAttributeValue("", "sessionID");
         Date joinTime = null;
         Date leftTime = null;
@@ -77,8 +78,8 @@ public class TranscriptsProvider extends IQProvider<Transcripts> {
 
         boolean done = false;
         while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (parser.getName().equals("joinTime")) {
                     try {
                         synchronized (UTC_FORMAT) {
@@ -97,7 +98,7 @@ public class TranscriptsProvider extends IQProvider<Transcripts> {
                     agents = parseAgents(parser);
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("transcript")) {
                     done = true;
                 }
@@ -107,7 +108,8 @@ public class TranscriptsProvider extends IQProvider<Transcripts> {
         return new Transcripts.TranscriptSummary(sessionID, joinTime, leftTime, agents);
     }
 
-    private List<Transcripts.AgentDetail> parseAgents(XmlPullParser parser) throws IOException, XmlPullParserException {
+    private static List<Transcripts.AgentDetail> parseAgents(XmlPullParser parser)
+                    throws IOException, XmlPullParserException {
         List<Transcripts.AgentDetail> agents = new ArrayList<>();
         String agentJID =  null;
         Date joinTime = null;
@@ -115,8 +117,8 @@ public class TranscriptsProvider extends IQProvider<Transcripts> {
 
         boolean done = false;
         while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (parser.getName().equals("agentJID")) {
                     agentJID = parser.nextText();
                 }
@@ -140,7 +142,7 @@ public class TranscriptsProvider extends IQProvider<Transcripts> {
                     leftTime = null;
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("agents")) {
                     done = true;
                 }

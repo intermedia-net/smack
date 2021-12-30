@@ -21,6 +21,7 @@ import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.StanzaError;
+
 import org.jivesoftware.smackx.jingle.element.Jingle;
 import org.jivesoftware.smackx.jingle.element.JingleAction;
 import org.jivesoftware.smackx.jingle.element.JingleContent;
@@ -50,7 +51,7 @@ public class JingleUtil {
                                         JingleContentDescription description,
                                         JingleContentTransport transport) {
 
-        Jingle.Builder jb = Jingle.getBuilder();
+        Jingle.Builder jb = Jingle.builder(connection);
         jb.setAction(JingleAction.session_initiate)
                 .setSessionId(sessionId)
                 .setInitiator(connection.getUser());
@@ -115,7 +116,7 @@ public class JingleUtil {
                                       JingleContentDescription description,
                                       JingleContentTransport transport) {
 
-        Jingle.Builder jb = Jingle.getBuilder();
+        Jingle.Builder jb = Jingle.builder(connection);
         jb.setResponder(connection.getUser())
                 .setAction(JingleAction.session_accept)
                 .setSessionId(sessionId);
@@ -150,7 +151,7 @@ public class JingleUtil {
     }
 
     public Jingle createSessionTerminate(FullJid recipient, String sessionId, JingleReason reason) {
-        Jingle.Builder jb = Jingle.getBuilder();
+        Jingle.Builder jb = Jingle.builder(connection);
         jb.setAction(JingleAction.session_terminate)
                 .setSessionId(sessionId)
                 .setReason(reason);
@@ -229,7 +230,7 @@ public class JingleUtil {
 
     public Jingle createSessionTerminateContentCancel(FullJid recipient, String sessionId,
                                                       JingleContent.Creator contentCreator, String contentName) {
-        Jingle.Builder jb = Jingle.getBuilder();
+        Jingle.Builder jb = Jingle.builder(connection);
         jb.setAction(JingleAction.session_terminate)
                 .setSessionId(sessionId);
 
@@ -311,7 +312,7 @@ public class JingleUtil {
     }
 
     public Jingle createSessionPing(FullJid recipient, String sessionId) {
-        Jingle.Builder jb = Jingle.getBuilder();
+        Jingle.Builder jb = Jingle.builder(connection);
         jb.setSessionId(sessionId)
                 .setAction(JingleAction.session_info);
 
@@ -340,7 +341,7 @@ public class JingleUtil {
     public Jingle createTransportReplace(FullJid recipient, FullJid initiator, String sessionId,
                                          JingleContent.Creator contentCreator, String contentName,
                                          JingleContentTransport transport) {
-        Jingle.Builder jb = Jingle.getBuilder();
+        Jingle.Builder jb = Jingle.builder(connection);
         jb.setInitiator(initiator)
                 .setSessionId(sessionId)
                 .setAction(JingleAction.transport_replace);
@@ -367,7 +368,7 @@ public class JingleUtil {
     public Jingle createTransportAccept(FullJid recipient, FullJid initiator, String sessionId,
                                         JingleContent.Creator contentCreator, String contentName,
                                         JingleContentTransport transport) {
-        Jingle.Builder jb = Jingle.getBuilder();
+        Jingle.Builder jb = Jingle.builder(connection);
         jb.setAction(JingleAction.transport_accept)
                 .setInitiator(initiator)
                 .setSessionId(sessionId);
@@ -394,7 +395,7 @@ public class JingleUtil {
     public Jingle createTransportReject(FullJid recipient, FullJid initiator, String sessionId,
                                         JingleContent.Creator contentCreator, String contentName,
                                         JingleContentTransport transport) {
-        Jingle.Builder jb = Jingle.getBuilder();
+        Jingle.Builder jb = Jingle.builder(connection);
         jb.setAction(JingleAction.transport_reject)
                 .setInitiator(initiator)
                 .setSessionId(sessionId);
@@ -423,9 +424,10 @@ public class JingleUtil {
      */
 
     public IQ createErrorUnknownSession(Jingle request) {
-        StanzaError.Builder error = StanzaError.getBuilder();
-        error.setCondition(StanzaError.Condition.item_not_found)
-                .addExtension(JingleError.UNKNOWN_SESSION);
+        StanzaError error = StanzaError.getBuilder()
+                        .setCondition(StanzaError.Condition.item_not_found)
+                        .addExtension(JingleError.UNKNOWN_SESSION)
+                        .build();
         return IQ.createErrorResponse(request, error);
     }
 
@@ -444,9 +446,10 @@ public class JingleUtil {
     }
 
     public IQ createErrorUnsupportedInfo(Jingle request) {
-        StanzaError.Builder error = StanzaError.getBuilder();
-        error.setCondition(StanzaError.Condition.feature_not_implemented)
-                .addExtension(JingleError.UNSUPPORTED_INFO);
+        StanzaError error = StanzaError.getBuilder()
+                        .setCondition(StanzaError.Condition.feature_not_implemented)
+                        .addExtension(JingleError.UNSUPPORTED_INFO)
+                        .build();
         return IQ.createErrorResponse(request, error);
     }
 
@@ -456,9 +459,10 @@ public class JingleUtil {
     }
 
     public IQ createErrorTieBreak(Jingle request) {
-        StanzaError.Builder error = StanzaError.getBuilder();
-        error.setCondition(StanzaError.Condition.conflict)
-                .addExtension(JingleError.TIE_BREAK);
+        StanzaError error = StanzaError.getBuilder()
+                        .setCondition(StanzaError.Condition.conflict)
+                        .addExtension(JingleError.TIE_BREAK)
+                        .build();
         return IQ.createErrorResponse(request, error);
     }
 
@@ -468,9 +472,10 @@ public class JingleUtil {
     }
 
     public IQ createErrorOutOfOrder(Jingle request) {
-        StanzaError.Builder error = StanzaError.getBuilder();
-        error.setCondition(StanzaError.Condition.unexpected_request)
-                .addExtension(JingleError.OUT_OF_ORDER);
+        StanzaError error = StanzaError.getBuilder()
+                        .setCondition(StanzaError.Condition.unexpected_request)
+                        .addExtension(JingleError.OUT_OF_ORDER)
+                        .build();
         return IQ.createErrorResponse(request, error);
     }
 

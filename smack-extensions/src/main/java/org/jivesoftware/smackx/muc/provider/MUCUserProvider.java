@@ -19,15 +19,16 @@ package org.jivesoftware.smackx.muc.provider;
 
 import java.io.IOException;
 
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.muc.packet.MUCUser;
 
 import org.jxmpp.jid.EntityBareJid;
 import org.jxmpp.jid.EntityJid;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * The MUCUserProvider parses packets with extended presence information about
@@ -42,15 +43,15 @@ public class MUCUserProvider extends ExtensionElementProvider<MUCUser> {
      *
      * @param parser the XML parser, positioned at the starting element of the extension.
      * @return a PacketExtension.
-     * @throws IOException
-     * @throws XmlPullParserException
+     * @throws IOException if an I/O error occurred.
+     * @throws XmlPullParserException if an error in the XML parser occurred.
      */
     @Override
-    public MUCUser parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException {
+    public MUCUser parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment) throws XmlPullParserException, IOException {
         MUCUser mucUser = new MUCUser();
         outerloop: while (true) {
             switch (parser.next()) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 switch (parser.getName()) {
                 case "invite":
                     mucUser.setInvite(parseInvite(parser));
@@ -73,10 +74,13 @@ public class MUCUserProvider extends ExtensionElementProvider<MUCUser> {
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
                 break;
             }
         }
@@ -90,13 +94,13 @@ public class MUCUserProvider extends ExtensionElementProvider<MUCUser> {
         EntityJid from = ParserUtils.getEntityJidAttribute(parser, "from");
 
         outerloop: while (true) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (parser.getName().equals("reason")) {
                     reason = parser.nextText();
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("invite")) {
                     break outerloop;
                 }
@@ -111,13 +115,13 @@ public class MUCUserProvider extends ExtensionElementProvider<MUCUser> {
         EntityBareJid from = ParserUtils.getBareJidAttribute(parser, "from");
 
         outerloop: while (true) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (parser.getName().equals("reason")) {
                     reason = parser.nextText();
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("decline")) {
                     break outerloop;
                 }

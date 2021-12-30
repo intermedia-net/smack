@@ -19,6 +19,8 @@ package org.jivesoftware.smackx.iqregister.packet;
 
 import java.util.Map;
 
+import javax.xml.namespace.QName;
+
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.IQ;
 
@@ -68,11 +70,11 @@ public class Registration extends IQ {
     }
 
     /**
-     * Returns the registration instructions, or <tt>null</tt> if no instructions
+     * Returns the registration instructions, or <code>null</code> if no instructions
      * have been set. If present, instructions should be displayed to the end-user
      * that will complete the registration process.
      *
-     * @return the registration instructions, or <tt>null</tt> if there are none.
+     * @return the registration instructions, or <code>null</code> if there are none.
      */
     public String getInstructions() {
         return instructions;
@@ -104,6 +106,8 @@ public class Registration extends IQ {
 
         public static final String ELEMENT = "register";
         public static final String NAMESPACE = "http://jabber.org/features/iq-register";
+        public static final QName QNAME = new QName(NAMESPACE, ELEMENT);
+
         public static final Feature INSTANCE = new Registration.Feature();
 
         private Feature() {
@@ -115,7 +119,7 @@ public class Registration extends IQ {
         }
 
         @Override
-        public CharSequence toXML(String enclosingNamespace) {
+        public CharSequence toXML(org.jivesoftware.smack.packet.XmlEnvironment enclosingNamespace) {
             return '<' + ELEMENT + " xmlns='" + NAMESPACE + "'/>";
         }
 

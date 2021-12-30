@@ -22,12 +22,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.jivesoftware.smack.SmackConfiguration;
+import javax.xml.namespace.QName;
+
+import org.jivesoftware.smack.Smack;
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.IQ;
+import org.jivesoftware.smack.packet.Nonza;
 import org.jivesoftware.smack.util.StringUtils;
-
-import org.jxmpp.util.XmppStringUtils;
+import org.jivesoftware.smack.util.XmppElementUtil;
 
 /**
  * Manages providers for parsing custom XML sub-documents of XMPP packets. Two types of
@@ -110,16 +112,17 @@ import org.jxmpp.util.XmppStringUtils;
  */
 public final class ProviderManager {
 
-    private static final Map<String, ExtensionElementProvider<ExtensionElement>> extensionProviders = new ConcurrentHashMap<String, ExtensionElementProvider<ExtensionElement>>();
-    private static final Map<String, IQProvider<IQ>> iqProviders = new ConcurrentHashMap<String, IQProvider<IQ>>();
-    private static final Map<String, ExtensionElementProvider<ExtensionElement>> streamFeatureProviders = new ConcurrentHashMap<String, ExtensionElementProvider<ExtensionElement>>();
+    private static final Map<QName, ExtensionElementProvider<ExtensionElement>> extensionProviders = new ConcurrentHashMap<>();
+    private static final Map<QName, BaseIqProvider<IQ>> iqProviders = new ConcurrentHashMap<>();
+    private static final Map<QName, ExtensionElementProvider<ExtensionElement>> streamFeatureProviders = new ConcurrentHashMap<>();
+    private static final Map<QName, NonzaProvider<? extends Nonza>> nonzaProviders = new ConcurrentHashMap<>();
 
     static {
         // Ensure that Smack is initialized by calling getVersion, so that user
         // registered providers do not get overwritten by a following Smack
         // initialization. This guarantees that Smack is initialized before a
         // new provider is registered
-        SmackConfiguration.getVersion();
+        Smack.ensureInitialized();
     }
 
     @SuppressWarnings("unchecked")
@@ -164,8 +167,8 @@ public final class ProviderManager {
      * @param namespace the XML namespace.
      * @return the IQ provider.
      */
-    public static IQProvider<IQ> getIQProvider(String elementName, String namespace) {
-        String key = getKey(elementName, namespace);
+    public static BaseIqProvider<IQ> getIQProvider(String elementName, String namespace) {
+        QName key = getQName(elementName, namespace);
         return iqProviders.get(key);
     }
 
@@ -176,8 +179,8 @@ public final class ProviderManager {
      *
      * @return all IQProvider instances.
      */
-    public static List<IQProvider<IQ>> getIQProviders() {
-        List<IQProvider<IQ>> providers = new ArrayList<>(iqProviders.size());
+    public static List<BaseIqProvider<IQ>> getIQProviders() {
+        List<BaseIqProvider<IQ>> providers = new ArrayList<>(iqProviders.size());
         providers.addAll(iqProviders.values());
         return providers;
     }
@@ -196,11 +199,11 @@ public final class ProviderManager {
             Object provider) {
         validate(elementName, namespace);
         // First remove existing providers
-        String key = removeIQProvider(elementName, namespace);
-        if (provider instanceof IQProvider) {
-            iqProviders.put(key, (IQProvider<IQ>) provider);
+        QName key = removeIQProvider(elementName, namespace);
+        if (provider instanceof BaseIqProvider) {
+            iqProviders.put(key, (BaseIqProvider<IQ>) provider);
         } else {
-            throw new IllegalArgumentException("Provider must be an IQProvider");
+            throw new IllegalArgumentException("Provider must be an instance of IqProvider");
         }
     }
 
@@ -211,10 +214,10 @@ public final class ProviderManager {
      *
      * @param elementName the XML element name.
      * @param namespace the XML namespace.
-     * @return the key of the removed IQ Provider
+     * @return the QName of the removed provider
      */
-    public static String removeIQProvider(String elementName, String namespace) {
-        String key = getKey(elementName, namespace);
+    public static QName removeIQProvider(String elementName, String namespace) {
+        QName key = getQName(elementName, namespace);
         iqProviders.remove(key);
         return key;
     }
@@ -239,8 +242,12 @@ public final class ProviderManager {
      * @return the extension provider.
      */
     public static ExtensionElementProvider<ExtensionElement> getExtensionProvider(String elementName, String namespace) {
-        String key = getKey(elementName, namespace);
-        return extensionProviders.get(key);
+        QName key = getQName(elementName, namespace);
+        return getExtensionProvider(key);
+    }
+
+    public static ExtensionElementProvider<ExtensionElement> getExtensionProvider(QName qname) {
+        return extensionProviders.get(qname);
     }
 
     /**
@@ -257,7 +264,7 @@ public final class ProviderManager {
             Object provider) {
         validate(elementName, namespace);
         // First remove existing providers
-        String key = removeExtensionProvider(elementName, namespace);
+        QName key = removeExtensionProvider(elementName, namespace);
         if (provider instanceof ExtensionElementProvider) {
             extensionProviders.put(key, (ExtensionElementProvider<ExtensionElement>) provider);
         } else {
@@ -272,10 +279,10 @@ public final class ProviderManager {
      *
      * @param elementName the XML element name.
      * @param namespace the XML namespace.
-     * @return the key of the removed stanza extension provider
+     * @return the QName of the removed stanza extension provider
      */
-    public static String removeExtensionProvider(String elementName, String namespace) {
-        String key = getKey(elementName, namespace);
+    public static QName removeExtensionProvider(String elementName, String namespace) {
+        QName key = getQName(elementName, namespace);
         extensionProviders.remove(key);
         return key;
     }
@@ -294,23 +301,48 @@ public final class ProviderManager {
     }
 
     public static ExtensionElementProvider<ExtensionElement> getStreamFeatureProvider(String elementName, String namespace) {
-        String key = getKey(elementName, namespace);
+        QName key = getQName(elementName, namespace);
         return streamFeatureProviders.get(key);
     }
 
     public static void addStreamFeatureProvider(String elementName, String namespace, ExtensionElementProvider<ExtensionElement> provider) {
         validate(elementName, namespace);
-        String key = getKey(elementName, namespace);
+        QName key = getQName(elementName, namespace);
         streamFeatureProviders.put(key, provider);
     }
 
     public static void removeStreamFeatureProvider(String elementName, String namespace) {
-        String key = getKey(elementName, namespace);
+        QName key = getQName(elementName, namespace);
         streamFeatureProviders.remove(key);
     }
 
-    private static String getKey(String elementName, String namespace) {
-        return XmppStringUtils.generateKey(elementName, namespace);
+    public static NonzaProvider<? extends Nonza> getNonzaProvider(String elementName, String namespace) {
+        QName key = getQName(elementName, namespace);
+        return getNonzaProvider(key);
+    }
+
+    public static NonzaProvider<? extends Nonza> getNonzaProvider(QName key) {
+        return nonzaProviders.get(key);
+    }
+
+    public static void addNonzaProvider(NonzaProvider<? extends Nonza> nonzaProvider) {
+        Class<? extends Nonza> nonzaClass = nonzaProvider.getElementClass();
+        QName key = XmppElementUtil.getQNameFor(nonzaClass);
+        nonzaProviders.put(key, nonzaProvider);
+    }
+
+    public static void removeNonzaProvider(Class<? extends Nonza> nonzaClass) {
+        QName key = XmppElementUtil.getQNameFor(nonzaClass);
+        nonzaProviders.remove(key);
+    }
+
+    public static void removeNonzaProvider(String elementName, String namespace) {
+        QName key = getQName(elementName, namespace);
+        nonzaProviders.remove(key);
+    }
+
+    private static QName getQName(String elementName, String namespace) {
+        return new QName(namespace, elementName);
     }
 
     private static void validate(String elementName, String namespace) {

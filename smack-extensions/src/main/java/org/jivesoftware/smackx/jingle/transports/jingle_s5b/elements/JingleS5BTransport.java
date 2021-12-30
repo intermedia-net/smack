@@ -21,6 +21,7 @@ import java.util.List;
 
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smack.util.XmlStringBuilder;
+
 import org.jivesoftware.smackx.bytestreams.socks5.packet.Bytestream;
 import org.jivesoftware.smackx.jingle.element.JingleContentTransport;
 import org.jivesoftware.smackx.jingle.element.JingleContentTransportCandidate;
@@ -41,7 +42,7 @@ public class JingleS5BTransport extends JingleContentTransport {
 
     protected JingleS5BTransport(List<JingleContentTransportCandidate> candidates, JingleContentTransportInfo info, String streamId, String dstAddr, Bytestream.Mode mode) {
         super(candidates, info);
-        StringUtils.requireNotNullOrEmpty(streamId, "sid MUST be neither null, nor empty.");
+        StringUtils.requireNotNullNorEmpty(streamId, "sid MUST be neither null, nor empty.");
         this.streamId = streamId;
         this.dstAddr = dstAddr;
         this.mode = mode;

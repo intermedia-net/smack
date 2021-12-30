@@ -19,20 +19,20 @@ package org.jivesoftware.smackx.privacy.provider;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.datatypes.UInt32;
+import org.jivesoftware.smack.packet.XmlEnvironment;
 import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.util.ParserUtils;
+import org.jivesoftware.smack.xml.XmlPullParser;
+import org.jivesoftware.smack.xml.XmlPullParserException;
 
 import org.jivesoftware.smackx.privacy.packet.Privacy;
 import org.jivesoftware.smackx.privacy.packet.PrivacyItem;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-
 /**
  * The PrivacyProvider parses {@link Privacy} packets. {@link Privacy}
- * Parses the <tt>query</tt> sub-document and creates an instance of {@link Privacy}.
- * For each <tt>item</tt> in the <tt>list</tt> element, it creates an instance
+ * Parses the <code>query</code> sub-document and creates an instance of {@link Privacy}.
+ * For each <code>item</code> in the <code>list</code> element, it creates an instance
  * of {@link PrivacyItem}.
  *
  * @author Francisco Vives
@@ -40,13 +40,13 @@ import org.xmlpull.v1.XmlPullParserException;
 public class PrivacyProvider extends IQProvider<Privacy> {
 
     @Override
-    public Privacy parse(XmlPullParser parser, int initialDepth)
-                    throws XmlPullParserException, IOException, SmackException {
+    public Privacy parse(XmlPullParser parser, int initialDepth, XmlEnvironment xmlEnvironment)
+                    throws XmlPullParserException, IOException {
         Privacy privacy = new Privacy();
         boolean done = false;
         while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 // CHECKSTYLE:OFF
                 if (parser.getName().equals("active")) {
                     String activeName = parser.getAttributeValue("", "name");
@@ -69,7 +69,7 @@ public class PrivacyProvider extends IQProvider<Privacy> {
                     parseList(parser, privacy);
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("query")) {
                     done = true;
                 }
@@ -80,20 +80,20 @@ public class PrivacyProvider extends IQProvider<Privacy> {
     }
 
     // Parse the list complex type
-    private static void parseList(XmlPullParser parser, Privacy privacy) throws XmlPullParserException, IOException, SmackException {
+    private static void parseList(XmlPullParser parser, Privacy privacy) throws XmlPullParserException, IOException {
         boolean done = false;
         String listName = parser.getAttributeValue("", "name");
         ArrayList<PrivacyItem> items = new ArrayList<>();
         while (!done) {
-            int eventType = parser.next();
-            if (eventType == XmlPullParser.START_TAG) {
+            XmlPullParser.Event eventType = parser.next();
+            if (eventType == XmlPullParser.Event.START_ELEMENT) {
                 if (parser.getName().equals("item")) {
                     // CHECKSTYLE:OFF
                     items.add(parseItem(parser));
                     // CHECKSTYLE:ON
                 }
             }
-            else if (eventType == XmlPullParser.END_TAG) {
+            else if (eventType == XmlPullParser.Event.END_ELEMENT) {
                 if (parser.getName().equals("list")) {
                     done = true;
                 }
@@ -105,12 +105,12 @@ public class PrivacyProvider extends IQProvider<Privacy> {
     }
 
     // Parse the list complex type
-    private static PrivacyItem parseItem(XmlPullParser parser) throws XmlPullParserException, IOException, SmackException {
+    private static PrivacyItem parseItem(XmlPullParser parser) throws XmlPullParserException, IOException {
     // CHECKSTYLE:ON
         // Retrieves the required attributes
         String actionValue = parser.getAttributeValue("", "action");
         // Set the order number, this attribute is required
-        long order = ParserUtils.getLongAttribute(parser, "order");
+        UInt32 order = ParserUtils.getUInt32Attribute(parser, "order");
 
         // If type is not set, then it's the fall-through case
         String type = parser.getAttributeValue("", "type");
@@ -128,7 +128,8 @@ public class PrivacyProvider extends IQProvider<Privacy> {
             allow = false;
             break;
         default:
-            throw new SmackException("Unknown action value '" + actionValue + "'");
+            // TODO: Should be SmackParsingException.
+            throw new IOException("Unknown action value '" + actionValue + "'");
         }
 
         PrivacyItem item;
@@ -151,9 +152,9 @@ public class PrivacyProvider extends IQProvider<Privacy> {
         final int initialDepth = parser.getDepth();
 
         outerloop: while (true) {
-            int eventType = parser.next();
+            XmlPullParser.Event eventType = parser.next();
             switch (eventType) {
-            case XmlPullParser.START_TAG:
+            case START_ELEMENT:
                 String name = parser.getName();
                 switch (name) {
                 case "iq":
@@ -170,10 +171,14 @@ public class PrivacyProvider extends IQProvider<Privacy> {
                     break;
                 }
                 break;
-            case XmlPullParser.END_TAG:
+            case END_ELEMENT:
                 if (parser.getDepth() == initialDepth) {
                     break outerloop;
                 }
+                break;
+            default:
+                // Catch all for incomplete switch (MissingCasesInEnumSwitch) statement.
+                break;
             }
         }
     }

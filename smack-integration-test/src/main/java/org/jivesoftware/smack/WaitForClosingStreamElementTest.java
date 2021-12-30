@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015-2017 Florian Schmaus
+ * Copyright 2015-2020 Florian Schmaus
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,13 @@
  */
 package org.jivesoftware.smack;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
 
-import org.jivesoftware.smack.tcp.XMPPTCPConnection;
-
 import org.igniterealtime.smack.inttest.AbstractSmackLowLevelIntegrationTest;
-import org.igniterealtime.smack.inttest.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
+import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 
 public class WaitForClosingStreamElementTest extends AbstractSmackLowLevelIntegrationTest {
 
@@ -33,18 +31,14 @@ public class WaitForClosingStreamElementTest extends AbstractSmackLowLevelIntegr
     }
 
     @SmackIntegrationTest
-    public void waitForClosingStreamElementTest(XMPPTCPConnection connection)
+    public void waitForClosingStreamElementTest(AbstractXMPPConnection connection)
                     throws NoSuchFieldException, SecurityException, IllegalArgumentException,
                     IllegalAccessException {
         connection.disconnect();
 
-        Field closingStreamReceivedField = connection.getClass().getDeclaredField("closingStreamReceived");
+        Field closingStreamReceivedField = AbstractXMPPConnection.class.getDeclaredField("closingStreamReceived");
         closingStreamReceivedField.setAccessible(true);
-        SynchronizationPoint<?> closingStreamReceived = (SynchronizationPoint<?>) closingStreamReceivedField.get(connection);
-        Exception failureException = closingStreamReceived.getFailureException();
-        if (failureException != null) {
-            throw new AssertionError("Sync poing yielded failure exception", failureException);
-        }
-        assertTrue(closingStreamReceived.wasSuccessful());
+        boolean closingStreamReceived = (boolean) closingStreamReceivedField.get(connection);
+        assertTrue(closingStreamReceived);
     }
 }

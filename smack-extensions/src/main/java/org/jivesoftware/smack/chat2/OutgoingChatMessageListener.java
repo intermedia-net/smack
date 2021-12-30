@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2017 Florian Schmaus.
+ * Copyright 2017-2019 Florian Schmaus.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
  */
 package org.jivesoftware.smack.chat2;
 
-import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageBuilder;
 
 import org.jxmpp.jid.EntityBareJid;
 
 public interface OutgoingChatMessageListener {
 
-    void newOutgoingMessage(EntityBareJid to, Message message, Chat chat);
+    void newOutgoingMessage(EntityBareJid to, MessageBuilder messageBuilder, Chat chat);
 
 }
