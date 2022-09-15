@@ -342,11 +342,6 @@ public class MultiUserChat {
         return room;
     }
 
-    public void setRoomJoined() throws XMPPErrorException, NotAMucServiceException, NotConnectedException, InterruptedException, NoResponseException {
-        setupListeners();
-        multiUserChatManager.addJoinedRoom(room);
-    }
-
     /**
      * Enter a room, as described in XEP-45 7.2.
      *
@@ -360,12 +355,37 @@ public class MultiUserChat {
      * @see <a href="http://xmpp.org/extensions/xep-0045.html#enter">XEP-45 7.2 Entering a Room</a>
      */
     private Presence enter(MucEnterConfiguration conf) throws NotConnectedException, NoResponseException,
-                    XMPPErrorException, InterruptedException, NotAMucServiceException {
-        setupListeners();
-
+            XMPPErrorException, InterruptedException, NotAMucServiceException {
+        final DomainBareJid mucService = room.asDomainBareJid();
+        mucServiceDiscoInfo = multiUserChatManager.getMucServiceDiscoInfo(mucService);
+        if (mucServiceDiscoInfo == null) {
+            throw new NotAMucServiceException(this);
+        }
         // We enter a room by sending a presence packet where the "to"
         // field is in the form "roomName@service/nickname"
         Presence joinPresence = conf.getJoinPresence(this);
+
+        // Setup the messageListeners and presenceListeners *before* the join presence is send.
+        connection.addStanzaListener(messageListener, fromRoomGroupchatFilter);
+        StanzaFilter presenceFromRoomFilter = new AndFilter(fromRoomFilter,
+                StanzaTypeFilter.PRESENCE,
+                PossibleFromTypeFilter.ENTITY_FULL_JID);
+        connection.addStanzaListener(presenceListener, presenceFromRoomFilter);
+        // @formatter:off
+        connection.addStanzaListener(subjectListener,
+                new AndFilter(fromRoomFilter,
+                        MessageWithSubjectFilter.INSTANCE,
+                        new NotFilter(MessageTypeFilter.ERROR),
+                        // According to XEP-0045 § 8.1 "A message with a <subject/> and a <body/> or a <subject/> and a <thread/> is a
+                        // legitimate message, but it SHALL NOT be interpreted as a subject change."
+                        new NotFilter(MessageWithBodiesFilter.INSTANCE),
+                        new NotFilter(MessageWithThreadFilter.INSTANCE))
+        );
+        // @formatter:on
+        connection.addStanzaListener(declinesListener, new AndFilter(fromRoomFilter, DECLINE_FILTER));
+        connection.addStanzaSendingListener(presenceInterceptor, new AndFilter(ToMatchesFilter.create(room),
+                StanzaTypeFilter.PRESENCE));
+        messageCollector = connection.createStanzaCollector(fromRoomGroupchatFilter);
 
         // Wait for a presence packet back from the server.
         // @formatter:off
@@ -385,9 +405,6 @@ public class MultiUserChat {
         try {
             // This stanza collector will collect the final self presence from the MUC, which also signals that we have successful entered the MUC.
             StanzaCollector selfPresenceCollector = connection.createStanzaCollectorAndSend(responseFilter, joinPresence);
-            StanzaFilter presenceFromRoomFilter = new AndFilter(fromRoomFilter,
-                    StanzaTypeFilter.PRESENCE,
-                    PossibleFromTypeFilter.ENTITY_FULL_JID);
             StanzaCollector.Configuration presenceStanzaCollectorConfguration = StanzaCollector.newConfiguration().setCollectorToReset(
                             selfPresenceCollector).setStanzaFilter(presenceFromRoomFilter);
             // This stanza collector is used to reset the timeout of the selfPresenceCollector.
@@ -423,36 +440,6 @@ public class MultiUserChat {
         // Update the list of joined rooms
         multiUserChatManager.addJoinedRoom(room);
         return reflectedSelfPresence;
-    }
-
-    private void setupListeners() throws XMPPErrorException, NotConnectedException, InterruptedException, NoResponseException, NotAMucServiceException {
-        final DomainBareJid mucService = room.asDomainBareJid();
-        mucServiceDiscoInfo = multiUserChatManager.getMucServiceDiscoInfo(mucService);
-        if (mucServiceDiscoInfo == null) {
-            throw new NotAMucServiceException(this);
-        }
-
-        // Setup the messageListeners and presenceListeners *before* the join presence is send.
-        connection.addStanzaListener(messageListener, fromRoomGroupchatFilter);
-        StanzaFilter presenceFromRoomFilter = new AndFilter(fromRoomFilter,
-                StanzaTypeFilter.PRESENCE,
-                PossibleFromTypeFilter.ENTITY_FULL_JID);
-        connection.addStanzaListener(presenceListener, presenceFromRoomFilter);
-        // @formatter:off
-        connection.addStanzaListener(subjectListener,
-                new AndFilter(fromRoomFilter,
-                        MessageWithSubjectFilter.INSTANCE,
-                        new NotFilter(MessageTypeFilter.ERROR),
-                        // According to XEP-0045 § 8.1 "A message with a <subject/> and a <body/> or a <subject/> and a <thread/> is a
-                        // legitimate message, but it SHALL NOT be interpreted as a subject change."
-                        new NotFilter(MessageWithBodiesFilter.INSTANCE),
-                        new NotFilter(MessageWithThreadFilter.INSTANCE))
-        );
-        // @formatter:on
-        connection.addStanzaListener(declinesListener, new AndFilter(fromRoomFilter, DECLINE_FILTER));
-        connection.addStanzaSendingListener(presenceInterceptor, new AndFilter(ToMatchesFilter.create(room),
-                StanzaTypeFilter.PRESENCE));
-        messageCollector = connection.createStanzaCollector(fromRoomGroupchatFilter);
     }
 
     private void setNickname(Resourcepart nickname) {
@@ -2080,7 +2067,6 @@ public class MultiUserChat {
      * @param listener the ack listener
      */
     public void sendMessageWithConfirmation(final Message message, final Chat.StanzaAckListener listener) {
-        message.setTo(room);
         message.setType(Message.Type.groupchat);
         connection.sendAsync(message, new ChatArchivedExtension.ArchiveIdFilter(message.getStanzaId()), MESSAGE_SEND_TIMEOUT)
                 .onSuccess(new SuccessCallback<Message>() {
