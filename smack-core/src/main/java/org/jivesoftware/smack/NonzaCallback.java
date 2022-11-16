@@ -39,7 +39,7 @@ public class NonzaCallback {
         install();
     }
 
-    void onNonzaReceived(Nonza nonza) throws IOException {
+    public void onNonzaReceived(Nonza nonza) throws IOException {
         QName key = nonza.getQName();
         ClassAndConsumer<? extends Nonza> classAndConsumer = filterAndListeners.get(key);
 
