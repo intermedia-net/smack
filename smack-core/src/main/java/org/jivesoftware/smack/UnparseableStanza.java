@@ -27,7 +27,7 @@ public class UnparseableStanza {
     private final CharSequence content;
     private final Exception e;
 
-    UnparseableStanza(CharSequence content, Exception e) {
+    public UnparseableStanza(CharSequence content, Exception e) {
         this.content = content;
         this.e = e;
     }

@@ -234,7 +234,7 @@ public abstract class AbstractXMPPConnection implements XMPPConnection {
 
     protected XmlEnvironment outgoingStreamXmlEnvironment;
 
-    final MultiMap<QName, NonzaCallback> nonzaCallbacksMap = new MultiMap<>();
+    protected final MultiMap<QName, NonzaCallback> nonzaCallbacksMap = new MultiMap<>();
 
     protected final Lock connectionLock = new ReentrantLock();
 
