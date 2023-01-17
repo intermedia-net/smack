@@ -19,7 +19,9 @@ package org.jivesoftware.smack;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -47,11 +49,11 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
 
     protected E exception;
 
-    private SuccessCallback<V> successCallback;
+    private final List<SuccessCallback<V>> successCallbacks = new ArrayList<>();
 
-    private ExceptionCallback<E> exceptionCallback;
+    private final List<ExceptionCallback<E>> exceptionCallbacks = new ArrayList<>();
 
-    private Consumer<SmackFuture<V, E>> completionCallback;
+    private final List<Consumer<SmackFuture<V, E>>> completionCallbacks = new ArrayList<>();
 
     @Override
     public final synchronized boolean cancel(boolean mayInterruptIfRunning) {
@@ -80,20 +82,20 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
 
     @Override
     public CallbackRecipient<V, E> onSuccess(SuccessCallback<V> successCallback) {
-        this.successCallback = successCallback;
+        this.successCallbacks.add(successCallback);
         maybeInvokeCallbacks();
         return this;
     }
 
     @Override
     public CallbackRecipient<V, E> onError(ExceptionCallback<E> exceptionCallback) {
-        this.exceptionCallback = exceptionCallback;
+        this.exceptionCallbacks.add(exceptionCallback);
         maybeInvokeCallbacks();
         return this;
     }
 
     public void onCompletion(Consumer<SmackFuture<V, E>> completionCallback) {
-        this.completionCallback = completionCallback;
+        this.completionCallbacks.add(completionCallback);
         maybeInvokeCallbacks();
     }
 
@@ -167,23 +169,25 @@ public abstract class SmackFuture<V, E extends Exception> implements Future<V>, 
             return;
         }
 
-        if ((result != null || exception != null) && completionCallback != null) {
-            completionCallback.accept(this);
+        if ((result != null || exception != null) && !completionCallbacks.isEmpty()) {
+            for (final Consumer<SmackFuture<V, E>> callback : completionCallbacks) {
+                callback.accept(this);
+            }
         }
 
-        if (result != null && successCallback != null) {
-            AbstractXMPPConnection.asyncGo(new Runnable() {
-                @Override
-                public void run() {
-                    successCallback.onSuccess(result);
+        if (result != null && !successCallbacks.isEmpty()) {
+            final List<SuccessCallback<V>> successCallbacksCopy = new ArrayList<>(successCallbacks);
+            AbstractXMPPConnection.asyncGo(() -> {
+                for (final SuccessCallback<V> callback : successCallbacksCopy) {
+                    callback.onSuccess(result);
                 }
             });
         }
-        else if (exception != null && exceptionCallback != null) {
-            AbstractXMPPConnection.asyncGo(new Runnable() {
-                @Override
-                public void run() {
-                    exceptionCallback.processException(exception);
+        else if (exception != null && !exceptionCallbacks.isEmpty()) {
+            final List<ExceptionCallback<E>> exceptionCallbacksCopy = new ArrayList<>(exceptionCallbacks);
+            AbstractXMPPConnection.asyncGo(() -> {
+                for (final ExceptionCallback<E> callback : exceptionCallbacksCopy) {
+                    callback.processException(exception);
                 }
             });
         }
