@@ -26,8 +26,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -37,7 +35,6 @@ import java.util.logging.Logger;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
-import javax.net.ssl.X509TrustManager;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.SmackException.SecurityNotPossibleException;
@@ -111,23 +108,6 @@ public class TLSUtils {
     @Deprecated
     public static <B extends ConnectionConfiguration.Builder<B, ?>> B setSSLv3AndTLSOnly(B builder) {
         builder.setEnabledSSLProtocols(new String[] { PROTO_TLSV1_2,  PROTO_TLSV1_1, PROTO_TLSV1, PROTO_SSL3 });
-        return builder;
-    }
-
-    /**
-     * Accept all TLS certificates.
-     * <p>
-     * <b>Warning:</b> Use with care. This method make the Connection use {@link AcceptAllTrustManager} and essentially
-     * <b>invalidates all security guarantees provided by TLS</b>. Only use this method if you understand the
-     * implications.
-     * </p>
-     *
-     * @param builder a connection configuration builder.
-     * @param <B> Type of the ConnectionConfiguration builder.
-     * @return the given builder.
-     */
-    public static <B extends ConnectionConfiguration.Builder<B, ?>> B acceptAllCertificates(B builder) {
-        builder.setCustomX509TrustManager(new AcceptAllTrustManager());
         return builder;
     }
 
@@ -226,34 +206,6 @@ public class TLSUtils {
         final byte[] certificateDerEncoded = certificate.getEncoded();
         messageDigest.update(certificateDerEncoded);
         return messageDigest.digest();
-    }
-
-    /**
-     * A {@link X509TrustManager} that <b>doesn't validate</b> X.509 certificates.
-     * <p>
-     * Connections that use this TrustManager will just be encrypted, without any guarantee that the
-     * counter part is actually the intended one. Man-in-the-Middle attacks will be possible, since
-     * any certificate presented by the attacker will be considered valid.
-     * </p>
-     */
-    public static class AcceptAllTrustManager implements X509TrustManager {
-
-        @Override
-        public void checkClientTrusted(X509Certificate[] arg0, String arg1)
-                        throws CertificateException {
-            // Nothing to do here
-        }
-
-        @Override
-        public void checkServerTrusted(X509Certificate[] arg0, String arg1)
-                        throws CertificateException {
-            // Nothing to do here
-        }
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-            return new X509Certificate[0];
-        }
     }
 
     private static final File DEFAULT_TRUSTSTORE_PATH;
