@@ -32,7 +32,6 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
-import org.jivesoftware.smack.util.TLSUtils;
 
 import org.jivesoftware.smackx.iqregister.AccountManager;
 
@@ -60,8 +59,8 @@ public class XmppTools {
     public static boolean supportsIbr(DomainBareJid xmppDomain) throws SmackException, IOException, XMPPException,
             InterruptedException, KeyManagementException, NoSuchAlgorithmException {
         XMPPTCPConnectionConfiguration.Builder configBuilder = XMPPTCPConnectionConfiguration.builder()
+                .setCustomX509TrustManager(new AcceptAllTrustManager())
                 .setXmppDomain(xmppDomain);
-        TLSUtils.acceptAllCertificates(configBuilder);
         XMPPTCPConnectionConfiguration config = configBuilder.build();
         XMPPTCPConnection connection = new XMPPTCPConnection(config);
         connection.connect();
@@ -90,8 +89,8 @@ public class XmppTools {
             throws KeyManagementException, NoSuchAlgorithmException, SmackException, IOException, XMPPException,
             InterruptedException {
         XMPPTCPConnectionConfiguration.Builder configBuilder = XMPPTCPConnectionConfiguration.builder()
+                .setCustomX509TrustManager(new AcceptAllTrustManager())
                 .setXmppDomain(xmppDomain);
-        TLSUtils.acceptAllCertificates(configBuilder);
         XMPPTCPConnectionConfiguration config = configBuilder.build();
         XMPPTCPConnection connection = new XMPPTCPConnection(config);
         connection.connect();
