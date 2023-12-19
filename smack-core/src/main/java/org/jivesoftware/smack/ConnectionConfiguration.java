@@ -598,13 +598,14 @@ public abstract class ConnectionConfiguration {
      * @return the stream language to use when connecting to the server.
      */
     public String getXmlLang() {
-        // TODO: Change to Locale.toLanguageTag() once Smack's minimum Android API level is 21 or higher.
-        // This will need a workaround for new Locale("").getLanguageTag() returning "und". Expected
-        // behavior of this function:
-        //  - returns null if language is null
-        //  - returns "" if language.getLanguage() returns the empty string
-        //  - returns language.toLanguageTag() otherwise
-        return language != null ? language.toString().replace("_", "-") : null;
+        if (language == null) return null;
+        if (language.getLanguage().isEmpty()) return "";
+        String result = language.getLanguage();
+        String country = language.getCountry();
+        if (!country.isEmpty()) {
+            result = result + "-" + country;
+        }
+        return result;
     }
 
     /**
