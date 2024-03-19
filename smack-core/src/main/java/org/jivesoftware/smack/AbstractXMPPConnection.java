@@ -954,6 +954,15 @@ public abstract class AbstractXMPPConnection implements XMPPConnection {
     }
 
     /**
+     * Performs an unclean disconnect and shutdown of the connection.
+     * Does not send offline presence to stream. Does not send a closing stream stanza.
+     */
+    public void disconnectInstant() {
+        instantShutdown();
+        callConnectionClosedListener();
+    }
+
+    /**
      * Closes the connection. A custom unavailable presence is sent to the server, followed
      * by closing the stream. The XMPPConnection can still be used for connecting to the server
      * again. A custom unavailable presence is useful for communicating offline presence
